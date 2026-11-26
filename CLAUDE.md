@@ -37,7 +37,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 |---|---|
 | 0 Research (docs/RESEARCH.md) | done |
 | 1 Scaffold (esbuild, lint, prettier, vitest, CI) | done |
-| 2 Diff core + model | in progress |
+| 2 Diff core + model | done (29 tests) |
 | 3 Hook + store | in progress |
 | 4 Hook install/uninstall | in progress |
 | 5 Rendering (insets + fallback) | todo |
