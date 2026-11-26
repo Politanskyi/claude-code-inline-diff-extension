@@ -1,0 +1,33 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
+/** A throwaway project + Claude config dir; never touches the real ~/.claude. */
+export function sandbox() {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cid-')));
+  const project = path.join(root, 'project');
+  const claude = path.join(root, 'claude');
+  fs.mkdirSync(path.join(project, '.git'), { recursive: true });
+  fs.mkdirSync(claude, { recursive: true });
+  const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_CONFIG_DIR: claude, CLAUDE_INLINE_DIFF_HOME: path.join(claude, 'inline-diff') };
+  delete env.CLAUDE_PROJECT_DIR;
+  return {
+    root,
+    project,
+    claude,
+    env,
+    store: path.join(project, '.claude-review'),
+    write(rel: string, text: string) {
+      const p = path.join(project, rel);
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, text);
+      return p;
+    },
+    read(rel: string) {
+      return fs.readFileSync(path.join(project, rel), 'utf8');
+    },
+    cleanup() {
+      fs.rmSync(root, { recursive: true, force: true });
+    },
+  };
+}
