@@ -1,0 +1,635 @@
+{
+  "name": "claude-inline-diff",
+  "version": "0.1.0",
+  "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint src test",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "test:e2e": "node scripts/build.js && node test/e2e/run.js",
+    "package": "node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository -o claude-inline-diff.vsix",
+    "vscode:uninstall": "node ./dist/uninstall.js"
+  },
+  "keywords": [
+    "claude",
+    "claude code",
+    "inline diff",
+    "cursor",
+    "accept reject",
+    "code review"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.1.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^2.1.9"
+  },
+  "displayName": "Claude Inline Diff",
+  "publisher": "inlinediff",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers",
+    "AI"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "enabledApiProposals": [
+    "editorInsets"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  },
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://example.invalid/claude-inline-diff.git"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeInlineDiff.acceptHunk",
+        "title": "Accept Change",
+        "category": "Claude Inline Diff",
+        "icon": "$(check)"
+      },
+      {
+        "command": "claudeInlineDiff.rejectHunk",
+        "title": "Reject Change",
+        "category": "Claude Inline Diff",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "claudeInlineDiff.rejectHunkWithFeedback",
+        "title": "Reject Change with Feedback…",
+        "category": "Claude Inline Diff",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "claudeInlineDiff.acceptFile",
+        "title": "Accept All Changes in File",
+        "category": "Claude Inline Diff",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "claudeInlineDiff.rejectFile",
+        "title": "Reject All Changes in File",
+        "category": "Claude Inline Diff",
+        "icon": "$(close-all)"
+      },
+      {
+        "command": "claudeInlineDiff.acceptAll",
+        "title": "Accept All Changes (All Files)",
+        "category": "Claude Inline Diff",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "claudeInlineDiff.rejectAll",
+        "title": "Reject All Changes (All Files)",
+        "category": "Claude Inline Diff",
+        "icon": "$(close-all)"
+      },
+      {
+        "command": "claudeInlineDiff.undo",
+        "title": "Undo Last Review Action",
+        "category": "Claude Inline Diff",
+        "icon": "$(reply)"
+      },
+      {
+        "command": "claudeInlineDiff.nextHunk",
+        "title": "Next Change",
+        "category": "Claude Inline Diff",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "claudeInlineDiff.prevHunk",
+        "title": "Previous Change",
+        "category": "Claude Inline Diff",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "claudeInlineDiff.nextFile",
+        "title": "Next File with Changes",
+        "category": "Claude Inline Diff",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "claudeInlineDiff.prevFile",
+        "title": "Previous File with Changes",
+        "category": "Claude Inline Diff",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "claudeInlineDiff.showDiff",
+        "title": "Open Side-by-Side Diff",
+        "category": "Claude Inline Diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "claudeInlineDiff.listFiles",
+        "title": "List Files to Review",
+        "category": "Claude Inline Diff",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "claudeInlineDiff.installHooks",
+        "title": "Install Claude Code Hook",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.uninstallHooks",
+        "title": "Uninstall Claude Code Hook",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.hookStatus",
+        "title": "Show Hook Status",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.enableInsets",
+        "title": "Enable Inline Removed-Code Blocks (argv.json)…",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.revertStep",
+        "title": "Revert to Before This Step",
+        "category": "Claude Inline Diff",
+        "icon": "$(history)"
+      },
+      {
+        "command": "claudeInlineDiff.clearSnapshots",
+        "title": "Delete Review Snapshots (.claude-review)…",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.refresh",
+        "title": "Refresh",
+        "category": "Claude Inline Diff",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeInlineDiff.openFile",
+        "title": "Open File at First Change",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.revealHunk",
+        "title": "Show Change",
+        "category": "Claude Inline Diff"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "claudeInlineDiff.acceptHunk",
+        "key": "ctrl+y",
+        "mac": "cmd+y",
+        "when": "editorTextFocus && claudeInlineDiff.cursorInHunk && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
+        "command": "claudeInlineDiff.rejectHunk",
+        "key": "ctrl+n",
+        "mac": "cmd+n",
+        "when": "editorTextFocus && claudeInlineDiff.cursorInHunk && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
+        "command": "claudeInlineDiff.acceptFile",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
+        "command": "claudeInlineDiff.rejectFile",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
+        "command": "claudeInlineDiff.acceptHunk",
+        "key": "ctrl+alt+enter",
+        "mac": "cmd+alt+enter",
+        "when": "editorTextFocus && claudeInlineDiff.cursorInHunk && config.claudeInlineDiff.keybindingScheme != 'cursor'"
+      },
+      {
+        "command": "claudeInlineDiff.rejectHunk",
+        "key": "ctrl+alt+backspace",
+        "mac": "cmd+alt+backspace",
+        "when": "editorTextFocus && claudeInlineDiff.cursorInHunk && config.claudeInlineDiff.keybindingScheme != 'cursor'"
+      },
+      {
+        "command": "claudeInlineDiff.acceptFile",
+        "key": "ctrl+shift+alt+enter",
+        "mac": "cmd+shift+alt+enter",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'cursor'"
+      },
+      {
+        "command": "claudeInlineDiff.rejectFile",
+        "key": "ctrl+shift+alt+backspace",
+        "mac": "cmd+shift+alt+backspace",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'cursor'"
+      },
+      {
+        "command": "claudeInlineDiff.nextHunk",
+        "key": "alt+f5",
+        "mac": "alt+f5",
+        "when": "editorTextFocus && claudeInlineDiff.hasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.prevHunk",
+        "key": "shift+alt+f5",
+        "mac": "shift+alt+f5",
+        "when": "editorTextFocus && claudeInlineDiff.hasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.nextFile",
+        "key": "ctrl+alt+pagedown",
+        "mac": "cmd+alt+pagedown",
+        "when": "claudeInlineDiff.hasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.prevFile",
+        "key": "ctrl+alt+pageup",
+        "mac": "cmd+alt+pageup",
+        "when": "claudeInlineDiff.hasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "editorTextFocus && claudeInlineDiff.canUndoAccept"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Inline Diff",
+      "properties": {
+        "claudeInlineDiff.storage.location": {
+          "type": "string",
+          "default": "project",
+          "markdownDescription": "Where review snapshots live. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). `home`: `~/.claude/inline-diff/store/`. Files outside the project always use `home`.",
+          "enum": [
+            "project",
+            "home"
+          ]
+        },
+        "claudeInlineDiff.storage.projectDirName": {
+          "type": "string",
+          "default": ".claude-review",
+          "markdownDescription": "Folder name of the project-local store."
+        },
+        "claudeInlineDiff.trackBashEdits": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Detect files changed by Claude's **Bash** tool (git repositories only: compares `git status` before/after each command)."
+        },
+        "claudeInlineDiff.keybindingScheme": {
+          "type": "string",
+          "default": "both",
+          "markdownDescription": "`cursor`: Cmd/Ctrl+Y / N per change, Cmd/Ctrl+Shift+Y / N per file. `alt`: Cmd/Ctrl+Alt+Enter / Backspace (+Shift for file). `both`: all of them. Keys are only active while the cursor is inside a Claude change (file keys: while the file has changes).",
+          "enum": [
+            "cursor",
+            "alt",
+            "both"
+          ]
+        },
+        "claudeInlineDiff.autoAdvance": {
+          "type": "string",
+          "default": "hunkThenFile",
+          "markdownDescription": "After Accept/Reject jump to the next change, then the next file.",
+          "enum": [
+            "hunkThenFile",
+            "hunk",
+            "off"
+          ]
+        },
+        "claudeInlineDiff.revealOnEdit": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Open a file (preview tab, focus stays where it is) when Claude starts changing it, scrolled to the change."
+        },
+        "claudeInlineDiff.deletedLines.renderer": {
+          "type": "string",
+          "default": "auto",
+          "markdownDescription": "`auto`: red inline blocks via the `editorInsets` proposed API when enabled, otherwise decorations. `inset` / `decoration` force one.",
+          "enum": [
+            "auto",
+            "inset",
+            "decoration"
+          ]
+        },
+        "claudeInlineDiff.deletedLines.maxLines": {
+          "type": "number",
+          "default": 30,
+          "markdownDescription": "Removed lines drawn per block before collapsing the rest.",
+          "minimum": 3,
+          "maximum": 500
+        },
+        "claudeInlineDiff.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show Accept / Reject above each change and file-level actions at the top of the file."
+        },
+        "claudeInlineDiff.highlightWords": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Highlight changed words inside modified lines."
+        },
+        "claudeInlineDiff.saveAfterReject": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Save the file after Reject so Claude reads what you see."
+        },
+        "claudeInlineDiff.absorbUserEdits": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Your own edits outside Claude's changes are folded into the baseline (never shown as Claude's). Edits inside a change become part of it."
+        },
+        "claudeInlineDiff.confirmRejectAll": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Ask before rejecting all changes in all files."
+        },
+        "claudeInlineDiff.confirmDeleteCreatedFile": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Ask before moving a file Claude created to the trash on Reject."
+        },
+        "claudeInlineDiff.stepRetentionDays": {
+          "type": "number",
+          "default": 7,
+          "markdownDescription": "Keep per-step snapshots (for step revert) this many days.",
+          "minimum": 1
+        },
+        "claudeInlineDiff.pollIntervalMs": {
+          "type": "number",
+          "default": 700,
+          "markdownDescription": "How often to look for new snapshots (ms). File watchers are used too.",
+          "minimum": 200
+        }
+      }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "claudeInlineDiff.prevHunk",
+          "group": "navigation@1",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.nextHunk",
+          "group": "navigation@2",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.acceptFile",
+          "group": "navigation@3",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.rejectFile",
+          "group": "navigation@4",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.showDiff",
+          "group": "1_claudeInlineDiff@1",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "claudeInlineDiff.acceptHunk",
+          "group": "0_claudeInlineDiff@1",
+          "when": "claudeInlineDiff.cursorInHunk"
+        },
+        {
+          "command": "claudeInlineDiff.rejectHunk",
+          "group": "0_claudeInlineDiff@2",
+          "when": "claudeInlineDiff.cursorInHunk"
+        },
+        {
+          "command": "claudeInlineDiff.rejectHunkWithFeedback",
+          "group": "0_claudeInlineDiff@3",
+          "when": "claudeInlineDiff.cursorInHunk"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "claudeInlineDiff.acceptFile",
+          "group": "7_claudeInlineDiff@1",
+          "when": "resourcePath in claudeInlineDiff.files"
+        },
+        {
+          "command": "claudeInlineDiff.rejectFile",
+          "group": "7_claudeInlineDiff@2",
+          "when": "resourcePath in claudeInlineDiff.files"
+        },
+        {
+          "command": "claudeInlineDiff.showDiff",
+          "group": "7_claudeInlineDiff@3",
+          "when": "resourcePath in claudeInlineDiff.files"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudeInlineDiff.acceptAll",
+          "group": "navigation@1",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.rejectAll",
+          "group": "navigation@2",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.undo",
+          "group": "navigation@3",
+          "when": "view == claudeInlineDiff.changes"
+        },
+        {
+          "command": "claudeInlineDiff.refresh",
+          "group": "1_more@1",
+          "when": "view == claudeInlineDiff.changes || view == claudeInlineDiff.steps"
+        },
+        {
+          "command": "claudeInlineDiff.installHooks",
+          "group": "1_more@2",
+          "when": "view == claudeInlineDiff.changes"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claudeInlineDiff.showDiff",
+          "group": "inline@1",
+          "when": "view == claudeInlineDiff.changes && viewItem == file"
+        },
+        {
+          "command": "claudeInlineDiff.acceptFile",
+          "group": "inline@2",
+          "when": "view == claudeInlineDiff.changes && viewItem == file"
+        },
+        {
+          "command": "claudeInlineDiff.rejectFile",
+          "group": "inline@3",
+          "when": "view == claudeInlineDiff.changes && viewItem == file"
+        },
+        {
+          "command": "claudeInlineDiff.acceptHunk",
+          "group": "inline@1",
+          "when": "view == claudeInlineDiff.changes && viewItem == hunk"
+        },
+        {
+          "command": "claudeInlineDiff.rejectHunk",
+          "group": "inline@2",
+          "when": "view == claudeInlineDiff.changes && viewItem == hunk"
+        },
+        {
+          "command": "claudeInlineDiff.acceptFile",
+          "group": "inline@1",
+          "when": "view == claudeInlineDiff.changes && viewItem == session"
+        },
+        {
+          "command": "claudeInlineDiff.revertStep",
+          "group": "inline@1",
+          "when": "view == claudeInlineDiff.steps && viewItem == step"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "claudeInlineDiff.openFile",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.revealHunk",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.revertStep",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.refresh",
+          "when": "false"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "claudeInlineDiff.addedLineBackground",
+        "description": "Background of lines Claude added or changed.",
+        "defaults": {
+          "dark": "#2ea04326",
+          "light": "#2ea0431f",
+          "highContrast": "#2ea04326",
+          "highContrastLight": "#2ea0431f"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.addedWordBackground",
+        "description": "Background of words Claude changed.",
+        "defaults": {
+          "dark": "#2ea04366",
+          "light": "#2ea04352",
+          "highContrast": "#2ea04366",
+          "highContrastLight": "#2ea04352"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.addedGutter",
+        "description": "Gutter bar / overview ruler for added lines.",
+        "defaults": {
+          "dark": "#2ea043",
+          "light": "#2ea043",
+          "highContrast": "#2ea043",
+          "highContrastLight": "#2ea043"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.removedLineBackground",
+        "description": "Background of removed code blocks.",
+        "defaults": {
+          "dark": "#f8514926",
+          "light": "#f851491f",
+          "highContrast": "#f8514926",
+          "highContrastLight": "#f851491f"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.removedWordBackground",
+        "description": "Background of removed words.",
+        "defaults": {
+          "dark": "#f8514966",
+          "light": "#f8514952",
+          "highContrast": "#f8514966",
+          "highContrastLight": "#f8514952"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.removedGutter",
+        "description": "Marker / overview ruler for removed lines.",
+        "defaults": {
+          "dark": "#f85149",
+          "light": "#f85149",
+          "highContrast": "#f85149",
+          "highContrastLight": "#f85149"
+        }
+      },
+      {
+        "id": "claudeInlineDiff.badgeForeground",
+        "description": "Explorer / tab badge for files with Claude changes.",
+        "defaults": {
+          "dark": "#d29922",
+          "light": "#9a6700",
+          "highContrast": "#d29922",
+          "highContrastLight": "#9a6700"
+        }
+      }
+    ],
+    "views": {
+      "scm": [
+        {
+          "id": "claudeInlineDiff.changes",
+          "name": "Claude Changes",
+          "icon": "$(sparkle)",
+          "contextualTitle": "Claude Changes"
+        },
+        {
+          "id": "claudeInlineDiff.steps",
+          "name": "Claude Steps",
+          "icon": "$(history)",
+          "contextualTitle": "Claude Steps",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "claudeInlineDiff.changes",
+        "contents": "No Claude changes waiting for review.\nWhen Claude Code edits a file, the change appears inline in the editor and here.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)"
+      },
+      {
+        "view": "claudeInlineDiff.steps",
+        "contents": "Claude steps (one per prompt) appear here; revert any step and everything after it."
+      }
+    ]
+  }
+}

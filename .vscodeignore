@@ -1,0 +1,10 @@
+**
+!dist/extension.js
+!dist/hook.js
+!dist/uninstall.js
+!package.json
+!README.md
+!LICENSE
+!THIRD_PARTY_LICENSE_claude-code-inline-review.txt
+!CHANGELOG.md
+!media/icon.png
