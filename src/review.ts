@@ -353,9 +353,13 @@ export class ReviewManager implements vscode.Disposable {
     const e = this.entries.get(key);
     if (!e) return null;
     const doc = this.openDoc(key);
-    if (doc) return doc.getText();
+    // A document nobody typed in is the file on disk. The editor can keep an old copy of it for minutes when the
+    // file is not in an editor tab (Claude Code loads the file it edits; outside the workspace nothing reloads
+    // it): Claude's change would then look like no change, and the file would be missing from the list.
+    if (doc?.isDirty) return doc.getText();
     const t = this.readDisk(key, e.path);
     if (t !== null) return t;
+    if (doc) return doc.getText();
     return e.existed ? '' : null;
   }
 
