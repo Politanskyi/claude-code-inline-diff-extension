@@ -9,7 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
-import { chatContainer, visibleChat, ChatLogReader, NEW_CHAT } from './core/layout';
+import { chatContainer, chatSection, visibleChat, ChatLogReader, NEW_CHAT, CLAUDE_CHAT_VIEW } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -913,6 +913,50 @@ function watchVisibleChat(): void {
 }
 
 /**
+ * In a workspace opened for the first time the Claude Code chat section starts collapsed (with our list under it
+ * the tab has two sections, and the editor opens neither). Opens it once per workspace, and only while its tab is
+ * the one on screen, so nothing is switched or revealed.
+ */
+function expandChatOnce(): void {
+  if (!ctx.storageUri || ctx.workspaceState.get('chatSectionOpened')) return;
+  if (!vscode.extensions.getExtension('anthropic.claude-code')) return;
+  const db = path.join(path.dirname(ctx.storageUri.fsPath), 'state.vscdb');
+  const container = chatContainer(path.join(path.dirname(ctx.globalStorageUri.fsPath), 'state.vscdb'));
+  let stamp = '';
+  const stop = () => clearInterval(timer);
+  const tick = () => {
+    let now = '';
+    for (const f of [db, db + '-wal']) {
+      try {
+        const st = fs.statSync(f);
+        now += st.mtimeMs + ':' + st.size + '|';
+      } catch {
+        now += '-|';
+      }
+    }
+    if (now === stamp) return;
+    stamp = now;
+    const what = chatSection(db, container);
+    if (what === 'wait') return;
+    stop();
+    void ctx.workspaceState.update('chatSectionOpened', true);
+    if (what !== 'expand') return;
+    const editing = !!vscode.window.activeTextEditor;
+    vscode.commands.executeCommand(CLAUDE_CHAT_VIEW + '.focus').then(
+      () => {
+        log.info('Claude Code chat section opened (collapsed by default in a new workspace)');
+        // Opening it took the keyboard: give it back to the file being edited.
+        if (editing) void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+      },
+      (e) => log.warn('could not open the Claude Code chat section: ' + (e?.message || e))
+    );
+  };
+  const timer = setInterval(tick, 2000);
+  ctx.subscriptions.push({ dispose: stop });
+  tick();
+}
+
+/**
  * Follows the official extension's log for the chat the panel was switched to (see ChatLogReader): at once, where
  * the saved workspace state (watchVisibleChat) lags. The log sits next to ours, one folder per extension.
  */
@@ -981,6 +1025,7 @@ async function firstRunChecks(): Promise<void> {
   void checkShortcutConflicts();
   void placeChangesView(false);
   watchVisibleChat();
+  expandChatOnce();
   watchClaudeLog();
   const st = setup.status(bundledHook());
   // Our own script is outdated, or a newer version wires an extra event (e.g. Stop): update silently.

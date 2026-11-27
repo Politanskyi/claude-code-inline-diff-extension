@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { chatContainer, chatContainerFromState, CLAUDE_CHAT_CONTAINER } from '../../src/core/layout';
+import { chatSectionState } from '../../src/core/layout';
 import { visibleChatFromText, liveWalText, ChatLogReader, NEW_CHAT } from '../../src/core/layout';
 
 const custom = (id: string) =>
@@ -92,5 +93,28 @@ describe("official extension's log", () => {
     const line = attach('a1');
     expect(r.feed(line.slice(0, 20))).toBeUndefined();
     expect(r.feed(line.slice(20))).toBe(A);
+  });
+});
+
+describe('chat section left collapsed in a new workspace', () => {
+  const c = 'workbench.views.service.auxiliarybar.ad5a8d1c-375c-47ab-a7f9-dd95822de9b4';
+  const state = (chat: object) => ({
+    [c + '.state']: JSON.stringify({ claudeVSCodeSidebarSecondary: chat, 'claudeInlineDiff.changes': { collapsed: true } }),
+  });
+  const fresh = state({ collapsed: true, isHidden: true });
+  const active = { 'workbench.auxiliarybar.activepanelid': c };
+
+  it('expands when the chat tab is on screen and the section was never opened', () => {
+    expect(chatSectionState({ ...fresh, ...active }, c)).toBe('expand');
+    expect(chatSectionState(active, c)).toBe('expand'); // nothing saved yet: the default is collapsed
+  });
+  it('waits while another tab is on screen or the side bar is hidden', () => {
+    expect(chatSectionState({ ...fresh, 'workbench.auxiliarybar.activepanelid': 'workbench.panel.aichat.f704' }, c)).toBe('wait');
+    expect(chatSectionState({ ...fresh, ...active, 'workbench.auxiliaryBar.hidden': 'true' }, c)).toBe('wait');
+    expect(chatSectionState(fresh, c)).toBe('wait');
+  });
+  it('leaves a section the user opened or sized alone, also when they collapsed it again', () => {
+    expect(chatSectionState({ ...state({ collapsed: false, isHidden: true, size: 1001 }), ...active }, c)).toBe('done');
+    expect(chatSectionState({ ...state({ collapsed: true, isHidden: true, size: 640 }), ...active }, c)).toBe('done');
   });
 });

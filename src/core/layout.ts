@@ -80,6 +80,61 @@ export function visibleChat(stateDb: string): string | null | undefined {
   }
 }
 
+// ---------- the chat section left collapsed in a new workspace ----------
+//
+// Section states are kept per workspace. In a workspace opened for the first time the editor starts every
+// section of a tab that holds more than one collapsed, so with our list under the chat the chat itself is closed.
+
+/** Values of a workspace's `state.vscdb`, read with the runtime's own SQLite; null where that is missing or fails. */
+export function storedValues(stateDb: string, keys: string[]): Record<string, string> | null {
+  let db: any;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DatabaseSync } = require('node:sqlite');
+    db = new DatabaseSync(stateDb, { readOnly: true });
+    const out: Record<string, string> = {};
+    const q = db.prepare('SELECT value FROM ItemTable WHERE key = ?');
+    for (const k of keys) {
+      const row = q.get(k);
+      if (row && typeof row.value === 'string') out[k] = row.value;
+    }
+    return out;
+  } catch {
+    return null;
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* not open */
+    }
+  }
+}
+
+export const AUX_ACTIVE_KEY = 'workbench.auxiliarybar.activepanelid';
+export const AUX_HIDDEN_KEY = 'workbench.auxiliaryBar.hidden';
+
+/**
+ * What to do about the chat section, from a workspace's stored values: 'expand' when the chat's tab is the one on
+ * screen and its section was never opened here, 'done' when the user already sized or opened it, 'wait' otherwise.
+ */
+export function chatSectionState(values: Record<string, string>, container: string): 'expand' | 'done' | 'wait' {
+  let own: { collapsed?: boolean; size?: number } | undefined;
+  try {
+    own = JSON.parse(values[container + '.state'] || '{}')[CLAUDE_CHAT_VIEW];
+  } catch {
+    /* unreadable: as if nothing was saved */
+  }
+  if (own && (own.collapsed === false || typeof own.size === 'number')) return 'done';
+  if (values[AUX_HIDDEN_KEY] === 'true') return 'wait';
+  return values[AUX_ACTIVE_KEY] === container ? 'expand' : 'wait';
+}
+
+/** chatSectionState of a workspace's `state.vscdb`; 'wait' when it cannot be read. */
+export function chatSection(stateDb: string, container: string): 'expand' | 'done' | 'wait' {
+  const values = storedValues(stateDb, [container + '.state', AUX_ACTIVE_KEY, AUX_HIDDEN_KEY]);
+  return values ? chatSectionState(values, container) : 'wait';
+}
+
 // ---------- the official extension's log ----------
 //
 // Switching the panel to a chat whose process is still loaded is only an "attach" inside the official extension:

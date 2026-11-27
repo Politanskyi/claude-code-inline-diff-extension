@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.7
+- In a project opened for the first time, the Claude Code chat section was collapsed (the editor opens no section of a tab that holds two, and our list sits under the chat). The chat is now opened once per project, when its tab is the one on screen; nothing is switched or revealed, and a chat you collapse yourself stays collapsed.
+
 ## 0.3.6
 - Fix: a file Claude changed outside the workspace (another repository) could be missing from the Claude Changes list, and Keep All skipped it, although its change waited for review. The editor kept an old copy of the file in memory (Claude Code loads the file it edits, and nothing reloads it when it is in no tab), and the window compared that copy instead of the file on disk.
 - Fix: when a Bash command removed a file Claude had created and nobody had kept yet, the list offered a "deletion" to review (Undo / Keep on a file that was never yours). Nothing is left to review in that case. The same when a command puts back a file whose deletion waited for review, or reverts an edit that waited: the list showed the way back as a new change. Hook 1.0.19.
