@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.17
+- Claude Changes is always shown: an empty state when there is nothing to review, the hook install button when the hook is missing.
+
 ## 0.1.16
 - Claude Steps: *Revert to Before This Step* is also in the right-click menu of a step.
 

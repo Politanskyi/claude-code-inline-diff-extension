@@ -186,7 +186,8 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
  * The file list under the Claude Code chat, drawn like Cursor's list under its agent chat: a header
  * "N Files" with Undo All / Keep All / Review always visible (Undo All asks for a second click, like
  * Cursor), and one row per file with +added −removed and ✕ / ✓ on hover. A webview, because a tree
- * view can only put actions in its title bar, small and visible on hover.
+ * view can only put actions in its title bar, small and visible on hover. Always shown: with nothing to
+ * review it has an empty state, or the hook install button when the hook is missing.
  */
 export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly id = 'claudeInlineDiff.changes';
@@ -388,6 +389,8 @@ ${fonts}
 .ic{border:0;background:transparent;color:var(--vscode-foreground);width:22px;height:20px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .ic:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .ic svg{width:14px;height:14px;fill:currentColor}
+.empty{padding:8px 12px;color:var(--vscode-descriptionForeground);line-height:1.4}
+.empty .sub{font-size:12px;opacity:.8}
 .hook{padding:8px 12px;color:var(--vscode-descriptionForeground);line-height:1.4}
 .hook button{margin-top:8px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:0;border-radius:4px;padding:4px 10px;cursor:pointer;font:inherit}
 </style></head><body><div id="root"></div>
@@ -402,7 +405,8 @@ function send(a,key){vs.postMessage({a,key})}
 function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+esc(i.img)+'" alt=""></span>';if(i.ch)return '<span class="fi'+(i.font?' f-'+esc(i.font):'')+'" style="color:'+esc(i.color||'inherit')+'">'+esc(i.ch)+'</span>';return ''}
 function render(){
   const r=document.getElementById('root');const f=data.files;
-  if(!data.hookReady&&!f.length){r.innerHTML='<div class="hook">Claude Inline Diff needs a small Claude Code hook to see Claude&#39;s edits.<br><button data-a="install">Install Claude Code Hook</button></div>';return}
+  // Empty state: the hook install when it is missing, otherwise a quiet "nothing to review".
+  if(!f.length){r.className='';r.innerHTML=data.hookReady?'<div class="empty"><div>No changes to review</div><div class="sub">Claude&#39;s edits will appear here.</div></div>':'<div class="hook">Claude Inline Diff needs a small Claude Code hook to see Claude&#39;s edits.<br><button data-a="install">Install Claude Code Hook</button></div>';return}
   // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;

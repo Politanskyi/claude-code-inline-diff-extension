@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -739,8 +739,7 @@
           "id": "claudeInlineDiff.changes",
           "name": "Claude Changes",
           "icon": "$(sparkle)",
-          "contextualTitle": "Claude Changes",
-          "when": "claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady"
+          "contextualTitle": "Claude Changes"
         }
       ],
       "scm": [
