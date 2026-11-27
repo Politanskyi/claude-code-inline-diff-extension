@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+- Fix: a Claude edit right after Undo/Keep could vanish from review (the editor had not reloaded the write yet, so the fresh baseline looked resolved and was dropped).
+- Pill exactly Cursor's size (24px, 2px below the change, fractional inset height); the "…" button moved off the pill (Undo with feedback stays in the context menu and the Claude Changes list).
+
 ## 0.1.9
 - Changes group per Claude edit (edit regions recorded by the hook), like Cursor's agent diff.
 - Cursor-measured look: removed text in one colour, word marks off by default, pill colours/sizes, Keep without shortcut.

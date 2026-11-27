@@ -205,6 +205,9 @@ export class ReviewManager implements vscode.Disposable {
       const inFlight = this.activity.some((a) => S.keyOf(a.path) === e.key);
       const landed = e.landedAt > 0 || e.source === 'bash';
       if (inFlight) continue;
+      // Claude's write is on disk but the open editor has not reloaded it yet: the "no changes" is stale.
+      const disk = this.readDisk(e.key, e.path);
+      if (e.existed ? disk !== null && disk !== e.content : disk !== null) continue;
       if (landed || Date.now() - e.createdAt > EMPTY_GRACE_MS) this.dropEntry(e);
     }
   }

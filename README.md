@@ -26,14 +26,14 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e in **Cursor 3.32.4** (via `~/.cursor/argv.json`) and VS Code 1.148 + screenshots |
 | ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Keep/Undo links; CodeLens `1 of 4 · Undo · Keep` | e2e + screenshot |
 | ✅ | Added lines green; **changed words** marked inside removed lines (like Cursor) | unit + e2e |
-| ✅ | Cursor-style **pill**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep │ …`, one per file, under the change nearest to the text cursor or the mouse, like Cursor (counter only with 2+ changes; right-aligned, anchored to the code when the editor scrolls horizontally) | manual in Cursor 3.32 |
+| ✅ | Cursor-style **pill**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep`, one per file, under the change nearest to the text cursor or the mouse, like Cursor (counter only with 2+ changes; right-aligned, anchored to the code when the editor scrolls horizontally) | manual in Cursor 3.32 |
 | ✅ | Floating per-file **Undo File / Keep File** bar at the bottom-right of the editor (`editor/content`, proposed `contribEditorContentMenu`), like Cursor's per-file bar | manual in Cursor 3.32 |
 | ✅ | **Follow Claude**: a new change in a visible file is scrolled into view and briefly highlighted (never while your cursor is in a change) | e2e |
 | ✅ | **Review All**: every changed file in one multi-file diff editor (inline blocks are suppressed there) | e2e in Cursor + screenshot |
 | ✅ | Cursor's keys, taken from Cursor 3.32's source: **Cmd/Ctrl+Y / N** (change), **Cmd/Ctrl+Enter / Cmd/Ctrl+Shift+Backspace** (file); also Cmd/Ctrl+Shift+Y / N; alternative scheme Cmd/Ctrl+Alt+Enter / Backspace | commands e2e; key presses: manual |
 | ✅ | Keep / Undo **per change, per file, all files**; Undo saves the file so Claude sees it | e2e |
 | ✅ | After **Keep** the cursor moves to the next change in the same file; Undo, Keep File and Undo File stay put (Cursor's behaviour; `autoAdvance` offers the old "then next file" mode) | e2e + manual |
-| ✅ | Cursor's navigation keys: **Alt+J / Alt+K** next/previous change in the file, **Alt+L / Alt+H** next/previous file | manual |
+| ✅ | Cursor's navigation keys: **Alt+J / Alt+K** next/previous change in the file, **Alt+L / Alt+H** next/previous file (while Cursor's own agent has pending diffs, Cursor's built-in Alt+L wins; use Cmd/Ctrl+Alt+PageDown / PageUp) | manual |
 | ✅ | Floating bar on a file without Claude changes: **Keep all changes / Review Next File**, like Cursor | manual in Cursor 3.32 |
 | ✅ | **Undo** for accept, reject, file/all and step revert (own stack; Cmd/Ctrl+Z right after an accept undoes it; native Cmd/Ctrl+Z after a reject restores Claude's text) | e2e (own stack); Cmd+Z: manual |
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |

@@ -162,11 +162,10 @@ export function insetHtml(
         : '') +
       `<button class="b sec" data-a="reject" title="Undo this change (${kN})">Undo<span class="k">${kN}</span></button>` +
       `<button class="b pri" data-a="accept" title="Keep this change (${kY})">Keep</button>` +
-      `<button class="b sec more-b" data-a="feedback" title="Undo and tell Claude why…">…</button>` +
       `</div></div>`
     : '';
   const ff = m.fontFamily.replace(/</g, '');
-  const pillH = Math.min(22, m.lineHeight);
+  const pillH = PILL_H;
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
@@ -180,24 +179,23 @@ body{font-family:${ff};font-size:${m.fontSize}px;font-weight:${m.fontWeight};tab
 .w{background:var(--vscode-claudeInlineDiff-removedWordBackground,rgba(242,13,59,.25));box-shadow:inset 1px 0 rgba(242,13,59,.25),inset -1px 0 rgba(242,13,59,.25)}
 .more{font-style:italic;opacity:.75;font-family:var(--vscode-font-family);font-size:12px;padding-left:8px}
 /* Toolbar row: Cursor's acceptRejectPartialEditWidget — pill attached under the change, right edge next to the scrollbar. */
-.tbrow{position:relative;height:${m.lineHeight}px}
-.tb{position:absolute;top:0;right:18px;border-top-left-radius:0;display:flex;flex-direction:row;gap:2px;height:${pillH}px;align-items:stretch;
+.tbrow{position:relative;height:${PILL_ROW}px}
+.tb{position:absolute;top:${PILL_ROW - PILL_H}px;right:18px;border-top-left-radius:0;display:flex;flex-direction:row;gap:2px;height:${pillH}px;align-items:stretch;
  font-family:var(--vscode-font-family);font-size:12px;border-bottom-left-radius:4px;border-bottom-right-radius:4px}
-.nav{display:flex;align-items:center;gap:3px;padding:0 7px;border-radius:4px;color:var(--vscode-editor-foreground);
- background:color-mix(in srgb,var(--vscode-editor-foreground) 5.5%,var(--vscode-editor-background))}
+.nav{display:flex;align-items:center;gap:3px;padding:0 7px 1px;border-radius:4px;color:var(--vscode-editor-foreground);
+ background:color-mix(in srgb,var(--vscode-editor-foreground) 6%,var(--vscode-editor-background))}
 .ctr{min-width:36px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ic{background:none;border:0;padding:0 2px;margin:0;cursor:pointer;color:inherit;display:flex;align-items:center;opacity:.8}
 .ic:hover{opacity:1}
 .ic svg{width:14px;height:14px;fill:currentColor}
-.b{display:flex;align-items:center;gap:5px;border:0;border-radius:4px;padding:0 7px;cursor:pointer;font:inherit;white-space:nowrap}
-.pri{padding:0 6px;background:color-mix(in srgb,var(--vscode-charts-green,#2ea043) 85%,transparent);color:var(--vscode-button-foreground,#fff)}
+.b{display:flex;align-items:center;gap:5px;border:0;border-radius:4px;padding:0 7px 1px;cursor:pointer;font:inherit;white-space:nowrap}
+.pri{padding:0 6px 1px;background:color-mix(in srgb,var(--vscode-charts-green,#2ea043) 85%,transparent);color:var(--vscode-button-foreground,#fff)}
 .pri:hover{background:var(--vscode-charts-green,#2ea043)}
 /* Measured on Cursor's pill: editor background, a faint border (the text colour at 11%). */
 .sec{background:var(--vscode-editor-background);color:var(--vscode-editor-foreground);
  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vscode-editor-foreground) 11%,var(--vscode-editor-background))}
 .sec:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .k{opacity:.7;font-size:12px}
-.more-b{padding:0 5px}
 </style></head><body>${body}${more}${toolbar}
 <script nonce="${nonce}">
 const vs=acquireVsCodeApi();
@@ -220,6 +218,10 @@ tb.style.left='auto';tb.style.right=Math.max(0,b.right-r.right)+18+'px';},{thres
 </script>
 </body></html>`;
 }
+
+/** Cursor's pill: 24px high, 2px below the change. */
+const PILL_H = 24;
+const PILL_ROW = 26;
 
 const CHEVRON_UP = '<svg viewBox="0 0 16 16"><path d="M8 5.3 3.6 9.7l.7.7L8 6.7l3.7 3.7.7-.7z"/></svg>';
 const CHEVRON_DOWN = '<svg viewBox="0 0 16 16"><path d="M8 10.7 3.6 6.3l.7-.7L8 9.3l3.7-3.7.7.7z"/></svg>';
@@ -252,7 +254,8 @@ export class InsetManager implements vscode.Disposable {
       if (!near(b.afterLine)) continue;
       const shown = b.lines.length > maxLines ? b.lines.slice(0, maxLines - 1) : b.lines;
       const hidden = b.lines.length - shown.length;
-      const height = shown.length + (hidden ? 1 : 0) + (b.toolbar ? 1 : 0);
+      // The pill row is Cursor's pill height plus its 2px gap, as a fraction of a line (view zones take fractional heights).
+      const height = shown.length + (hidden ? 1 : 0) + (b.toolbar ? PILL_ROW / m.lineHeight : 0);
       const sig = crypto
         .createHash('sha1')
         .update(JSON.stringify([b.afterLine, height, b.lines, b.removed, b.toolbar, b.ref, b.languageId, m, palette]))
