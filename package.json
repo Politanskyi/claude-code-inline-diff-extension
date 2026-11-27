@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -187,6 +187,12 @@
         "title": "Open Side-by-Side Diff",
         "category": "Claude Inline Diff",
         "icon": "$(diff)"
+      },
+      {
+        "command": "claudeInlineDiff.setUp",
+        "title": "Set Up…",
+        "category": "Claude Inline Diff",
+        "icon": "$(gear)"
       },
       {
         "command": "claudeInlineDiff.installHooks",
@@ -604,7 +610,7 @@
           "when": "view == claudeInlineDiff.changes || view == claudeInlineDiff.steps"
         },
         {
-          "command": "claudeInlineDiff.installHooks",
+          "command": "claudeInlineDiff.setUp",
           "group": "1_more@2",
           "when": "view == claudeInlineDiff.changes"
         }

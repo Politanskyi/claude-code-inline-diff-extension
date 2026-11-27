@@ -10,15 +10,28 @@
 
 ---
 
+## Швидкий старт
+
+1. Завантажте `claude-inline-diff.vsix` з [останнього релізу](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest).
+2. У Cursor: панель **Extensions** → меню `…` → **Install from VSIX…** → виберіть файл.
+3. Розширення запропонує **Set Up…**. Натисніть Enter: встановиться хук Claude Code і режим «Edit automatically». Перезапуск не потрібен.
+4. Почніть **нову розмову** в панелі Claude Code і попросіть щось змінити. Правки з'являться прямо у файлі й у списку **Claude Changes** під чатом.
+
+Видалений код спершу показується червоною рискою, а старий текст видно при наведенні. Щоб він малювався червоними блоками між рядками, як у Cursor, увімкніть третій пункт у Set Up або погодьтесь на підказку після першої зміни. Розширення додасть один рядок в `argv.json`, після чого Cursor треба **повністю** перезапустити (кнопка **Quit Cursor** у повідомленні).
+
+Set Up можна запустити будь-коли: Cmd/Ctrl+Shift+P → **Claude Inline Diff: Set Up…** або меню `…` списку Claude Changes. Нижче те саме розписано вручну й детально.
+
+---
+
 ## 1. Що потрібно
 
 - Cursor (або VS Code ≥ 1.90).
 - Офіційне розширення **Claude Code** (`anthropic.claude-code`), у яке ви вже увійшли з корпоративною підпискою.
-- Node.js ≥ 18, щоб зібрати розширення.
+- Node.js ≥ 18, лише якщо збираєте `.vsix` самі (готовий файл є в релізах).
   - Для роботи хука Node бажаний, але не обов'язковий. Якщо `node` немає в PATH, хук запускається самим Cursor у режимі Node (`ELECTRON_RUN_AS_NODE=1`). ✅ на Linux/macOS (sh), 🔶 на Windows.
 - `git`, тільки якщо хочете бачити правки, які Claude робить через Bash.
 
-## 2. Збірка .vsix
+## 2. Збірка .vsix (необов'язково: готовий файл є в релізах)
 
 ```bash
 git clone <ваш-репозиторій> claude-inline-diff
@@ -65,7 +78,7 @@ cursor --install-extension claude-inline-diff.vsix
 
 ## 6. Встановити хук Claude Code
 
-Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
+Це робить **Set Up…** (перший пункт). Окремо: Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 
 Що робить команда (✅ unit-тести на тимчасовому `CLAUDE_CONFIG_DIR`):
 - копіює скрипт у `~/.claude/hooks/claude-inline-diff-hook.js`. Якщо задано `CLAUDE_CONFIG_DIR`, скрипт іде туди;
@@ -86,7 +99,7 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
    ```json
    "claudeCode.initialPermissionMode": "acceptEdits"
    ```
-3. **Через розширення:** після встановлення хука з'явиться кнопка **Enable "Edit automatically"**. Вона виставляє і `claudeCode.initialPermissionMode`, і `permissions.defaultMode` у `~/.claude/settings.json`, а попередні значення запам'ятовує, щоб видалення хука повернуло їх назад. ✅ відкат перевірено тестами.
+3. **Через розширення:** другий пункт **Set Up…** (або кнопка **Enable "Edit automatically"** після окремого встановлення хука). Вона виставляє і `claudeCode.initialPermissionMode`, і `permissions.defaultMode` у `~/.claude/settings.json`, а попередні значення запам'ятовує, щоб видалення хука повернуло їх назад. ✅ відкат перевірено тестами.
 
 Якщо diff-вкладка Claude все ж відкрилась (режим Manual), наше розширення їй не заважає. Інлайн-рев'ю з'явиться, щойно правка ляже у файл.
 
@@ -111,6 +124,8 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 Файли поза проєктом теж потрапляють на рев'ю, їхні знімки лежать у `~/.claude/inline-diff/store/`. Якщо такий знімок ніхто не розглянув за `stepRetentionDays` днів (типово 7), він прибирається, а файл лишається як є. Виняток: робочі папки самого Claude Code у `~/.claude` (`projects/` з пам'яттю, `plans/`, `todos/`) не знімаються взагалі. Ваші `settings.json`, `CLAUDE.md`, skills, agents, hooks і commands у `~/.claude` рев'юються як звичайні файли. Історія чату в Claude Changes і список Claude Steps показують лише чати, запущені в проєкті цього вікна.
 
 ## 9. Оновлення
+
+Завантажте новий `.vsix` з [релізів](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest) і встановіть його так само (Install from VSIX…). Якщо збираєте самі:
 
 ```bash
 git pull && npm ci && npm run package

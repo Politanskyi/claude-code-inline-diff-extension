@@ -33,6 +33,7 @@ const commands = [
   C('nextFile', 'Next File with Changes', 'arrow-right'),
   C('prevFile', 'Previous File with Changes', 'arrow-left'),
   C('showDiff', 'Open Side-by-Side Diff', 'diff'),
+  C('setUp', 'Set Up…', 'gear'),
   C('installHooks', 'Install Claude Code Hook'),
   C('uninstallHooks', 'Uninstall Claude Code Hook'),
   C('hookStatus', 'Show Hook Status'),
@@ -223,7 +224,7 @@ const menus = {
   'view/title': [
     { command: 'claudeInlineDiff.undo', group: '0_history@1', when: 'view == claudeInlineDiff.changes' },
     { command: 'claudeInlineDiff.refresh', group: '1_more@1', when: 'view == claudeInlineDiff.changes || view == claudeInlineDiff.steps' },
-    { command: 'claudeInlineDiff.installHooks', group: '1_more@2', when: 'view == claudeInlineDiff.changes' },
+    { command: 'claudeInlineDiff.setUp', group: '1_more@2', when: 'view == claudeInlineDiff.changes' },
   ],
   'view/item/context': [
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
@@ -268,7 +269,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.31',
+  version: '0.1.32',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

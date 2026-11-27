@@ -80,6 +80,7 @@ export function activate(context: vscode.ExtensionContext): Api {
     }),
     review.onDidChange(updateContexts),
     review.onNewFile((e) => void revealOnEdit(e)),
+    review.onNewFile(() => void maybeOfferInsets()),
     review.onDidChange(() => followClaude()),
     vscode.window.onDidChangeActiveTextEditor(updateContexts),
     vscode.window.onDidChangeTextEditorSelection(updateContexts)
@@ -395,18 +396,19 @@ function updateHookContext(): void {
   changesPanel?.setHookReady(st.configured && st.scriptInstalled);
 }
 
-async function installHooks(): Promise<void> {
+async function installHooks(quiet = false): Promise<boolean> {
   review.syncSharedConfig();
   let done: string[];
   try {
     done = setup.install({ bundled: bundledHook(), nodeOnPath: nodeOnPath(), execPath: process.execPath });
   } catch (e: any) {
     void vscode.window.showErrorMessage('Claude Inline Diff: ' + e.message);
-    return;
+    return false;
   }
   done.forEach((d) => log.info('install: ' + d));
   updateHookContext();
   await ctx.globalState.update('hookPrompted', true);
+  if (quiet) return true;
   const st = setup.status(bundledHook());
   const vsMode = vscode.workspace.getConfiguration('claudeCode').inspect<string>('initialPermissionMode')?.globalValue;
   const auto = st.defaultMode === 'acceptEdits' || vsMode === 'acceptEdits';
@@ -420,10 +422,11 @@ async function installHooks(): Promise<void> {
       if (choice === 'Show Details') log.show();
       if (choice === 'Enable "Edit automatically"') void enableAcceptEdits();
     });
+  return true;
 }
 
 /** Offered, never silent: sets the official extension's initial mode and Claude's defaultMode, remembering both for rollback. */
-async function enableAcceptEdits(): Promise<void> {
+async function enableAcceptEdits(quiet = false): Promise<boolean> {
   const c = vscode.workspace.getConfiguration('claudeCode');
   const prev = c.inspect<string>('initialPermissionMode')?.globalValue;
   if (prev !== 'acceptEdits') {
@@ -438,11 +441,13 @@ async function enableAcceptEdits(): Promise<void> {
     setup.enableAcceptEdits().forEach((d) => log.info(d));
   } catch (e: any) {
     void vscode.window.showErrorMessage('Claude Inline Diff: ' + e.message);
-    return;
+    return false;
   }
+  if (quiet) return true;
   void vscode.window.showInformationMessage(
     'Claude will now edit automatically ("Edit automatically" / acceptEdits) in new sessions. Uninstalling the hook restores the previous mode.'
   );
+  return true;
 }
 
 async function uninstallHooks(): Promise<void> {
@@ -511,15 +516,119 @@ async function hookStatus(): Promise<void> {
   }
 }
 
+/** argv.json as text ('' when missing or unreadable). */
+function readArgv(): string {
+  try {
+    const file = argvPathFor(vscode.env.appName);
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Adds our id to argv.json `enable-proposed-api` (comments kept, backup made); on failure copies the line and opens the file. */
+async function addArgvLine(): Promise<boolean> {
+  const file = argvPathFor(vscode.env.appName);
+  const text = readArgv();
+  try {
+    const next = addProposedApi(text, EXTENSION_ID);
+    if (text) fs.copyFileSync(file, file + '.bak-claude-inline-diff');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, next);
+    log.info('argv.json: enable-proposed-api added');
+    return true;
+  } catch (e: any) {
+    await vscode.env.clipboard.writeText(`"enable-proposed-api": ["${EXTENSION_ID}"]`);
+    void vscode.window.showErrorMessage(`Could not edit ${file} (${e.message}). The line was copied — paste it into argv.json.`);
+    await vscode.commands.executeCommand('workbench.action.configureRuntimeArguments');
+    return false;
+  }
+}
+
+/** argv.json is read only at startup: "Reload Window" is not enough. */
+function offerQuit(prefix: string): void {
+  const app = vscode.env.appName;
+  void vscode.window
+    .showInformationMessage(`${prefix} Quit ${app} and start it again to draw removed code as red blocks.`, `Quit ${app}`)
+    .then((c) => c && vscode.commands.executeCommand('workbench.action.quit'));
+}
+
+/**
+ * One step instead of three prompts: the hook and "Edit automatically" (both work in the next Claude chat,
+ * no restart) and, unchecked, the red blocks (argv.json + a full restart; offered again after the first change).
+ */
+async function setUp(): Promise<void> {
+  const st = setup.status(bundledHook());
+  const hookOk = st.configured && st.scriptInstalled && st.installedVersion === st.bundledVersion;
+  const vsMode = vscode.workspace.getConfiguration('claudeCode').inspect<string>('initialPermissionMode')?.globalValue;
+  const auto = st.defaultMode === 'acceptEdits' || vsMode === 'acceptEdits';
+  const argvReady = !!insetApi() || hasProposedApi(readArgv(), EXTENSION_ID);
+  type Item = vscode.QuickPickItem & { id: 'hook' | 'auto' | 'insets' };
+  const items: Item[] = [];
+  if (!hookOk)
+    items.push({
+      id: 'hook',
+      label: 'Claude Code hook',
+      description: 'required',
+      detail: "Adds our entries to ~/.claude/settings.json (with a backup) so the extension sees Claude's edits.",
+      picked: true,
+    });
+  if (!auto)
+    items.push({
+      id: 'auto',
+      label: 'Let Claude edit automatically',
+      description: 'recommended',
+      detail: '"Edit automatically" for new Claude chats: edits land in the file and you review them here, not in Claude\'s diff tab.',
+      picked: true,
+    });
+  if (!argvReady)
+    items.push({
+      id: 'insets',
+      label: 'Red removed-code blocks between lines',
+      description: 'needs a full restart',
+      detail: 'One line in argv.json. Until then removed code shows as a red rule, with the old code on hover.',
+      picked: false,
+    });
+  if (!items.length) {
+    void vscode.window.showInformationMessage(
+      insetApi() || !argvReady
+        ? 'Claude Inline Diff is set up. Start a new Claude chat and its edits show here.'
+        : `Claude Inline Diff is set up. Quit ${vscode.env.appName} and start it again to draw removed code as red blocks.`
+    );
+    return;
+  }
+  const chosen = await vscode.window.showQuickPick(items, {
+    canPickMany: true,
+    ignoreFocusOut: true,
+    title: 'Set Up Claude Inline Diff',
+    placeHolder: 'Space toggles an item, Enter applies',
+  });
+  if (!chosen?.length) return;
+  const ids = new Set(chosen.map((c) => c.id));
+  if (ids.has('hook') && !(await installHooks(true))) return;
+  if (ids.has('auto')) await enableAcceptEdits(true);
+  const ready = hookOk || ids.has('hook') ? 'Ready: start a new Claude chat and its edits show here.' : 'Done.';
+  if (ids.has('insets') && (await addArgvLine())) offerQuit(ready);
+  else void vscode.window.showInformationMessage(ready);
+}
+
+/** After the first change was shown the simple way: offer the red blocks once. */
+async function maybeOfferInsets(): Promise<void> {
+  if (process.env.CLAUDE_INLINE_DIFF_TEST || insetApi() || ctx.globalState.get('insetsPrompted')) return;
+  if (cfg<string>('deletedLines.renderer', 'auto') === 'decoration' || hasProposedApi(readArgv(), EXTENSION_ID)) return;
+  await ctx.globalState.update('insetsPrompted', true);
+  const pick = await vscode.window.showInformationMessage(
+    'Removed code can be drawn as red blocks between lines, like Cursor. It needs one line in argv.json and a full restart.',
+    'Enable…',
+    'Not Now'
+  );
+  if (pick === 'Enable…') await enableInsets();
+}
+
 async function enableInsets(): Promise<void> {
   const file = argvPathFor(vscode.env.appName);
   const snippet = `"enable-proposed-api": ["${EXTENSION_ID}"]`;
-  let text = '';
-  try {
-    text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  } catch {
-    /* unreadable */
-  }
+  const text = readArgv();
   if (hasProposedApi(text, EXTENSION_ID)) {
     const r = await vscode.window.showInformationMessage(
       `${path.basename(file)} already enables the API. Fully quit and restart ${vscode.env.appName} (not just "Reload Window").`,
@@ -535,17 +644,7 @@ async function enableInsets(): Promise<void> {
     'Open argv.json and Copy Line'
   );
   if (pick === 'Add Automatically') {
-    try {
-      const next = addProposedApi(text, EXTENSION_ID);
-      if (text) fs.copyFileSync(file, file + '.bak-claude-inline-diff');
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, next);
-      void vscode.window.showInformationMessage(`Done. Fully quit ${vscode.env.appName} (Cmd/Ctrl+Q) and start it again.`);
-    } catch (e: any) {
-      await vscode.env.clipboard.writeText(snippet);
-      void vscode.window.showErrorMessage(`Could not edit ${file} (${e.message}). The line was copied — paste it into argv.json.`);
-      await vscode.commands.executeCommand('workbench.action.configureRuntimeArguments');
-    }
+    if (await addArgvLine()) offerQuit('Done.');
   } else if (pick) {
     await vscode.env.clipboard.writeText(snippet);
     await vscode.commands.executeCommand('workbench.action.configureRuntimeArguments');
@@ -667,20 +766,11 @@ async function firstRunChecks(): Promise<void> {
   } else if (!st.configured && !ctx.globalState.get('hookPrompted')) {
     await ctx.globalState.update('hookPrompted', true);
     const pick = await vscode.window.showInformationMessage(
-      "Claude Inline Diff needs a small Claude Code hook (in ~/.claude/settings.json) to see Claude's edits. Install it?",
-      'Install Hook',
+      "Claude Inline Diff: one-step setup to review Claude's edits right in your files.",
+      'Set Up…',
       'Not Now'
     );
-    if (pick === 'Install Hook') await installHooks();
-  }
-  if (cfg<string>('deletedLines.renderer', 'auto') !== 'decoration' && !insetApi() && !ctx.globalState.get('insetsPrompted')) {
-    await ctx.globalState.update('insetsPrompted', true);
-    const pick = await vscode.window.showInformationMessage(
-      'Tip: removed code can be drawn as red blocks between lines (like Cursor). It needs one line in argv.json.',
-      'Enable…',
-      'Not Now'
-    );
-    if (pick === 'Enable…') await enableInsets();
+    if (pick === 'Set Up…') await setUp();
   }
 }
 
@@ -805,7 +895,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
     });
     await openMultiDiff(`Claude changes · ${M.plural(review.totals().changes, 'change')}`, resources);
   });
-  reg('installHooks', installHooks);
+  reg('setUp', setUp);
+  reg('installHooks', () => installHooks());
   reg('fixKeybindings', () => fixKeybindings());
   reg('uninstallHooks', uninstallHooks);
   reg('hookStatus', hookStatus);

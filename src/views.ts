@@ -255,7 +255,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     else if (m.a === 'keepAll') run('acceptAll');
     else if (m.a === 'undoAll') run('rejectAll', 'confirmed');
     else if (m.a === 'review') run('reviewAll');
-    else if (m.a === 'install') run('installHooks');
+    else if (m.a === 'install') run('setUp');
   }
 
   /** Everything the webview draws; all labels are built here so the page script holds no wording. */
@@ -438,7 +438,7 @@ function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+e
 function render(){
   const r=document.getElementById('root');const f=data.files;
   // Empty state: the hook install when it is missing, otherwise a quiet "nothing to review".
-  if(!f.length){r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Install the Claude Code hook to review Claude&#39;s edits here</div><button data-a="install">Install Hook</button></div>';return}
+  if(!f.length){r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Set up once to review Claude&#39;s edits here</div><button data-a="install">Set Up</button></div>';return}
   // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;

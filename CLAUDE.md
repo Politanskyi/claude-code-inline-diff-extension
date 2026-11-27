@@ -13,6 +13,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `npm run lint` / `npm run format` / `npm run typecheck`
 - `npm run test:e2e` — VS Code via @vscode/test-electron (Linux: `xvfb-run -a npm run test:e2e`)
 - `npm run package` — production build + `claude-inline-diff.vsix`
+- Release: bump the version in `scripts/gen-package.js`, then push tag `v<version>`; `.github/workflows/release.yml` checks the tag against package.json and attaches the .vsix to a GitHub release
 
 ## Layout
 - `src/core/` — no `vscode` import, unit-tested: `diff.ts` (Myers + word diff, ported MIT), `model.ts`

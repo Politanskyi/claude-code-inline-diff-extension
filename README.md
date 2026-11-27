@@ -66,20 +66,14 @@ Claude Code (panel or CLI)                               Cursor / VS Code
 
 ## Install
 
-The full step-by-step guide is in Ukrainian: **[docs/INSTALL.uk.md](docs/INSTALL.uk.md)**. Short version:
+1. Download `claude-inline-diff.vsix` from the [latest release](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest).
+2. In Cursor: **Extensions** → `…` → **Install from VSIX…**.
+3. Click **Set Up…** when the extension asks and press Enter: it installs the Claude Code hook and turns on *Edit automatically*. No restart.
+4. Start a **new** Claude Code chat. Its edits show inline and in **Claude Changes** under the chat.
 
-```bash
-npm ci && npm run package                    # → claude-inline-diff.vsix
-cursor --install-extension claude-inline-diff.vsix
-```
+Removed code starts as a red rule with a hover. For red blocks between the lines, like Cursor, tick the third Set Up item (or accept the tip after the first change): it adds one line to `~/.cursor/argv.json`, then **quit Cursor completely** and start it again (*Reload Window* is not enough).
 
-1. Add the extension id to **`~/.cursor/argv.json`**. The command *Claude Inline Diff: Enable Inline Removed-Code Blocks (argv.json)…* can do it for you:
-   ```jsonc
-   "enable-proposed-api": ["inlinediff.claude-inline-diff"]
-   ```
-2. **Quit Cursor completely** and start it again. *Reload Window* is not enough.
-3. Run **Claude Inline Diff: Install Claude Code Hook**.
-4. In the Claude Code panel, choose **Edit automatically** (or set `claudeCode.initialPermissionMode` to `acceptEdits`). Edits then land directly and you review them inline, instead of in Claude's diff tab.
+The full guide, with every step done by hand, is in Ukrainian: **[docs/INSTALL.uk.md](docs/INSTALL.uk.md)**. Building it yourself: `npm ci && npm run package`.
 
 ## Settings (`claudeInlineDiff.*`)
 
