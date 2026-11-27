@@ -81,6 +81,8 @@ export function activate(context: vscode.ExtensionContext): Api {
     review.onDidChange(updateContexts),
     review.onNewFile((e) => void revealOnEdit(e)),
     review.onNewFile(() => void maybeOfferInsets()),
+    // Set Up or Uninstall in another window: this one notices when it gets focus.
+    vscode.window.onDidChangeWindowState((w) => w.focused && updateHookContext()),
     review.onDidChange(() => followClaude()),
     vscode.window.onDidChangeActiveTextEditor(updateContexts),
     vscode.window.onDidChangeTextEditorSelection(updateContexts)
@@ -407,7 +409,7 @@ async function installHooks(quiet = false): Promise<boolean> {
   }
   done.forEach((d) => log.info('install: ' + d));
   updateHookContext();
-  await ctx.globalState.update('hookPrompted', true);
+  await ctx.globalState.update('hookRemovedByUser', undefined);
   if (quiet) return true;
   const st = setup.status(bundledHook());
   const vsMode = vscode.workspace.getConfiguration('claudeCode').inspect<string>('initialPermissionMode')?.globalValue;
@@ -465,6 +467,7 @@ async function uninstallHooks(): Promise<void> {
     return;
   }
   updateHookContext();
+  await ctx.globalState.update('hookRemovedByUser', true); // a deliberate removal: Set Up does not open by itself again
   const vs = ctx.globalState.get<{ previous: string | null }>('vsModeSetByUs');
   if (vs) {
     const c = vscode.workspace.getConfiguration('claudeCode');
@@ -764,9 +767,18 @@ async function firstRunChecks(): Promise<void> {
     } catch (e: any) {
       log.warn('hook update failed: ' + e.message);
     }
-  } else if (!st.configured && !ctx.globalState.get('hookPrompted')) {
-    await ctx.globalState.update('hookPrompted', true);
-    await setUp(); // the list itself explains each item; Esc leaves it for later (Set Up… in Claude Changes)
+  } else {
+    const version = String(ctx.extension.packageJSON?.version ?? '');
+    const auto = M.shouldAutoSetUp({
+      hookConfigured: st.configured,
+      shownForVersion: ctx.globalState.get<string>('setUpShownFor'),
+      version,
+      removedByUser: ctx.globalState.get<boolean>('hookRemovedByUser'),
+    });
+    if (auto) {
+      await ctx.globalState.update('setUpShownFor', version);
+      await setUp(); // the list itself explains each item; Esc leaves it for later (Set Up in Claude Changes / the status bar)
+    }
   }
 }
 

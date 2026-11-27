@@ -154,3 +154,18 @@ describe('chats of this window', () => {
     expect([...own]).toEqual(['mine']);
   });
 });
+
+describe('first-run setup', () => {
+  const base = { hookConfigured: false, version: '0.2.1' };
+
+  it('opens on a fresh install and again after an update or reinstall of another version', () => {
+    expect(M.shouldAutoSetUp(base)).toBe(true);
+    expect(M.shouldAutoSetUp({ ...base, shownForVersion: '0.2.0' })).toBe(true);
+  });
+
+  it('stays quiet once shown for this version, with the hook in place, or after a deliberate removal', () => {
+    expect(M.shouldAutoSetUp({ ...base, shownForVersion: '0.2.1' })).toBe(false);
+    expect(M.shouldAutoSetUp({ ...base, hookConfigured: true })).toBe(false);
+    expect(M.shouldAutoSetUp({ ...base, removedByUser: true })).toBe(false);
+  });
+});

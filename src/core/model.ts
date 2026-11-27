@@ -196,3 +196,19 @@ export function ownSessions(steps: { sessionId: string; storeDir: string }[], gl
 export function currentSession(steps: { sessionId: string; storeDir: string }[], globalStore: string): string | undefined {
   return steps.find((s) => s.storeDir !== globalStore)?.sessionId;
 }
+
+// ---------- first-run setup ----------
+
+/**
+ * Open the Set Up list by itself? Only while the hook is missing, once per extension version (a reinstall
+ * keeps the editor's stored state, so a plain "shown once" flag would hide it forever), and never after the
+ * user removed the hook on purpose. The Claude Changes list and the status bar show the missing hook anyway.
+ */
+export function shouldAutoSetUp(s: {
+  hookConfigured: boolean;
+  shownForVersion?: string;
+  version: string;
+  removedByUser?: boolean;
+}): boolean {
+  return !s.hookConfigured && !s.removedByUser && s.shownForVersion !== s.version;
+}

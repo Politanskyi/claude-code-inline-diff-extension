@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+- A missing Claude Code hook is always visible now: a "Hook not installed … Set Up" row above the Claude Changes list even when it still lists files (chat history), and a **Claude Inline Diff: Set Up** item in the status bar (the list is collapsed by default). Before, only an empty list said so, so after a reinstall the extension looked broken.
+- The Set Up list opens by itself once per extension version while the hook is missing (the editor keeps the old "already shown" flag across a reinstall), and never after *Uninstall Claude Code Hook*.
+- Other windows notice Set Up / Uninstall when they get focus.
+
 ## 0.2.0 — first release
 Claude Code's edits reviewed inline in Cursor / VS Code, like Cursor's own agent diff:
 - red removed blocks between the lines (proposed `editorInsets`, with a stable fallback), green added lines, one Cursor-style `Undo / Keep` pill;

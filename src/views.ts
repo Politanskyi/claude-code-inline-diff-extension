@@ -18,6 +18,7 @@ const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybind
 export class StatusBar implements vscode.Disposable {
   private main = vscode.window.createStatusBarItem('claudeInlineDiff.summary', vscode.StatusBarAlignment.Left, 1000);
   private editing = vscode.window.createStatusBarItem('claudeInlineDiff.editing', vscode.StatusBarAlignment.Left, 1001);
+  private setup = vscode.window.createStatusBarItem('claudeInlineDiff.setup', vscode.StatusBarAlignment.Left, 999);
   private disposables: vscode.Disposable[];
 
   constructor(
@@ -27,9 +28,16 @@ export class StatusBar implements vscode.Disposable {
     this.main.name = 'Claude Inline Diff: changes to review';
     this.editing.name = 'Claude Inline Diff: Claude is editing';
     this.main.command = 'claudeInlineDiff.showChangesList'; // the editor keeps focus for Cmd+Y / Cmd+N
+    // The Claude Changes list is collapsed by default, so a missing hook must also show here.
+    this.setup.name = 'Claude Inline Diff: set up';
+    this.setup.text = '$(plug) Claude Inline Diff: Set Up';
+    this.setup.tooltip = "The Claude Code hook is not installed, so Claude's edits will not show inline. Click to set up.";
+    this.setup.command = 'claudeInlineDiff.setUp';
+    this.setup.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
     this.disposables = [
       this.main,
       this.editing,
+      this.setup,
       review.onDidChange(() => this.update()),
       review.onActivity(() => this.update()),
       vscode.window.onDidChangeActiveTextEditor(() => this.update()),
@@ -39,6 +47,8 @@ export class StatusBar implements vscode.Disposable {
   }
 
   update(): void {
+    if (this.list.hookInstalled) this.setup.hide();
+    else this.setup.show();
     const { files, changes } = this.review.totals();
     // The Claude Changes list already shows this; the summary is for when the list is closed.
     if (files && !this.list.visible) {
@@ -177,7 +187,7 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
  * keeps listing every file the current Claude chat changed (its history; no Undo/Keep then), and a new
  * chat starts empty. Collapsed by default and only the user expands or collapses it, like Cursor's file
  * list, which it never opens by itself.
- * With nothing at all it shows an empty state, or the hook install button when the hook is missing.
+ * With nothing at all it shows an empty state; while the hook is missing, a Set Up button (above the list when it has files).
  */
 export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly id = 'claudeInlineDiff.changes';
@@ -208,9 +218,15 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     return !!this.view?.visible;
   }
 
+  /** The Claude Code hook is installed (without it nothing new can show). */
+  get hookInstalled(): boolean {
+    return this.hookReady;
+  }
+
   setHookReady(ready: boolean): void {
     if (this.hookReady === ready) return;
     this.hookReady = ready;
+    this._onVisibility.fire(); // the status bar shows the missing hook too
     this.update();
   }
 
@@ -419,6 +435,11 @@ ${fonts}
 .ic:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .ic svg{width:14px;height:14px;fill:currentColor}
 html,body,#root{height:100%}
+.nohook{display:flex;align-items:center;gap:6px;margin:6px 8px 2px 12px;padding:4px 6px 4px 8px;border-radius:4px;font-size:12px;line-height:1.3;color:var(--vscode-foreground);background:var(--vscode-inputValidation-warningBackground,rgba(204,167,0,.15));border:1px solid var(--vscode-inputValidation-warningBorder,rgba(204,167,0,.5))}
+.nohook svg{flex:none;width:14px;height:14px;fill:currentColor;opacity:.8}
+.nohook span{flex:1;min-width:0}
+.nohook button{flex:none;font:inherit;font-size:12px;height:20px;padding:0 8px;border:0;border-radius:4px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+.nohook button:hover{background:var(--vscode-button-hoverBackground)}
 .empty{height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 16px;text-align:center;color:var(--vscode-descriptionForeground);font-size:12px;line-height:1.4}
 .empty svg{width:20px;height:20px;fill:currentColor;opacity:.7}
 .empty .t{color:var(--vscode-foreground);opacity:.75}
@@ -443,7 +464,9 @@ function render(){
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;
   if(data.working)confirmUndo=false;
-  r.innerHTML='<div class="hd"><div class="tw">'+esc(data.header)+'</div>'+
+  // The hook is gone but the list still has files (chat history, old reviews): say so, new edits will not show.
+  r.innerHTML=(data.hookReady?'':'<div class="nohook">'+PLUG+'<span>Hook not installed: new Claude edits will not show</span><button data-a="install">Set Up</button></div>')+
+    '<div class="hd"><div class="tw">'+esc(data.header)+'</div>'+
     (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
     '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+
