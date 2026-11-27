@@ -195,7 +195,7 @@ export class Renderer implements vscode.Disposable {
     }
     const doc = editor.document;
     const last = doc.lineCount - 1;
-    const words = cfg('highlightWords', true);
+    const words = cfg('highlightWords', false);
     // Like Cursor's performance protection: past 100 changes, no removed blocks and no pills.
     const heavy = hunks.length > 100;
     const insets = this.useInsets() && !heavy;

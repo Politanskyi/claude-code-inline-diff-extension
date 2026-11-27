@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Hunk, splitLines, diffLines, eolOf } from './core/diff';
+import { hunksFromRegions, acceptInRegions, applyEdit } from './core/regions';
 import * as M from './core/model';
 import * as S from './core/store';
 
@@ -40,7 +41,7 @@ export class ReviewManager implements vscode.Disposable {
   activity: S.Activity[] = [];
   steps: S.Step[] = [];
   history: HistoryItem[] = [];
-  private memo = new Map<string, { baseline: string; text: string; hunks: Hunk[] }>();
+  private memo = new Map<string, { baseline: string; text: string; hunks: Hunk[]; regions?: S.Region[] }>();
   private diskCache = new Map<string, { mtimeMs: number; size: number; text: string }>();
   private docText = new Map<string, string>(); // last known text of open docs under review
   private ownEdits = new Map<string, number>();
@@ -168,6 +169,8 @@ export class ReviewManager implements vscode.Disposable {
       const old = this.entries.get(k);
       if (old && old.content === e.content && old.jsonPath === e.jsonPath) {
         old.landedAt = e.landedAt;
+        // The hook adds a region per Claude edit without touching the baseline text.
+        if (JSON.stringify(old.regions) !== JSON.stringify(e.regions)) old.regions = e.regions;
         next.set(k, old);
       }
     }
@@ -257,13 +260,18 @@ export class ReviewManager implements vscode.Disposable {
     const text = this.currentText(key);
     if (text === null) return [];
     const hit = this.memo.get(key);
-    if (hit && hit.baseline === e.content && hit.text === text) return hit.hunks;
+    if (hit && hit.baseline === e.content && hit.text === text && hit.regions === e.regions) return hit.hunks;
     let hunks: Hunk[];
     if (!e.existed && !this.fileExists(key))
       hunks = []; // created then deleted: nothing to show
     else if (e.existed && !this.fileExists(key)) hunks = [{ aStart: 0, aLines: splitLines(e.content), bStart: 0, bLines: [] }];
-    else hunks = diffLines(splitLines(e.content), splitLines(text));
-    this.memo.set(key, { baseline: e.content, text, hunks });
+    else {
+      const a = splitLines(e.content);
+      const b = splitLines(text);
+      // Grouped per Claude edit, like Cursor; a whole-file diff when the regions no longer fit the texts.
+      hunks = (e.regions && hunksFromRegions(a, b, e.regions)) || diffLines(a, b);
+    }
+    this.memo.set(key, { baseline: e.content, text, hunks, regions: e.regions });
     return hunks;
   }
 
@@ -341,6 +349,16 @@ export class ReviewManager implements vscode.Disposable {
       const next = M.absorbUserEdits(entry.content, baseHunks, e.contentChanges, eol);
       if (next !== null) {
         entry.content = next;
+        if (entry.regions) {
+          // Last change first, so earlier line numbers stay valid.
+          let rs = entry.regions;
+          for (const c of [...e.contentChanges].sort((x, y) => y.range.start.line - x.range.start.line)) {
+            const oldLen = c.range.end.line - c.range.start.line + 1;
+            const newLen = c.text.split(/\r\n|\n/).length;
+            rs = applyEdit(rs, c.range.start.line, oldLen, newLen, false);
+          }
+          entry.regions = rs;
+        }
         this.safeWrite(entry);
       }
     }
@@ -491,6 +509,7 @@ export class ReviewManager implements vscode.Disposable {
     if (!e || !h) return false;
     const before = this.snapshot(ref.key);
     e.content = M.acceptHunkInBaseline(e.content, h, this.eolFor(ref.key));
+    if (e.regions) e.regions = acceptInRegions(e.regions, h);
     this.safeWrite(e);
     this.pushHistory({
       kind: 'accept',
@@ -515,6 +534,11 @@ export class ReviewManager implements vscode.Disposable {
       next = M.rejectHunkInText(cur, h, this.eolFor(e.key));
       // Rejecting the last change of a file Claude created deletes it again.
       if (!e.existed && next === '' && this.hunks(e.key).length === 1) next = DELETED;
+    }
+    if (e.regions && exists) {
+      // The baseline's lines go back inside the change's region.
+      e.regions = applyEdit(e.regions, h.bStart, h.bLines.length, h.aLines.length, true);
+      this.safeWrite(e);
     }
     await this.setText(e.key, e.path, next, cfg('saveAfterReject', true));
     this.pushHistory({

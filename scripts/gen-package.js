@@ -16,6 +16,8 @@ const commands = [
   { command: 'claudeInlineDiff.undoFileText', title: 'Undo File', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.keepAllText', title: 'Keep All', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.undoAllText', title: 'Undo All', category: 'Claude Inline Diff' },
+  { command: 'claudeInlineDiff.undoOneText', title: 'Undo', category: 'Claude Inline Diff' },
+  { command: 'claudeInlineDiff.keepOneText', title: 'Keep', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.nextFileText', title: 'Review Next File', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.keepAllChangesText', title: 'Keep all changes', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.reviewText', title: 'Review', category: 'Claude Inline Diff' },
@@ -89,7 +91,7 @@ const configuration = {
     'claudeInlineDiff.hunkToolbar': P('string', 'cursor', 'Pill under a change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `cursor` (like Cursor): one pill, under the change nearest to where you last were, with the text cursor or the mouse; lines below it shift by one row when it moves, because extensions cannot overlay the editor. `all`: under every change. `active`: under the change at the text cursor only. `off`: use CodeLens instead.', { enum: ['cursor', 'all', 'active', 'off'] }),
     'claudeInlineDiff.showCodeLens': P('boolean', false, 'Also show Keep / Undo CodeLens above changes and at the top of the file (always used when the editorInsets API is unavailable or `hunkToolbar` is `off`).'),
     'claudeInlineDiff.floatingBar': P('boolean', true, 'Floating **Undo File / Keep File** buttons at the bottom-right of the editor, like Cursor\'s per-file bar (Cursor shows two buttons there); Undo All / Keep All are in the Claude Changes list (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line).'),
-    'claudeInlineDiff.highlightWords': P('boolean', true, 'Mark changed words inside removed lines (like Cursor; added lines keep one colour).'),
+    'claudeInlineDiff.highlightWords': P('boolean', false, 'Mark changed words inside removed lines. Off by default: Cursor shows removed lines in one colour.'),
     'claudeInlineDiff.saveAfterReject': P('boolean', true, 'Save the file after Reject so Claude reads what you see.'),
     'claudeInlineDiff.absorbUserEdits': P('boolean', true, 'Your own edits outside Claude\'s changes are folded into the baseline (never shown as Claude\'s). Edits inside a change become part of it.'),
     'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
@@ -112,11 +114,11 @@ const menus = {
   // Like Cursor: the editor's bar acts on this file only; Undo All / Keep All live in the Claude Changes list.
   // Cursor renders only the first two items of this menu, so there is no room for ‹ › file arrows.
   'editor/content': [
-    { command: 'claudeInlineDiff.undoFileText', group: 'claudeInlineDiff@1', when: `${barWhen} && claudeInlineDiff.activeFileHasChanges` },
-    { command: 'claudeInlineDiff.keepFileText', group: 'claudeInlineDiff@2', when: `${barWhen} && claudeInlineDiff.activeFileHasChanges` },
+    { command: 'claudeInlineDiff.undoFileText', group: 'claudeInlineDiff@1', when: `${barWhen} && resourcePath in claudeInlineDiff.files` },
+    { command: 'claudeInlineDiff.keepFileText', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.files` },
     // Cursor's variant for a file without changes while other files have some.
-    { command: 'claudeInlineDiff.keepAllChangesText', group: 'claudeInlineDiff@5', when: `${barWhen} && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges` },
-    { command: 'claudeInlineDiff.nextFileText', group: 'claudeInlineDiff@6', when: `${barWhen} && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges` },
+    { command: 'claudeInlineDiff.keepAllChangesText', group: 'claudeInlineDiff@5', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
+    { command: 'claudeInlineDiff.nextFileText', group: 'claudeInlineDiff@6', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
   ],
   'editor/context': [
     { command: 'claudeInlineDiff.acceptHunk', group: '0_claudeInlineDiff@1', when: 'claudeInlineDiff.cursorInHunk' },
@@ -129,8 +131,11 @@ const menus = {
     { command: 'claudeInlineDiff.showDiff', group: '7_claudeInlineDiff@3', when: 'resourcePath in claudeInlineDiff.files' },
   ],
   'view/title': [
-    { command: 'claudeInlineDiff.undoAllText', group: 'navigation@1', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges' },
-    { command: 'claudeInlineDiff.keepAllText', group: 'navigation@2', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges' },
+    // Cursor: "Undo / Keep" for one file, "Undo All / Keep All" for several.
+    { command: 'claudeInlineDiff.undoAllText', group: 'navigation@1', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles' },
+    { command: 'claudeInlineDiff.keepAllText', group: 'navigation@2', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles' },
+    { command: 'claudeInlineDiff.undoOneText', group: 'navigation@1', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles' },
+    { command: 'claudeInlineDiff.keepOneText', group: 'navigation@2', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles' },
     { command: 'claudeInlineDiff.reviewText', group: 'navigation@3', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges' },
     { command: 'claudeInlineDiff.undo', group: '0_history@1', when: 'view == claudeInlineDiff.changes' },
     { command: 'claudeInlineDiff.refresh', group: '1_more@1', when: 'view == claudeInlineDiff.changes || view == claudeInlineDiff.steps' },
@@ -146,7 +151,7 @@ const menus = {
     { command: 'claudeInlineDiff.acceptFile', group: 'inline@1', when: 'view == claudeInlineDiff.changes && viewItem == session' },
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
   ],
-  commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
+  commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'undoOneText', 'keepOneText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
 };
 const color = (id, description, d) => ({ id: 'claudeInlineDiff.' + id, description, defaults: { dark: d.dark, light: d.light, highContrast: d.hc || d.dark, highContrastLight: d.hcl || d.light } });
 const colors = [
@@ -164,7 +169,7 @@ Object.assign(pkg, {
   name: 'claude-inline-diff',
   displayName: 'Claude Inline Diff',
   description: "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
-  version: '0.1.8',
+  version: '0.1.9',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

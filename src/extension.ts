@@ -748,6 +748,9 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('keepFileText', forward('acceptFile'));
   reg('undoFileText', forward('rejectFile'));
   reg('keepAllText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
+  reg('undoOneText', () => vscode.commands.executeCommand('claudeInlineDiff.rejectAll'));
+  reg('keepOneText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
+  reg('keepAllChangesText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
   reg('undoAllText', () => vscode.commands.executeCommand('claudeInlineDiff.rejectAll'));
   reg('nextFileText', () => navigateFile(1));
   reg('placeChangesView', () => placeChangesView(true));

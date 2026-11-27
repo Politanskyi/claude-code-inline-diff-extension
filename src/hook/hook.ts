@@ -11,8 +11,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import * as S from '../core/store';
+import { splitLines } from '../core/diff';
+import { recordClaudeEdit } from '../core/regions';
 
-export const HOOK_VERSION = '1.0.1';
+export const HOOK_VERSION = '1.0.2';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -84,6 +86,7 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
     const before = S.readTextForBaseline(abs);
     if (!before) return ''; // binary / too large / unreadable
     S.startActivity(store, { path: abs, tool: data.tool_name, sessionId: data.session_id, ts: ctx.now() });
+    S.saveBefore(store, abs, before.content);
     S.recordStepFile(store, session, abs, before, ctx.now());
     if (!S.hasBaseline(store, abs)) {
       S.createBaseline(store, {
@@ -101,10 +104,23 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
   }
   if (event === 'PostToolUse') {
     S.endActivity(store, abs);
+    recordRegions(store, abs);
     S.markLanded(store, abs);
     return feedbackOutput('PostToolUse', data, root, cfg, ctx);
   }
   return '';
+}
+
+/** Remembers which lines this tool call changed, so the review groups changes per edit, like Cursor. */
+function recordRegions(store: string, abs: string): void {
+  const before = S.takeBefore(store, abs);
+  const after = S.readTextForBaseline(abs);
+  if (before === null || !after) return;
+  try {
+    S.updateRegions(store, abs, (r) => recordClaudeEdit(r, splitLines(before), after.existed ? splitLines(after.content) : []));
+  } catch {
+    /* best effort */
+  }
 }
 
 // ---------- Bash: compare git's view of dirty files before and after ----------

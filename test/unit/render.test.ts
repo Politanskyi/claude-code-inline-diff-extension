@@ -66,7 +66,7 @@ describe('inset html', () => {
     expect(html).toBe('a<span class="w">&lt;b&gt;</span>c');
   });
   it('builds a CSP-locked document with buttons and a collapsed tail', () => {
-    const m = { fontSize: 14, lineHeight: 20, fontFamily: 'Menlo', fontWeight: 'normal', tabSize: 4, ligatures: false };
+    const m = { fontSize: 14, lineHeight: 20, fontFamily: 'Menlo', fontWeight: 'normal', tabSize: 4, ligatures: false, scrollBeyond: 4 };
     const html = insetHtml(
       {
         afterLine: 3,

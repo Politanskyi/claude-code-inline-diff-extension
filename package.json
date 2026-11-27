@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -130,6 +130,16 @@
       {
         "command": "claudeInlineDiff.undoAllText",
         "title": "Undo All",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.undoOneText",
+        "title": "Undo",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.keepOneText",
+        "title": "Keep",
         "category": "Claude Inline Diff"
       },
       {
@@ -478,8 +488,8 @@
         },
         "claudeInlineDiff.highlightWords": {
           "type": "boolean",
-          "default": true,
-          "markdownDescription": "Mark changed words inside removed lines (like Cursor; added lines keep one colour)."
+          "default": false,
+          "markdownDescription": "Mark changed words inside removed lines. Off by default: Cursor shows removed lines in one colour."
         },
         "claudeInlineDiff.saveAfterReject": {
           "type": "boolean",
@@ -552,22 +562,22 @@
         {
           "command": "claudeInlineDiff.undoFileText",
           "group": "claudeInlineDiff@1",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && claudeInlineDiff.activeFileHasChanges"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.files"
         },
         {
           "command": "claudeInlineDiff.keepFileText",
           "group": "claudeInlineDiff@2",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && claudeInlineDiff.activeFileHasChanges"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.files"
         },
         {
           "command": "claudeInlineDiff.keepAllChangesText",
           "group": "claudeInlineDiff@5",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs"
         },
         {
           "command": "claudeInlineDiff.nextFileText",
           "group": "claudeInlineDiff@6",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs"
         }
       ],
       "editor/context": [
@@ -608,12 +618,22 @@
         {
           "command": "claudeInlineDiff.undoAllText",
           "group": "navigation@1",
-          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles"
         },
         {
           "command": "claudeInlineDiff.keepAllText",
           "group": "navigation@2",
-          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles"
+        },
+        {
+          "command": "claudeInlineDiff.undoOneText",
+          "group": "navigation@1",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles"
+        },
+        {
+          "command": "claudeInlineDiff.keepOneText",
+          "group": "navigation@2",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles"
         },
         {
           "command": "claudeInlineDiff.reviewText",
@@ -717,6 +737,14 @@
         },
         {
           "command": "claudeInlineDiff.keepAllChangesText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.undoOneText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepOneText",
           "when": "false"
         },
         {

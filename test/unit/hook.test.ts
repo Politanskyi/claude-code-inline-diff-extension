@@ -274,3 +274,31 @@ describe('bundled dist/hook.js over stdin', () => {
     expect(bad.stdout).toBe('');
   });
 });
+
+describe('hook: edit regions', () => {
+  it('records where each Edit landed, so changes group per edit (like Cursor)', async () => {
+    const { hunksFromRegions } = await import('../../src/core/regions');
+    const rel = 'regions.ts';
+    const base = ['function a() {', '  return 1;', '}', '', 'function old() {', '  return 0;', '}', '', 'const X = 1;'].join('\n');
+    sb.write(rel, base);
+    const abs = path.join(sb.project, rel);
+    let cur = base;
+    const step = (from: string, to: string) => {
+      cur = cur.replace(from, to);
+      claudeEdit(rel, cur);
+    };
+    step('  return 1;', '  return 2;');
+    step('function old() {\n  return 0;\n}\n\n', '');
+    step('const X = 1;', 'const X = 2;');
+    const [e] = S.loadEntries(sb.store).filter((x) => x.path === S.realPath(abs));
+    expect(e.regions).toBeDefined();
+    const hunks = hunksFromRegions(e.content.split('\n'), cur.split('\n'), e.regions!)!;
+    expect(hunks.map((h) => [h.aLines, h.bLines])).toEqual([
+      [['  return 1;'], ['  return 2;']],
+      // Edits that touch join one change, as in Cursor's view.
+      [['function old() {', '  return 0;', '}', '', 'const X = 1;'], ['const X = 2;']],
+    ]);
+    expect(fs.existsSync(path.join(sb.store, 'before'))).toBe(true);
+    expect(fs.readdirSync(path.join(sb.store, 'before'))).toEqual([]); // taken at PostToolUse
+  });
+});

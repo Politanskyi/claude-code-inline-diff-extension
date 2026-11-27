@@ -65,7 +65,11 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 ## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
   `editor.action.inlineDiffs.*` registrations.
-- Colours: theme diffEditor.inserted/removedLineBackground; words rgba(12,233,27,.15) / rgba(242,13,59,.25); no gutter bar.
+- Colours: theme diffEditor.inserted/removedLineBackground; removed text in one colour (editor fg 75%, no syntax colours); word marks off by default (`highlightWords`); no gutter bar.
+- Pill colours measured in Cursor (One Dark Pro): nav = fg 5.5% over editor bg, Undo = editor bg + 1px border fg 11%, Keep = charts.green; Keep shows no shortcut, Undo shows ⌘N. Pill is 20px (one line) vs Cursor's 24px overlay.
+- Grouping: the hook records edit regions (`src/core/regions.ts`, `BaselineFile.regions`) per Claude tool call; hunks are diffed inside regions (Cursor diffs per agent edit), whole-file diff when regions do not fit.
+- Pill placement: a 1px full-width probe + IntersectionObserver finds the visible right edge of the inset (inset is as wide as the scroll width).
+- The floating Keep all changes / Review Next File bar hides when the file has Cursor's own diffs (`inlineDiffs.activeEditorWithDiffs`).
 - Pill (inset row): `⌃ i of n ⌄ | Undo | Keep | …`, one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned unless the editor overflows horizontally.
 - Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
 - Floating Undo File / Keep File via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu); Undo All / Keep All / Review in the Claude Changes list.

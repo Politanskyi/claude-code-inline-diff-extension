@@ -26,7 +26,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e in **Cursor 3.32.4** (via `~/.cursor/argv.json`) and VS Code 1.148 + screenshots |
 | ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Keep/Undo links; CodeLens `1 of 4 · Undo · Keep` | e2e + screenshot |
 | ✅ | Added lines green; **changed words** marked inside removed lines (like Cursor) | unit + e2e |
-| ✅ | Cursor-style **pill**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep ⌘Y │ …`, one per file, under the change nearest to the text cursor or the mouse, like Cursor (counter only with 2+ changes; right-aligned, anchored to the code when the editor scrolls horizontally) | manual in Cursor 3.32 |
+| ✅ | Cursor-style **pill**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep │ …`, one per file, under the change nearest to the text cursor or the mouse, like Cursor (counter only with 2+ changes; right-aligned, anchored to the code when the editor scrolls horizontally) | manual in Cursor 3.32 |
 | ✅ | Floating per-file **Undo File / Keep File** bar at the bottom-right of the editor (`editor/content`, proposed `contribEditorContentMenu`), like Cursor's per-file bar | manual in Cursor 3.32 |
 | ✅ | **Follow Claude**: a new change in a visible file is scrolled into view and briefly highlighted (never while your cursor is in a change) | e2e |
 | ✅ | **Review All**: every changed file in one multi-file diff editor (inline blocks are suppressed there) | e2e in Cursor + screenshot |
@@ -95,7 +95,8 @@ cursor --install-extension claude-inline-diff.vsix
 | `followClaude` | `false` | scroll to and flash Claude's new changes (Cursor does not) |
 | `revealOnEdit` | `false` | open the file Claude edits (preview, focus stays; Cursor does not) |
 | `trackBashEdits` | `true` | detect Bash edits via git |
-| `saveAfterReject`, `absorbUserEdits`, `highlightWords`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
+| `highlightWords` | `false` | mark changed words inside removed lines (Cursor does not) |
+| `saveAfterReject`, `absorbUserEdits`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
 
 ## Keys
 

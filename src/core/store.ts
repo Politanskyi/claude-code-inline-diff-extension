@@ -10,12 +10,15 @@
 //   steps/<session>/<turn>/meta.json         one Claude step (= one user prompt)
 //   steps/<session>/<turn>/files/<name>.json the file before that step first touched it
 //   bash/<id>.json             dirty-file snapshot taken before a Bash tool call
+//   before/<name>.txt          the file as it was when an edit tool call started (Pre → Post)
 //   feedback/<id>.json         "reject with feedback" notes waiting for Claude
 //   editor-writes/<name>.json  (global store only) last save made in the editor, so Bash tracking skips it
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import type { Region } from './regions';
+export type { Region };
 
 export const STORE_DIR_NAME_DEFAULT = '.claude-review';
 export const HOOK_FILE = 'claude-inline-diff-hook.js';
@@ -38,6 +41,8 @@ export interface BaselineFile {
   sessionId?: string;
   tool?: string;
   source?: 'edit' | 'bash';
+  /** Where Claude's edits landed (see core/regions.ts); absent for Bash changes and older baselines. */
+  regions?: Region[];
 }
 export interface Entry extends BaselineFile {
   jsonPath: string;
@@ -387,6 +392,38 @@ export function startActivity(storeDir: string, a: Activity): void {
   ensureStore(storeDir);
   writeJsonAtomic(activityPath(storeDir, a.path), a);
 }
+const beforePath = (storeDir: string, abs: string) => path.join(storeDir, 'before', fileNameFor(abs) + '.txt');
+
+/** The file's text when Claude's tool call started (kept apart from activity/, which is polled). */
+export function saveBefore(storeDir: string, abs: string, content: string): void {
+  try {
+    fs.mkdirSync(path.join(storeDir, 'before'), { recursive: true });
+    fs.writeFileSync(beforePath(storeDir, abs), content);
+  } catch {
+    /* best effort: without it the change is grouped by a whole-file diff */
+  }
+}
+
+export function takeBefore(storeDir: string, abs: string): string | null {
+  const p = beforePath(storeDir, abs);
+  try {
+    const t = fs.readFileSync(p, 'utf8');
+    fs.rmSync(p, { force: true });
+    return t;
+  } catch {
+    return null;
+  }
+}
+
+/** Read-modify-write of a baseline's edit regions. */
+export function updateRegions(storeDir: string, abs: string, fn: (r: Region[]) => Region[]): void {
+  const p = baselinePath(storeDir, abs);
+  const b = readJson<BaselineFile>(p);
+  if (!b) return;
+  b.regions = fn(Array.isArray(b.regions) ? b.regions : []);
+  writeJsonAtomic(p, b);
+}
+
 export function endActivity(storeDir: string, abs: string): void {
   rm(activityPath(storeDir, abs));
 }

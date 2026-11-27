@@ -87,6 +87,8 @@ export function editorMetrics(doc?: vscode.TextDocument) {
     fontWeight: c.get<string>('fontWeight', 'normal'),
     tabSize: c.get<number>('tabSize', 4) || 4,
     ligatures: c.get<unknown>('fontLigatures', false),
+    // An editor that scrolls sideways is this many columns (plus the scrollbar) wider than its longest line.
+    scrollBeyond: c.get<number>('scrollBeyondLastColumn', 4) ?? 4,
   };
 }
 
@@ -139,7 +141,7 @@ export function insetHtml(
       renderLine(
         tokens[i],
         block.removed.filter((r) => r.line === i),
-        palette
+        {} as Palette // one colour, like Cursor's removed lines
       )
     )
     .map((h) => `<div class="l">${h}</div>`)
@@ -159,7 +161,7 @@ export function insetHtml(
           `<button class="ic" data-a="next" title="Next change" aria-label="Next change">${CHEVRON_DOWN}</button></div>`
         : '') +
       `<button class="b sec" data-a="reject" title="Undo this change (${kN})">Undo<span class="k">${kN}</span></button>` +
-      `<button class="b pri" data-a="accept" title="Keep this change (${kY})">Keep<span class="k">${kY}</span></button>` +
+      `<button class="b pri" data-a="accept" title="Keep this change (${kY})">Keep</button>` +
       `<button class="b sec more-b" data-a="feedback" title="Undo and tell Claude why…">…</button>` +
       `</div></div>`
     : '';
@@ -171,8 +173,9 @@ export function insetHtml(
 html,body{margin:0;padding:0;overflow:hidden;background:transparent}
 body{font-family:${ff};font-size:${m.fontSize}px;font-weight:${m.fontWeight};tab-size:${m.tabSize};-moz-tab-size:${m.tabSize};
  font-feature-settings:${m.ligatures ? '"liga" 1, "calt" 1' : '"liga" 0, "calt" 0'};color:var(--vscode-editor-foreground)}
-/* Removed code: like Cursor's .inline-diff-removed — theme removed-line background, text at 90% opacity, no gutter bar. */
-.l{height:${m.lineHeight}px;line-height:${m.lineHeight}px;white-space:pre;overflow:hidden;opacity:.9;
+/* Removed code, as Cursor draws it: theme removed-line background, the text in one colour (the editor's at 75%, no syntax colours), no gutter bar. */
+.l{height:${m.lineHeight}px;line-height:${m.lineHeight}px;white-space:pre;overflow:hidden;
+ color:color-mix(in srgb,var(--vscode-editor-foreground) 75%,transparent);
  background:var(--vscode-claudeInlineDiff-removedLineBackground,var(--vscode-diffEditor-removedLineBackground,rgba(242,13,59,.15)))}
 .w{background:var(--vscode-claudeInlineDiff-removedWordBackground,rgba(242,13,59,.25));box-shadow:inset 1px 0 rgba(242,13,59,.25),inset -1px 0 rgba(242,13,59,.25)}
 .more{font-style:italic;opacity:.75;font-family:var(--vscode-font-family);font-size:12px;padding-left:8px}
@@ -180,19 +183,20 @@ body{font-family:${ff};font-size:${m.fontSize}px;font-weight:${m.fontWeight};tab
 .tbrow{position:relative;height:${m.lineHeight}px}
 .tb{position:absolute;top:0;right:18px;border-top-left-radius:0;display:flex;flex-direction:row;gap:2px;height:${pillH}px;align-items:stretch;
  font-family:var(--vscode-font-family);font-size:12px;border-bottom-left-radius:4px;border-bottom-right-radius:4px}
-.nav{display:flex;align-items:center;gap:2px;padding:0 6px;border-radius:4px;color:var(--vscode-input-foreground);
- background:color-mix(in srgb,var(--vscode-editorWidget-background,var(--vscode-editor-background)) 67%,transparent)}
+.nav{display:flex;align-items:center;gap:3px;padding:0 7px;border-radius:4px;color:var(--vscode-editor-foreground);
+ background:color-mix(in srgb,var(--vscode-editor-foreground) 5.5%,var(--vscode-editor-background))}
 .ctr{min-width:36px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
-.ic{background:none;border:0;padding:0 2px;margin:0;cursor:pointer;color:var(--vscode-input-foreground);display:flex;align-items:center;opacity:.8}
+.ic{background:none;border:0;padding:0 2px;margin:0;cursor:pointer;color:inherit;display:flex;align-items:center;opacity:.8}
 .ic:hover{opacity:1}
 .ic svg{width:14px;height:14px;fill:currentColor}
-.b{display:flex;align-items:center;gap:4px;border:0;border-radius:4px;padding:0 6px;cursor:pointer;font:inherit;white-space:nowrap}
-.pri{background:color-mix(in srgb,var(--vscode-charts-green,#2ea043) 85%,transparent);color:var(--vscode-button-foreground,#fff)}
+.b{display:flex;align-items:center;gap:5px;border:0;border-radius:4px;padding:0 7px;cursor:pointer;font:inherit;white-space:nowrap}
+.pri{padding:0 6px;background:color-mix(in srgb,var(--vscode-charts-green,#2ea043) 85%,transparent);color:var(--vscode-button-foreground,#fff)}
 .pri:hover{background:var(--vscode-charts-green,#2ea043)}
-.sec{background:var(--vscode-editorWidget-background,var(--vscode-editor-background));color:var(--vscode-input-foreground);
- box-shadow:inset 0 0 0 1px var(--vscode-widget-border,rgba(128,128,128,.35))}
+/* Measured on Cursor's pill: editor background, a faint border (the text colour at 11%). */
+.sec{background:var(--vscode-editor-background);color:var(--vscode-editor-foreground);
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vscode-editor-foreground) 11%,var(--vscode-editor-background))}
 .sec:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
-.k{opacity:.7;font-size:11px}
+.k{opacity:.7;font-size:12px}
 .more-b{padding:0 5px}
 </style></head><body>${body}${more}${toolbar}
 <script nonce="${nonce}">
@@ -200,13 +204,17 @@ const vs=acquireVsCodeApi();
 document.querySelectorAll('button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();vs.postMessage({a:b.dataset.a})}));
 ${
   t
-    ? `// Right-align like Cursor unless the editor scrolls horizontally (the inset is then wider than the viewport).
-(()=>{const tb=document.getElementById('tb');const c=document.createElement('canvas').getContext('2d');
-c.font=getComputedStyle(document.body).fontWeight+' ${m.fontSize}px '+getComputedStyle(document.body).fontFamily;
-const ch=c.measureText('M'.repeat(50)).width/50||${(m.fontSize * 0.6).toFixed(2)};
-const place=()=>{const w=document.documentElement.clientWidth;
-if(w>(${t.maxCols}+6)*ch){tb.style.right='18px';tb.style.left='auto';}else{tb.style.right='auto';tb.style.left=${t.anchorCols}*ch+'px';}};
-place();addEventListener('resize',place);})();`
+    ? `// Right-aligned like Cursor's pill, at the right edge of what is visible. The inset is as wide as the
+// editor's scroll width, which can be wider than the editor, so the pill watches how much of it the
+// editor clips (IntersectionObserver sees clipping by the parent frames) and moves left by that much.
+(()=>{const tb=document.getElementById('tb');
+// A 1px probe as wide as the inset: the part of it the editor shows is the visible span, even when the pill is hidden.
+const probe=document.createElement('div');probe.style.cssText='position:absolute;left:0;top:0;width:100%;height:1px;pointer-events:none';
+document.querySelector('.tbrow').appendChild(probe);
+const th=[];for(let i=0;i<=20;i++)th.push(i/20);
+new IntersectionObserver((es)=>{const e=es[es.length-1];const r=e.intersectionRect,b=e.boundingClientRect;
+if(r.width<=0)return; // scrolled out of view
+tb.style.left='auto';tb.style.right=Math.max(0,b.right-r.right)+18+'px';},{threshold:th}).observe(probe);})();`
     : ''
 }
 </script>
