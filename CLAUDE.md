@@ -61,7 +61,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
 
 ## Verified in Cursor
-- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 17/17.
+- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 17/17 (now 18 tests; macOS Cursor 3.32.4: 18/18).
   Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, all tests pass.
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
 - `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating per-file Undo File / Keep File bar).
@@ -81,6 +81,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
 - Claude Changes (Cursor's composer file list, from its source): pending files only while any are pending; afterwards every file the current chat touched (steps of the newest own session, `M.currentSession`), undone ones too; collapsed by default and never auto-expanded (Cursor's `isFileListExpanded` changes only on user click); the status bar opens it via `<view>.focus` (checked live) and hands focus back to the editor.
 - Floating Undo File / Keep File ⌘⏎ via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu), only in the active editor (`claudeInlineDiff.activeFiles`); Cursor's own file bar sits in the breadcrumb row, which extensions cannot use; Undo All / Keep All / Review in the Claude Changes list.
+- While the agent works (checked live with Cursor's agent): the list header hides Undo All / Keep All (Cursor shows Stop), per-file ✕ / ✓ stay usable; the header is sticky in long lists.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
 - e2e: 18 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
