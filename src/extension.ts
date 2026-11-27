@@ -784,6 +784,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('keepAllChangesText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
   reg('nextFileText', () => navigateFile(1));
   reg('placeChangesView', () => placeChangesView(true));
+  reg('showChangesList', () => changesPanel?.show());
   reg('reviewAll', async () => {
     const keys = review.pendingKeys();
     if (!keys.length) return reviewChat();

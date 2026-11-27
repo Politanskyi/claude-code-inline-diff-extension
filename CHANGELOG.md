@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.24
+- The status bar summary shows the Claude Changes list through the view's focus command, then gives focus back to the editor (checked live). New command *Show Claude Changes*.
+
 ## 0.1.23
 - Clicking the status bar summary opens the Claude Changes list (it used to open a plain quick pick).
 

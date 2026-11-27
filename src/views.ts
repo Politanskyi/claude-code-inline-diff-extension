@@ -37,7 +37,7 @@ export class StatusBar implements vscode.Disposable {
     this.next.tooltip = 'Next Claude change (Alt+F5)';
     this.next.command = 'claudeInlineDiff.nextHunk';
     // Opens the Claude Changes list (nicer than a quick pick); the editor keeps focus for Cmd+Y / Cmd+N.
-    this.main.command = { command: 'claudeInlineDiff.changes.open', title: 'Show Claude Changes', arguments: [{ preserveFocus: true }] };
+    this.main.command = 'claudeInlineDiff.showChangesList';
     this.disposables = [
       this.main,
       this.prev,
@@ -193,7 +193,7 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
  * Like Cursor: while there are changes to review it lists only those; once everything is reviewed it
  * keeps listing every file the current Claude chat changed (its history; no Undo/Keep then), and a new
  * chat starts empty. Collapsed by default and only the user expands or collapses it, like Cursor's file
- * list, which it never opens by itself (the one exception: a missing hook, so its install button shows).
+ * list, which it never opens by itself.
  * With nothing at all it shows an empty state, or the hook install button when the hook is missing.
  */
 export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -228,12 +228,17 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   setHookReady(ready: boolean): void {
     if (this.hookReady === ready) return;
     this.hookReady = ready;
-    if (!ready) this.expand();
     this.update();
   }
 
-  private expand(): void {
-    void vscode.commands.executeCommand(ChangesPanel.id + '.open', { preserveFocus: true }).then(undefined, () => undefined);
+  /**
+   * Shows (and expands) the list: `<id>.focus` (a command every view has), then focus goes back to
+   * the editor so Cmd+Y / Cmd+N keep working.
+   */
+  async show(): Promise<void> {
+    const hadEditor = !!vscode.window.activeTextEditor;
+    await vscode.commands.executeCommand(ChangesPanel.id + '.focus');
+    if (hadEditor) await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {

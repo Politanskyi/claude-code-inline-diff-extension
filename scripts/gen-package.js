@@ -40,6 +40,7 @@ const commands = [
   C('fixKeybindings', 'Fix Shortcut Conflicts with Other Extensions'),
   C('placeChangesView', 'Show Claude Changes Under the Claude Code Chat'),
   C('enableInsets', 'Enable Inline Removed-Code Blocks (argv.json)…'),
+  C('showChangesList', 'Show Claude Changes', 'list-flat'),
   C('revertStep', 'Revert to Before This Step', 'history'),
   C('clearSnapshots', 'Delete Review Snapshots (.claude-review)…'),
   C('refresh', 'Refresh', 'refresh'),
@@ -267,7 +268,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.23',
+  version: '0.1.24',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
