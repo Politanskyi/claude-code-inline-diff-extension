@@ -249,7 +249,7 @@ async function reviewChat(): Promise<void> {
     const now = fs.existsSync(f.path) ? vscode.Uri.file(f.path) : vscode.Uri.from({ scheme: BASE_SCHEME, path: p, query: 'gone=1' });
     return [now, before, now];
   });
-  await vscode.commands.executeCommand('vscode.changes', `Claude chat changes (${M.plural(files.length, 'file')})`, resources);
+  await vscode.commands.executeCommand('vscode.changes', 'Claude chat changes' /* the editor adds "(N files)" itself */, resources);
 }
 
 /** The document behind the "before Claude" side of a diff. */
@@ -795,7 +795,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     try {
       await vscode.commands.executeCommand(
         'vscode.changes',
-        `Claude changes (${M.summaryText(keys.length, review.totals().changes)})`,
+        `Claude changes · ${M.plural(review.totals().changes, 'change')}` /* the editor adds "(N files)" */,
         resources
       );
     } catch {

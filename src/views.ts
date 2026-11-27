@@ -414,10 +414,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
 html,body{margin:0;padding:0}
 body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-foreground);background:transparent;user-select:none}
 .hd{display:flex;align-items:center;gap:4px;height:28px;padding:0 8px 0 4px}
-.tw{display:flex;align-items:center;gap:2px;cursor:pointer;color:var(--vscode-descriptionForeground);flex:1;min-width:0;white-space:nowrap}
-.tw:hover{color:var(--vscode-foreground)}
-.tw svg{width:16px;height:16px;fill:currentColor;transition:transform .1s}
-.collapsed .tw svg{transform:rotate(-90deg)}
+.tw{color:var(--vscode-descriptionForeground);flex:1;min-width:0;white-space:nowrap;padding-left:16px}
 .btn{font:inherit;font-size:12px;border:0;border-radius:4px;height:22px;padding:0 7px;cursor:pointer;white-space:nowrap;background:transparent;color:var(--vscode-foreground)}
 .btn:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .btn.text{color:var(--vscode-descriptionForeground)}
@@ -426,7 +423,6 @@ body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-for
 .btn.sec:hover{background:color-mix(in srgb,var(--vscode-foreground) 16%,transparent)}
 .btn.warn{color:var(--vscode-errorForeground)}
 .rows{padding:0 0 4px}
-.collapsed .rows{display:none}
 .row{display:flex;align-items:center;gap:6px;height:23px;padding:0 8px 0 20px;cursor:pointer;font-size:12px}
 .row:hover{background:var(--vscode-list-hoverBackground)}
 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -453,38 +449,37 @@ html,body,#root{height:100%}
 </style></head><body><div id="root"></div>
 <script nonce="${nonce}">
 const vs=acquireVsCodeApi();
-const st=vs.getState()||{};let collapsed=!!st.collapsed;let confirmUndo=false;let confirmTimer=0;let data={files:[],hookReady:true};
+let confirmUndo=false;let confirmTimer=0;let data={files:[],hookReady:true};
 const X='<svg viewBox="0 0 16 16"><path d="M8 8.7l3.6 3.6.7-.7L8.7 8l3.6-3.6-.7-.7L8 7.3 4.4 3.7l-.7.7L7.3 8l-3.6 3.6.7.7z"/></svg>';
 const V='<svg viewBox="0 0 16 16"><path d="M6.3 11.3 2.7 7.7l-.7.7 4.3 4.3 7.7-7.7-.7-.7z"/></svg>';
 const OK='<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm2.9 3.6L7 9.5 5.1 7.6l-.7.7L7 10.9l4.6-4.6z"/></svg>';
 const PLUG='<svg viewBox="0 0 16 16"><path d="M6 1v3h4V1h1v3h1.5v3A4.5 4.5 0 0 1 8.5 11.5V15h-1v-3.5A4.5 4.5 0 0 1 3.5 7V4H5V1zm-1.5 4v2a3.5 3.5 0 0 0 7 0V5z"/></svg>';
-const CH='<svg viewBox="0 0 16 16"><path d="M8 10.7 3.6 6.3l.7-.7L8 9.3l3.7-3.7.7.7z"/></svg>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function send(a,key){vs.postMessage({a,key})}
 function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+esc(i.img)+'" alt=""></span>';if(i.ch)return '<span class="fi'+(i.font?' f-'+esc(i.font):'')+'" style="color:'+esc(i.color||'inherit')+'">'+esc(i.ch)+'</span>';return ''}
 function render(){
   const r=document.getElementById('root');const f=data.files;
   // Empty state: the hook install when it is missing, otherwise a quiet "nothing to review".
-  if(!f.length){r.className='';r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Install the Claude Code hook to review Claude&#39;s edits here</div><button data-a="install">Install Hook</button></div>';return}
+  if(!f.length){r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Install the Claude Code hook to review Claude&#39;s edits here</div><button data-a="install">Install Hook</button></div>';return}
   // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;
   if(data.working)confirmUndo=false;
-  r.className=collapsed?'collapsed':'';
-  r.innerHTML='<div class="hd"><div class="tw" data-a="toggle" title="'+(collapsed?'Expand':'Collapse')+'">'+CH+'<span>'+f.length+' '+(f.length===1?'File':'Files')+'</span></div>'+
+  // No collapse toggle of its own: the view section above already collapses.
+  r.innerHTML='<div class="hd"><div class="tw">'+f.length+' '+(f.length===1?'File':'Files')+'</div>'+
     (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
     '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+
     '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc((x.dir?x.dir+'/':'')+x.name)+(data.history?'':' · '+x.changes+' change'+(x.changes===1?'':'s'))+'">'+
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
-      (x.added||x.removed||!data.history?'<span class="st"><span class="ad">+'+x.added+'</span> <span class="rm">-'+x.removed+'</span></span>':'')+
+      // Like Cursor: "+41", "+7 -1", "-3" (no zero parts).
+      '<span class="st">'+(x.added?'<span class="ad">+'+x.added+'</span>':'')+(x.added&&x.removed?' ':'')+(x.removed?'<span class="rm">-'+x.removed+'</span>':'')+'</span>'+
       (x.isNew?'<span class="tag">new</span>':'')+(x.bash?'<span class="tag">Bash</span>':'')+'<span class="sp"></span>'+
       // History rows (already reviewed) have nothing to keep or undo.
       (data.history?'':'<span class="acts"><button class="ic" data-a="undo" data-key="'+esc(x.key)+'" title="Undo File">'+X+'</button><button class="ic" data-a="keep" data-key="'+esc(x.key)+'" title="Keep File">'+V+'</button></span>')+'</div>').join('')+'</div>';
 }
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-a]');if(!t)return;e.stopPropagation();const a=t.dataset.a;
-  if(a==='toggle'){collapsed=!collapsed;vs.setState({collapsed});render();return}
   if(a==='undoAll'){
     if(!confirmUndo){confirmUndo=true;clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{confirmUndo=false;render()},4000);render();return}
     confirmUndo=false;clearTimeout(confirmTimer);render();
