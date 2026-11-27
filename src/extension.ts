@@ -554,8 +554,9 @@ function offerQuit(prefix: string): void {
 }
 
 /**
- * One step instead of three prompts: the hook and "Edit automatically" (both work in the next Claude chat,
- * no restart) and, unchecked, the red blocks (argv.json + a full restart; offered again after the first change).
+ * One step instead of three prompts, everything ticked: the hook and "Edit automatically" (both work in the
+ * next Claude chat, no restart) and the red blocks (argv.json + a full restart; offered again after the first
+ * change if unticked here). Opens by itself on the first run.
  */
 async function setUp(): Promise<void> {
   const st = setup.status(bundledHook());
@@ -568,26 +569,26 @@ async function setUp(): Promise<void> {
   if (!hookOk)
     items.push({
       id: 'hook',
-      label: 'Claude Code hook',
+      label: '$(plug) Claude Code hook',
       description: 'required',
-      detail: "Adds our entries to ~/.claude/settings.json (with a backup) so the extension sees Claude's edits.",
+      detail: "Lets the extension see Claude's edits: a few entries in ~/.claude/settings.json, backup kept.",
       picked: true,
     });
   if (!auto)
     items.push({
       id: 'auto',
-      label: 'Let Claude edit automatically',
+      label: '$(check-all) Let Claude edit automatically',
       description: 'recommended',
-      detail: '"Edit automatically" for new Claude chats: edits land in the file and you review them here, not in Claude\'s diff tab.',
+      detail: "Edits land in the file and you review them here, instead of approving each one in Claude's diff tab.",
       picked: true,
     });
   if (!argvReady)
     items.push({
       id: 'insets',
-      label: 'Red removed-code blocks between lines',
-      description: 'needs a full restart',
-      detail: 'One line in argv.json. Until then removed code shows as a red rule, with the old code on hover.',
-      picked: false,
+      label: '$(diff) Red removed-code blocks between lines',
+      description: 'like Cursor · needs a full restart',
+      detail: 'One line in argv.json. Without it, removed code shows as a red rule with the old code on hover.',
+      picked: true,
     });
   if (!items.length) {
     void vscode.window.showInformationMessage(
@@ -601,7 +602,7 @@ async function setUp(): Promise<void> {
     canPickMany: true,
     ignoreFocusOut: true,
     title: 'Set Up Claude Inline Diff',
-    placeHolder: 'Space toggles an item, Enter applies',
+    placeHolder: 'Everything is ticked: press Enter to apply (Space unticks an item)',
   });
   if (!chosen?.length) return;
   const ids = new Set(chosen.map((c) => c.id));
@@ -765,12 +766,7 @@ async function firstRunChecks(): Promise<void> {
     }
   } else if (!st.configured && !ctx.globalState.get('hookPrompted')) {
     await ctx.globalState.update('hookPrompted', true);
-    const pick = await vscode.window.showInformationMessage(
-      "Claude Inline Diff: one-step setup to review Claude's edits right in your files.",
-      'Set Up…',
-      'Not Now'
-    );
-    if (pick === 'Set Up…') await setUp();
+    await setUp(); // the list itself explains each item; Esc leaves it for later (Set Up… in Claude Changes)
   }
 }
 

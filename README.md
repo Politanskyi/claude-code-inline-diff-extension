@@ -68,10 +68,10 @@ Claude Code (panel or CLI)                               Cursor / VS Code
 
 1. Download `claude-inline-diff.vsix` from the [latest release](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest).
 2. In Cursor: **Extensions** → `…` → **Install from VSIX…**.
-3. Click **Set Up…** when the extension asks and press Enter: it installs the Claude Code hook and turns on *Edit automatically*. No restart.
-4. Start a **new** Claude Code chat. Its edits show inline and in **Claude Changes** under the chat.
+3. The **Set Up** list opens by itself with everything ticked and explained: the Claude Code hook, *Edit automatically*, and red removed-code blocks (one line in `~/.cursor/argv.json`). Press Enter.
+4. Click **Quit Cursor** and start it again (the red blocks need a full restart; *Reload Window* is not enough). Then start a **new** Claude Code chat: its edits show inline and in **Claude Changes** under the chat.
 
-Removed code starts as a red rule with a hover. For red blocks between the lines, like Cursor, tick the third Set Up item (or accept the tip after the first change): it adds one line to `~/.cursor/argv.json`, then **quit Cursor completely** and start it again (*Reload Window* is not enough).
+Untick the red blocks and removed code shows as a red rule with a hover instead; the extension offers them again after the first change.
 
 The full guide, with every step done by hand, is in Ukrainian: **[docs/INSTALL.uk.md](docs/INSTALL.uk.md)**. Building it yourself: `npm ci && npm run package`.
 

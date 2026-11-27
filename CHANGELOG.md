@@ -9,9 +9,9 @@ Claude Code's edits reviewed inline in Cursor / VS Code, like Cursor's own agent
 - snapshots outside the project (`~/.claude/inline-diff/projects/`), no network, no telemetry.
 
 Since 0.1.31:
-- One-step setup: a single **Set Up…** (first run, the Claude Changes empty state, its `…` menu, the command palette) installs the hook and *Edit automatically* together; both work in the next Claude chat, no restart. Red removed-code blocks are the third, unticked item (argv.json + a full restart, with a *Quit Cursor* button), and are offered again after the first change is shown.
+- One-step setup: on the first run the **Set Up** list opens by itself with everything ticked and explained — the Claude Code hook, *Edit automatically*, red removed-code blocks (argv.json) — and Enter applies it all. The hook and *Edit automatically* work in the next Claude chat; the red blocks after a full restart (*Quit Cursor* button). Also in the Claude Changes empty state, its `…` menu and the command palette (*Set Up…*); unticked red blocks are offered again after the first change.
 - Releases: pushing a `v*` tag builds, tests and attaches `claude-inline-diff.vsix` to a GitHub release (`.github/workflows/release.yml`), so installing needs no build.
-- README and INSTALL start with a four-step quick start.
+- README and INSTALL start with a short quick start.
 
 ## 0.1.31
 - Only Claude Code's working folders under `~/.claude` are skipped now: `projects/` (memory, transcripts), `plans/`, `todos/`. What you keep there yourself (`settings.json`, `CLAUDE.md`, skills, agents, hooks, commands) is reviewed again like any other file (hook v1.0.8).
