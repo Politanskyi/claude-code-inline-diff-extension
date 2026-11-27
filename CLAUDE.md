@@ -35,8 +35,6 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 ## Git
 - Repository: https://github.com/Politanskyi/claude-code-inline-diff-extension, branch `master`.
 - Commit author: `m.politanskyi <politanskiy0072@gmail.com>`.
-- Plain commit messages, without `Co-Authored-By` or other trailers.
-- Talk to the user in Ukrainian.
 
 ## Progress
 | Stage | Status |
