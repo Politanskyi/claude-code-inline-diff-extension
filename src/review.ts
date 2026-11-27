@@ -210,9 +210,17 @@ export class ReviewManager implements vscode.Disposable {
 
   refresh(recomputeStores: boolean): void {
     if (recomputeStores) this.stores = this.computeStores();
+    const global = S.globalStoreDir();
+    const steps: S.Step[] = [];
+    for (const s of this.stores) steps.push(...S.loadSteps(s));
+    this.steps = steps.sort((a, b) => b.ts - a.ts);
+    this.own = M.ownSessions(this.steps, global);
     const next = new Map<string, S.Entry>();
     for (const s of this.stores) {
       for (const e of S.loadEntries(s)) {
+        // Like Cursor: a change belongs to the chat that made it. What a chat of another project changed in
+        // this window's files is reviewed in that chat's window; this one does not know about it.
+        if (!M.ownsEntry(e, global, this.own)) continue;
         const prev = next.get(e.key);
         if (!prev || e.createdAt < prev.createdAt) next.set(e.key, e);
       }
@@ -230,19 +238,17 @@ export class ReviewManager implements vscode.Disposable {
     this.entries = next;
     this.working = this.computeWorking();
     const acts: S.Activity[] = [];
-    for (const s of this.stores) acts.push(...S.loadActivity(s));
+    for (const s of this.stores) {
+      for (const a of S.loadActivity(s)) if (s !== global || (!!a.sessionId && this.own.has(a.sessionId))) acts.push(a);
+    }
     const actChanged = JSON.stringify(acts) !== JSON.stringify(this.activity);
     this.activity = acts.sort((a, b) => b.ts - a.ts);
-    const steps: S.Step[] = [];
-    for (const s of this.stores) steps.push(...S.loadSteps(s));
-    this.steps = steps.sort((a, b) => b.ts - a.ts);
-    this.own = M.ownSessions(this.steps, S.globalStoreDir());
 
     for (const e of this.entries.values()) {
       this.rememberDoc(this.openDoc(e.key));
       if (!this.seen.has(e.key)) {
         this.seen.add(e.key);
-        if (this.inList(e.key) && this.hunks(e.key).length) this._onNewFile.fire(e);
+        if (this.hunks(e.key).length) this._onNewFile.fire(e);
         else this.seen.delete(e.key); // announce once it has a visible diff
       }
     }
@@ -342,19 +348,9 @@ export class ReviewManager implements vscode.Disposable {
     return eolOf(this.currentText(key) || e?.content || '');
   }
 
-  /**
-   * The change belongs to this window's lists (Claude Changes, status bar, file navigation): like in Cursor,
-   * a change belongs to the chat that made it, wherever the file is. A file of this project changed by a
-   * chat of another project is not listed here; it is still highlighted when you open it (see M.ownsEntry).
-   */
-  inList(key: string): boolean {
-    const e = this.entries.get(key);
-    return !!e && M.ownsEntry(e, S.globalStoreDir(), this.own);
-  }
-
-  /** Files with something to review in this window, sorted by path. */
+  /** Files with something to review in this window (only changes it owns are loaded, see refresh), sorted by path. */
   pendingKeys(): string[] {
-    return [...this.entries.keys()].filter((k) => this.inList(k) && this.hunks(k).length > 0).sort((a, b) => a.localeCompare(b));
+    return [...this.entries.keys()].filter((k) => this.hunks(k).length > 0).sort((a, b) => a.localeCompare(b));
   }
 
   // ---------- chat history (Claude Changes once everything is reviewed, like Cursor's chat file list) ----------

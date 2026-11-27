@@ -216,7 +216,8 @@ export function shouldAutoSetUp(s: {
 /**
  * A pending change belongs to the window of the chat that made it (Cursor: the agent asks and shows the edit
  * in its own chat, other windows know nothing). Changes in a project store are that project's own; one in the
- * global store (a file outside the chat's project) belongs to the window whose chat made it.
+ * global store (a file outside the chat's project) belongs to the window whose chat made it. Other windows do
+ * not load it at all: no list row, no highlighting, no badge.
  */
 export function ownsEntry(e: { storeDir: string; sessionId?: string }, globalStore: string, own: Set<string>): boolean {
   return e.storeDir !== globalStore || (!!e.sessionId && own.has(e.sessionId));

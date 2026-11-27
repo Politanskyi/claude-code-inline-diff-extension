@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3
+- Fully like Cursor: a file changed by a chat of another project is not highlighted here either (0.2.2 still drew the change when you opened the file). The change is reviewed only in the window of the chat that made it; this window shows no list row, no inline diff, no badge and no "Claude editing" for it.
+
 ## 0.2.2
 - Like Cursor, a change belongs to the chat that made it. A file outside the chat's project now shows in **that** window's Claude Changes (Undo / Keep, then the chat's history) and status bar; the window of the project the file lives in no longer lists it, but still highlights the change inline (with Undo / Keep) when you open the file there.
 - Fix: such a file used to appear in the chat's window only by accident (while Claude Code kept the document loaded in the background) and vanish a few minutes later.
