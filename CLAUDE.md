@@ -13,7 +13,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `npm run lint` / `npm run format` / `npm run typecheck`
 - `npm run test:e2e` — VS Code via @vscode/test-electron (Linux: `xvfb-run -a npm run test:e2e`)
 - `npm run package` — production build + `claude-inline-diff.vsix`
-- Release: bump the version in `scripts/gen-package.js` (and CHANGELOG) and push to master; `.github/workflows/release.yml` sees a version with no GitHub release yet, tests, builds and publishes it with tag `v<version>`. Commits that keep the version release nothing. A hand-pushed tag must match package.json
+- Release: bump the version in `scripts/gen-package.js` (and CHANGELOG) and push to master; `.github/workflows/release.yml` runs after CI passes on all three OSes for that master commit, sees a version with no GitHub release yet, builds and publishes it with tag `v<version>` (installed copies then update themselves). Commits that keep the version release nothing. A hand-pushed tag must match package.json
 
 ## Layout
 - `src/core/` — no `vscode` import, unit-tested: `diff.ts` (Myers + word diff, ported MIT), `model.ts`

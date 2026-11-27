@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.3.1
+- The **Claude Changes** header (N Files, Undo All / Keep All / Review) stays on top while a long list scrolls.
 - Windows: Bash edits in another repository were not seen when the command named it in double quotes with backslashes (`cd "C:\Users\me\repo" && …`) or as a Git Bash drive path (`cd /c/Users/me/repo`). Both are read now. Hook 1.0.10.
 
 ## 0.3.0

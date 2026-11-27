@@ -1,10 +1,15 @@
 name: Release
-# A new version on master is released by itself: when package.json has a version with no GitHub release yet,
-# the .vsix is built, tested and attached to a new release, and the tag v<version> is created on that commit.
-# Pushing a tag v<version> by hand still works (it must match package.json).
+# A new version on master is released by itself once CI has passed on Linux, macOS and Windows for that commit:
+# when package.json has a version with no GitHub release yet, the .vsix is built and attached to a new release,
+# and the tag v<version> is created on that commit. Installed extensions pick it up through their self-update,
+# so nothing is released from a commit whose tests failed anywhere.
+# Pushing a tag v<version> by hand still releases at once (it must match package.json).
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master]
+  push:
     tags: ['v*']
 permissions:
   contents: write
@@ -13,9 +18,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    # From CI: only a successful run of a push to master (not a pull request).
+    if: github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
       - name: Version and whether it is already released
         id: v
         env:
@@ -23,7 +34,7 @@ jobs:
         run: |
           tag="v$(node -p "require('./package.json').version")"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json ($tag)"; exit 1
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -49,6 +60,6 @@ jobs:
           TAG: ${{ steps.v.outputs.tag }}
         run: |
           gh release create "$TAG" claude-inline-diff.vsix \
-            --target "$GITHUB_SHA" \
+            --target "$SHA" \
             --title "Claude Inline Diff $TAG" \
-            --notes "Install: download claude-inline-diff.vsix below, then in Cursor: Extensions → … → Install from VSIX…, and press Enter in the **Set Up** list that opens. Changes: see CHANGELOG.md."
+            --notes "Already installed (0.3.0 or later)? The extension updates itself and offers Reload Window. New install: download claude-inline-diff.vsix below, then in Cursor: Extensions → … → Install from VSIX…, and press Enter in the **Set Up** list that opens. Changes: see CHANGELOG.md."

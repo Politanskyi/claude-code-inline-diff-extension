@@ -407,6 +407,8 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
 <style>
 html,body{margin:0;padding:0}
 body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-foreground);background:transparent;user-select:none}
+/* The header (and the missing-hook banner) stays on top while the files scroll, like Cursor's list. */
+.top{position:sticky;top:0;z-index:2;background:var(--vscode-sideBar-background,var(--vscode-editor-background))}
 .hd{display:flex;align-items:center;gap:4px;height:30px;padding:0 8px 0 12px}
 .tw{color:var(--vscode-foreground);font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap}
 .btn{font:inherit;font-size:12px;border:0;border-radius:4px;height:22px;padding:0 7px;cursor:pointer;white-space:nowrap;background:transparent;color:var(--vscode-foreground)}
@@ -465,11 +467,11 @@ function render(){
   const many=f.length>1;
   if(data.working)confirmUndo=false;
   // The hook is gone but the list still has files (chat history, old reviews): say so, new edits will not show.
-  r.innerHTML=(data.hookReady?'':'<div class="nohook">'+PLUG+'<span>Hook not installed: new Claude edits will not show</span><button data-a="install">Set Up</button></div>')+
+  r.innerHTML='<div class="top">'+(data.hookReady?'':'<div class="nohook">'+PLUG+'<span>Hook not installed: new Claude edits will not show</span><button data-a="install">Set Up</button></div>')+
     '<div class="hd"><div class="tw">'+esc(data.header)+'</div>'+
     (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
-    '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+
+    '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div></div>'+
     '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc(x.title)+'">'+
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
       // Like Cursor: "+41", "+7 -1", "-3" (no zero parts).
