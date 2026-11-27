@@ -113,8 +113,8 @@ describe('chat section left collapsed in a new workspace', () => {
     expect(chatSectionState({ ...fresh, ...active, 'workbench.auxiliaryBar.hidden': 'true' }, c)).toBe('wait');
     expect(chatSectionState(fresh, c)).toBe('wait');
   });
-  it('leaves a section the user opened or sized alone, also when they collapsed it again', () => {
+  it('leaves an open section alone; a never-opened one is saved with the height of its title', () => {
     expect(chatSectionState({ ...state({ collapsed: false, isHidden: true, size: 1001 }), ...active }, c)).toBe('done');
-    expect(chatSectionState({ ...state({ collapsed: true, isHidden: true, size: 640 }), ...active }, c)).toBe('done');
+    expect(chatSectionState({ ...state({ collapsed: true, isHidden: true, size: 22 }), ...active }, c)).toBe('expand');
   });
 });

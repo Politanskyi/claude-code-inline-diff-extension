@@ -918,7 +918,7 @@ function watchVisibleChat(): void {
  * the one on screen, so nothing is switched or revealed.
  */
 function expandChatOnce(): void {
-  if (!ctx.storageUri || ctx.workspaceState.get('chatSectionOpened')) return;
+  if (!ctx.storageUri || ctx.workspaceState.get('chatOpenedOnce')) return;
   if (!vscode.extensions.getExtension('anthropic.claude-code')) return;
   const db = path.join(path.dirname(ctx.storageUri.fsPath), 'state.vscdb');
   const container = chatContainer(path.join(path.dirname(ctx.globalStorageUri.fsPath), 'state.vscdb'));
@@ -939,7 +939,7 @@ function expandChatOnce(): void {
     const what = chatSection(db, container);
     if (what === 'wait') return;
     stop();
-    void ctx.workspaceState.update('chatSectionOpened', true);
+    void ctx.workspaceState.update('chatOpenedOnce', true);
     if (what !== 'expand') return;
     const editing = !!vscode.window.activeTextEditor;
     vscode.commands.executeCommand(CLAUDE_CHAT_VIEW + '.focus').then(

@@ -115,16 +115,18 @@ export const AUX_HIDDEN_KEY = 'workbench.auxiliaryBar.hidden';
 
 /**
  * What to do about the chat section, from a workspace's stored values: 'expand' when the chat's tab is the one on
- * screen and its section was never opened here, 'done' when the user already sized or opened it, 'wait' otherwise.
+ * screen and its section is collapsed, 'done' when it is open, 'wait' otherwise. (Whether the user collapsed it
+ * or it never was open cannot be told from the state: the caller acts once per workspace.)
  */
 export function chatSectionState(values: Record<string, string>, container: string): 'expand' | 'done' | 'wait' {
-  let own: { collapsed?: boolean; size?: number } | undefined;
+  let own: { collapsed?: boolean } | undefined;
   try {
     own = JSON.parse(values[container + '.state'] || '{}')[CLAUDE_CHAT_VIEW];
   } catch {
     /* unreadable: as if nothing was saved */
   }
-  if (own && (own.collapsed === false || typeof own.size === 'number')) return 'done';
+  // A saved size says nothing: a section that was never opened is saved with the height of its title.
+  if (own?.collapsed === false) return 'done';
   if (values[AUX_HIDDEN_KEY] === 'true') return 'wait';
   return values[AUX_ACTIVE_KEY] === container ? 'expand' : 'wait';
 }
