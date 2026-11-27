@@ -176,6 +176,33 @@ describe('hook: steps (UserPromptSubmit)', () => {
     expect(S.loadSteps(sb.store)).toHaveLength(0); // default 7 days
   });
 
+  it('skips Claude Code files outside the project (memory, plans, settings)', () => {
+    const mem = path.join(sb.claude, 'projects', 'p', 'memory', 'note.md');
+    fs.mkdirSync(path.dirname(mem), { recursive: true });
+    fs.writeFileSync(mem, 'old');
+    const p = payload('PreToolUse', 'Write', { file_path: mem, content: 'new' });
+    expect(handle(p, ctx())).toBe('');
+    fs.writeFileSync(mem, 'new');
+    handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
+    expect(S.loadEntries(S.globalStoreDir(sb.env))).toHaveLength(0);
+    expect(S.isClaudeInternal(mem, sb.project, sb.env)).toBe(true);
+    expect(S.isClaudeInternal(path.join(sb.project, 'a.ts'), sb.project, sb.env)).toBe(false);
+  });
+
+  it('expires unreviewed changes outside any project, never the project ones', () => {
+    const day = 24 * 3600_000;
+    const now = Date.now();
+    const outside = path.join(sb.root, 'elsewhere.txt');
+    const base = { version: 3 as const, existed: true, content: 'c', createdAt: now - 10 * day };
+    S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: outside });
+    S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: path.join(sb.root, 'fresh.txt'), createdAt: now });
+    S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: path.join(sb.claude, 'old-memory.md'), createdAt: now });
+    S.createBaseline(sb.store, { ...base, path: path.join(sb.project, 'a.ts') });
+    housekeeping(sb.store, now, S.DEFAULT_CONFIG, sb.env);
+    expect(S.loadEntries(S.globalStoreDir(sb.env)).map((e) => path.basename(e.path))).toEqual(['fresh.txt']);
+    expect(S.loadEntries(sb.store)).toHaveLength(1);
+  });
+
   it('creates an implicit step when no prompt was recorded', () => {
     sb.write('a.ts', 'v1');
     claudeEdit('a.ts', 'v2');

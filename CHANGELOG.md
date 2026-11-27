@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.28
+- Claude Code's own files outside the project (memory, plans, settings under `~/.claude`) are no longer snapshotted: they are not changes to review (hook v1.0.7).
+- Changes outside any project that nobody reviewed expire after `stepRetentionDays` (default 7): the file stays as it is and the snapshot in `~/.claude/inline-diff/store/` is dropped. Project changes still wait for Keep or Undo.
+
 ## 0.1.27
 - Snapshots no longer live in the project by default: each project gets its own folder under `~/.claude/inline-diff/projects/` (hook v1.0.6). An existing `.claude-review/` is moved there automatically; `storage.location: project` keeps the old behaviour, and switching moves the snapshots either way.
 - Fix: `storage.location: home` used one store for every project, so another project's running Claude could hide Undo/Keep here and the chat history could pick the wrong chat.

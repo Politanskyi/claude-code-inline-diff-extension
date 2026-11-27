@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -482,7 +482,7 @@
         "claudeInlineDiff.stepRetentionDays": {
           "type": "number",
           "default": 7,
-          "markdownDescription": "Keep per-step snapshots (for step revert) this many days.",
+          "markdownDescription": "Keep per-step snapshots (for step revert) this many days. Unreviewed changes to files outside any project expire after the same time.",
           "minimum": 1
         },
         "claudeInlineDiff.pollIntervalMs": {

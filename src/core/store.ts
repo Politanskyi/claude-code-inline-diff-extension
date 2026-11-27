@@ -172,6 +172,16 @@ export function storeDirFor(
   return cfg.storage === 'project' ? path.join(projectRoot, cfg.dirName) : homeProjectStoreDir(projectRoot, env);
 }
 
+/**
+ * Claude Code's own files outside the project (memory, plans, settings under ~/.claude or
+ * CLAUDE_CONFIG_DIR): Claude keeps them for itself, they are not changes to review.
+ */
+export function isClaudeInternal(absFile: string, projectRoot: string | undefined, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (projectRoot && isInside(absFile, projectRoot)) return false;
+  const dir = claudeDir(env);
+  return isInside(absFile, dir) || isInside(absFile, realPath(dir));
+}
+
 /** Our own store (it carries our self-ignoring .gitignore), not some unrelated folder of the same name. */
 export function isOurStore(dir: string): boolean {
   try {
@@ -431,6 +441,16 @@ export function writeEntry(e: Entry): void {
 export function removeEntry(e: Entry): void {
   rm(e.jsonPath);
   rm(e.jsonPath.replace(/\.json$/, '.landed'));
+}
+
+/**
+ * Drops baselines nobody reviewed within `maxAgeMs` (and any `drop` matches), keeping the files as they
+ * are. Only for the global store: a forgotten change outside any project is taken as kept.
+ */
+export function pruneEntries(storeDir: string, maxAgeMs: number, now = Date.now(), drop?: (e: Entry) => boolean): void {
+  for (const e of loadEntries(storeDir)) {
+    if (now - Math.max(e.createdAt, e.landedAt) > maxAgeMs || drop?.(e)) removeEntry(e);
+  }
 }
 
 // ---------- turns (Claude is working) ----------

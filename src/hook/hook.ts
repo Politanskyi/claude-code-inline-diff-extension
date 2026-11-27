@@ -15,7 +15,7 @@ import * as S from '../core/store';
 import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 
-export const HOOK_VERSION = '1.0.6';
+export const HOOK_VERSION = '1.0.7';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -87,7 +87,7 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
 
   if (!data.tool_name || !EDIT_TOOLS.has(data.tool_name)) return '';
   const abs = targetFile(data);
-  if (!abs) return '';
+  if (!abs || S.isClaudeInternal(abs, root, ctx.env)) return '';
   const store = S.storeDirFor(abs, root, cfg, ctx.env);
 
   if (event === 'PreToolUse') {
@@ -215,6 +215,7 @@ function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hook
   const candidates = new Set([...now, ...Object.keys(snap.files)]);
   for (const rel of candidates) {
     const abs = S.realPath(path.join(snap.root, rel));
+    if (S.isClaudeInternal(abs, root, ctx.env)) continue;
     const fileStore = S.storeDirFor(abs, root, cfg, ctx.env);
     if (S.hasBaseline(fileStore, abs)) continue; // already under review: the old baseline stays the "before"
     // Saved in the editor while the command ran (the user's edit, or Undo/Keep): not Claude's change.
@@ -266,10 +267,18 @@ function feedbackOutput(
   return JSON.stringify({ hookSpecificOutput: { hookEventName: event, additionalContext: S.formatFeedback(items) } });
 }
 
-/** Drops step snapshots older than `stepRetentionDays` and Bash snapshots of commands that never reported back. */
+/**
+ * Drops step snapshots older than `stepRetentionDays` and Bash snapshots of commands that never reported
+ * back. In the global store (files outside any project) unreviewed baselines expire after the same time,
+ * and Claude Code's own files (from hooks before 1.0.7) go at once.
+ */
 export function housekeeping(store: string, now: number, cfg: S.SharedConfig, env: NodeJS.ProcessEnv = process.env): void {
   try {
-    S.pruneSteps(store, cfg.stepRetentionDays * 24 * 3600_000, now);
+    const retention = cfg.stepRetentionDays * 24 * 3600_000;
+    const global = S.globalStoreDir(env);
+    S.pruneSteps(store, retention, now);
+    if (path.resolve(store) !== path.resolve(global)) S.pruneSteps(global, retention, now);
+    S.pruneEntries(global, retention, now, (e) => S.isClaudeInternal(e.path, undefined, env));
     S.pruneEditorWrites(24 * 3600_000, now, env);
     const dir = path.join(store, 'bash');
     for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {

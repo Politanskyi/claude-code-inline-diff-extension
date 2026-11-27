@@ -156,7 +156,7 @@ const configuration = {
     ),
     'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
     'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before moving a file Claude created to the trash on Reject.'),
-    'claudeInlineDiff.stepRetentionDays': P('number', 7, 'Keep per-step snapshots (for step revert) this many days.', { minimum: 1 }),
+    'claudeInlineDiff.stepRetentionDays': P('number', 7, 'Keep per-step snapshots (for step revert) this many days. Unreviewed changes to files outside any project expire after the same time.', { minimum: 1 }),
     'claudeInlineDiff.pollIntervalMs': P('number', 700, 'How often to look for new snapshots (ms). Applies after reloading the window.', {
       minimum: 200,
     }),
@@ -268,7 +268,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.27',
+  version: '0.1.28',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
