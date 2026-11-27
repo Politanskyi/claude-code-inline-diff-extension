@@ -1,27 +1,54 @@
 name: Release
-# Push a tag like v0.2.0 (matching package.json): the .vsix is built, tested and attached to a GitHub release.
+# A new version on master is released by itself: when package.json has a version with no GitHub release yet,
+# the .vsix is built, tested and attached to a new release, and the tag v<version> is created on that commit.
+# Pushing a tag v<version> by hand still works (it must match package.json).
 on:
   push:
+    branches: [master]
     tags: ['v*']
 permissions:
   contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - run: npm ci
-      - name: Tag matches package.json
-        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run package
-      - name: Publish release
+      - name: Version and whether it is already released
+        id: v
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" claude-inline-diff.vsix \
-            --title "Claude Inline Diff $GITHUB_REF_NAME" \
+          tag="v$(node -p "require('./package.json').version")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json ($tag)"; exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag is already released, nothing to do"; echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.new == 'true'
+        with: { node-version: 20, cache: npm }
+      - if: steps.v.outputs.new == 'true'
+        run: npm ci
+      - if: steps.v.outputs.new == 'true'
+        run: npm run typecheck
+      - if: steps.v.outputs.new == 'true'
+        run: npm test
+      - if: steps.v.outputs.new == 'true'
+        run: npm run package
+      - name: Publish release
+        if: steps.v.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          gh release create "$TAG" claude-inline-diff.vsix \
+            --target "$GITHUB_SHA" \
+            --title "Claude Inline Diff $TAG" \
             --notes "Install: download claude-inline-diff.vsix below, then in Cursor: Extensions → … → Install from VSIX…, and press Enter in the **Set Up** list that opens. Changes: see CHANGELOG.md."
