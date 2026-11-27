@@ -308,6 +308,42 @@ export class ReviewManager implements vscode.Disposable {
     return [...this.entries.keys()].filter((k) => this.inScope(k) && this.hunks(k).length > 0).sort((a, b) => a.localeCompare(b));
   }
 
+  // ---------- chat history (Claude Changes once everything is reviewed, like Cursor's chat file list) ----------
+
+  /** The Claude chat (session) that got the most recent prompt; a new chat starts a new history. */
+  currentSession(): string | undefined {
+    return this.steps[0]?.sessionId; // steps are sorted newest first
+  }
+
+  /**
+   * Every file in this window the current chat changed, with its text from before the chat first
+   * touched it (null: the chat created it). Files whose changes were undone stay, like in Cursor.
+   */
+  sessionFiles(): { key: string; path: string; before: string | null }[] {
+    const session = this.currentSession();
+    if (!session) return [];
+    const first = new Map<string, { key: string; path: string; before: string | null }>();
+    for (let i = this.steps.length - 1; i >= 0; i--) {
+      const s = this.steps[i];
+      if (s.sessionId !== session) continue;
+      for (const f of s.files) {
+        const key = S.keyOf(f.path);
+        if (!first.has(key) && this.inScope(key)) first.set(key, { key, path: f.path, before: f.existed ? f.content : null });
+      }
+    }
+    return [...first.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  /** A history file as it is now (open editor first), or null when it does not exist. */
+  textNow(key: string, p: string): string | null {
+    return this.openDoc(key)?.getText() ?? this.readDisk(key, p);
+  }
+
+  /** The current chat's text of a file from before the chat touched it ('' when the chat created it). */
+  sessionBefore(key: string): string {
+    return this.sessionFiles().find((f) => f.key === key)?.before ?? '';
+  }
+
   totals(): { files: number; changes: number } {
     const keys = this.pendingKeys();
     return { files: keys.length, changes: keys.reduce((n, k) => n + this.hunks(k).length, 0) };

@@ -267,7 +267,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.18',
+  version: '0.1.19',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
@@ -289,12 +289,13 @@ Object.assign(pkg, {
       // Under the Claude Code chat (its secondary-sidebar container), like the file list under Cursor's agent chat.
       // VS Code moves it to the Explorer if Claude Code is not installed.
       'claude-sidebar-secondary': [
-        // Like Cursor's file list under the chat; always there, with an empty state (or the hook install) when there is nothing to review.
+        // Like Cursor's file list under the chat: changes to review, then the chat's history; collapsed by default, expands on new changes.
         {
           type: 'webview',
           id: 'claudeInlineDiff.changes',
           name: 'Claude Changes',
           icon: '$(sparkle)',
+          visibility: 'collapsed',
         },
       ],
       scm: [

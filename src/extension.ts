@@ -71,7 +71,12 @@ export function activate(context: vscode.ExtensionContext): Api {
     new Lenses(review, () => renderer.useToolbars()),
     new StepsTree(review),
     vscode.workspace.registerTextDocumentContentProvider(BASE_SCHEME, {
-      provideTextDocumentContent: (uri) => review.entries.get(new URLSearchParams(uri.query).get('k') || '')?.content ?? '',
+      provideTextDocumentContent: (uri) => {
+        const q = new URLSearchParams(uri.query);
+        if (q.has('h')) return review.sessionBefore(q.get('h') || ''); // the current chat's "before"
+        if (q.has('gone')) return ''; // a file the chat deleted
+        return review.entries.get(q.get('k') || '')?.content ?? '';
+      },
     }),
     review.onDidChange(updateContexts),
     review.onNewFile((e) => void revealOnEdit(e)),
@@ -232,6 +237,19 @@ async function runHunk(kind: 'accept' | 'reject', arg: unknown, fromEditor: bool
   updateContexts();
   const active = activeKey() === ref.key;
   if (fromEditor || active) await advance(ref.key, line, kind);
+}
+
+/** Review with nothing pending: everything the current chat changed, from before the chat to now (like Cursor). */
+async function reviewChat(): Promise<void> {
+  const files = review.sessionFiles();
+  if (!files.length) return;
+  const resources = files.map((f) => {
+    const p = vscode.Uri.file(f.path).path;
+    const before = vscode.Uri.from({ scheme: BASE_SCHEME, path: p, query: 'h=' + encodeURIComponent(f.key) });
+    const now = fs.existsSync(f.path) ? vscode.Uri.file(f.path) : vscode.Uri.from({ scheme: BASE_SCHEME, path: p, query: 'gone=1' });
+    return [now, before, now];
+  });
+  await vscode.commands.executeCommand('vscode.changes', `Claude chat changes (${M.plural(files.length, 'file')})`, resources);
 }
 
 /** The document behind the "before Claude" side of a diff. */
@@ -768,7 +786,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('placeChangesView', () => placeChangesView(true));
   reg('reviewAll', async () => {
     const keys = review.pendingKeys();
-    if (!keys.length) return;
+    if (!keys.length) return reviewChat();
     const resources = keys.map((k) => {
       const e = review.entries.get(k)!;
       const file = vscode.Uri.file(e.path);

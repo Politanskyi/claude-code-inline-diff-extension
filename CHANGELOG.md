@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.19
+- Claude Changes keeps the current chat's history like Cursor: once everything is reviewed it lists every file the chat changed (+/- since before the chat, Review shows the whole chat's diff); a new chat starts empty.
+- Claude Changes is collapsed by default and expands itself when new changes arrive.
+
 ## 0.1.18
 - Views no longer titled "Claude Changes: Claude Changes" after moving under the chat (no `contextualTitle`).
 - Cleaner empty state: centred icon and "No changes to review", or an Install Hook button.

@@ -8,6 +8,7 @@ import * as S from './core/store';
 import { IconThemeDoc, iconIdFor, parseJsonc } from './core/iconTheme';
 import { hunkStat, summaryText, hunkAnchorLine, plural, keyLabels, totals } from './core/model';
 import { ReviewManager, cfg } from './review';
+import { diffTexts } from './core/diff';
 
 /** Shortcut labels under the current key scheme (read on use, so a settings change applies at once). */
 const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybindingScheme', 'both'));
@@ -186,8 +187,13 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
  * The file list under the Claude Code chat, drawn like Cursor's list under its agent chat: a header
  * "N Files" with Undo All / Keep All / Review always visible (Undo All asks for a second click, like
  * Cursor), and one row per file with +added −removed and ✕ / ✓ on hover. A webview, because a tree
- * view can only put actions in its title bar, small and visible on hover. Always shown: with nothing to
- * review it has an empty state, or the hook install button when the hook is missing.
+ * view can only put actions in its title bar, small and visible on hover.
+ *
+ * Like Cursor: while there are changes to review it lists only those; once everything is reviewed it
+ * keeps listing every file the current Claude chat changed (its history; no Undo/Keep then), and a new
+ * chat starts empty. Collapsed by default; it expands itself when new changes arrive (an extension can
+ * expand a view but not collapse it, so otherwise it stays as the user left it). With nothing at all it
+ * shows an empty state, or the hook install button when the hook is missing.
  */
 export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly id = 'claudeInlineDiff.changes';
@@ -198,6 +204,8 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   private disposables: vscode.Disposable[];
   private theme: { doc: IconThemeDoc; dir: vscode.Uri; root: vscode.Uri } | null | undefined;
   private langs: Map<string, string> | undefined;
+  private historyStats = new Map<string, { before: string | null; now: string | null; added: number; removed: number }>();
+  private pendingCount: number | undefined;
 
   constructor(private readonly review: ReviewManager) {
     this.disposables = [
@@ -207,7 +215,10 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
         this.theme = undefined;
         this.setHtml(this.view);
       }),
-      review.onDidChange(() => this.update()),
+      review.onDidChange(() => {
+        this.expandOnNewChanges();
+        this.update();
+      }),
       this._onVisibility,
     ];
   }
@@ -220,7 +231,19 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   setHookReady(ready: boolean): void {
     if (this.hookReady === ready) return;
     this.hookReady = ready;
+    if (!ready) this.expand();
     this.update();
+  }
+
+  /** New changes to review (none before): open the list like Cursor shows its file list. Not on startup. */
+  private expandOnNewChanges(): void {
+    const n = this.review.pendingKeys().length;
+    if (this.pendingCount === 0 && n > 0) this.expand();
+    this.pendingCount = n;
+  }
+
+  private expand(): void {
+    void vscode.commands.executeCommand(ChangesPanel.id + '.open', { preserveFocus: true }).then(undefined, () => undefined);
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -243,8 +266,13 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     const e = m.key ? this.review.entries.get(m.key) : undefined;
     const uri = e ? vscode.Uri.file(e.path) : undefined;
     const run = (cmd: string, ...args: unknown[]) => void vscode.commands.executeCommand('claudeInlineDiff.' + cmd, ...args);
-    if (m.a === 'open' && m.key) run('openFile', m.key);
-    else if (m.a === 'keep' && uri) run('acceptFile', uri);
+    if (m.a === 'open' && m.key) {
+      if (e) run('openFile', m.key);
+      else {
+        const f = this.review.sessionFiles().find((x) => x.key === m.key);
+        if (f && fs.existsSync(f.path)) void vscode.window.showTextDocument(vscode.Uri.file(f.path), { preview: true });
+      }
+    } else if (m.a === 'keep' && uri) run('acceptFile', uri);
     else if (m.a === 'undo' && uri) run('rejectFile', uri);
     else if (m.a === 'keepAll') run('acceptAll');
     else if (m.a === 'undoAll') run('rejectAll', 'confirmed');
@@ -253,7 +281,9 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   }
 
   private state() {
-    const files = this.review.pendingKeys().map((key) => {
+    const pending = this.review.pendingKeys();
+    if (!pending.length) return { files: this.historyRows(), history: true, hookReady: this.hookReady, working: this.review.working };
+    const files = pending.map((key) => {
       const e = this.review.entries.get(key)!;
       const hunks = this.review.hunks(key);
       const rel = vscode.workspace.asRelativePath(e.path);
@@ -268,7 +298,32 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
         icon: this.iconFor(path.basename(e.path)),
       };
     });
-    return { files, hookReady: this.hookReady, working: this.review.working };
+    return { files, history: false, hookReady: this.hookReady, working: this.review.working };
+  }
+
+  /** The current chat's files with +/- against the text from before the chat (cached per text). */
+  private historyRows() {
+    const seen = new Set<string>();
+    const rows = this.review.sessionFiles().map((f) => {
+      seen.add(f.key);
+      const now = this.review.textNow(f.key, f.path);
+      let st = this.historyStats.get(f.key);
+      if (!st || st.before !== f.before || st.now !== now) {
+        st = { before: f.before, now, ...totals(diffTexts(f.before ?? '', now ?? '')) };
+        this.historyStats.set(f.key, st);
+      }
+      const rel = vscode.workspace.asRelativePath(f.path);
+      return {
+        key: f.key,
+        name: path.basename(f.path),
+        dir: path.dirname(rel) === '.' ? '' : path.dirname(rel),
+        added: st.added,
+        removed: st.removed,
+        icon: this.iconFor(path.basename(f.path)),
+      };
+    });
+    for (const k of this.historyStats.keys()) if (!seen.has(k)) this.historyStats.delete(k);
+    return rows;
   }
 
   private setHtml(view: vscode.WebviewView): void {
@@ -417,14 +472,15 @@ function render(){
   if(data.working)confirmUndo=false;
   r.className=collapsed?'collapsed':'';
   r.innerHTML='<div class="hd"><div class="tw" data-a="toggle" title="'+(collapsed?'Expand':'Collapse')+'">'+CH+'<span>'+f.length+' '+(f.length===1?'File':'Files')+'</span></div>'+
-    (data.working?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
+    (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
     '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+
-    '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc((x.dir?x.dir+'/':'')+x.name)+' · '+x.changes+' change'+(x.changes===1?'':'s')+'">'+
+    '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc((x.dir?x.dir+'/':'')+x.name)+(data.history?'':' · '+x.changes+' change'+(x.changes===1?'':'s'))+'">'+
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
-      '<span class="st"><span class="ad">+'+x.added+'</span> <span class="rm">-'+x.removed+'</span></span>'+
+      (x.added||x.removed||!data.history?'<span class="st"><span class="ad">+'+x.added+'</span> <span class="rm">-'+x.removed+'</span></span>':'')+
       (x.isNew?'<span class="tag">new</span>':'')+(x.bash?'<span class="tag">Bash</span>':'')+'<span class="sp"></span>'+
-      '<span class="acts"><button class="ic" data-a="undo" data-key="'+esc(x.key)+'" title="Undo File">'+X+'</button><button class="ic" data-a="keep" data-key="'+esc(x.key)+'" title="Keep File">'+V+'</button></span></div>').join('')+'</div>';
+      // History rows (already reviewed) have nothing to keep or undo.
+      (data.history?'':'<span class="acts"><button class="ic" data-a="undo" data-key="'+esc(x.key)+'" title="Undo File">'+X+'</button><button class="ic" data-a="keep" data-key="'+esc(x.key)+'" title="Keep File">'+V+'</button></span>')+'</div>').join('')+'</div>';
 }
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-a]');if(!t)return;e.stopPropagation();const a=t.dataset.a;
