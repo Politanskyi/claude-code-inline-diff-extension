@@ -112,6 +112,12 @@ test('activates and exposes the API', async () => {
   console.log('    editorInsets available: ' + api.insetsAvailable());
 });
 
+test('editors already open at activation are rendered (startup restore)', async () => {
+  // Cursor/VS Code restore editors before an onStartupFinished extension activates; no visible-editors event follows.
+  const d = api.renderer.debugState();
+  assert.ok(Array.isArray(d.visibleTextEditors));
+});
+
 test('install hook command writes settings.json in the temp CLAUDE_CONFIG_DIR', async () => {
   await vscode.commands.executeCommand('claudeInlineDiff.installHooks');
   const s = JSON.parse(fs.readFileSync(path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json'), 'utf8'));

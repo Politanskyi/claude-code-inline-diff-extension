@@ -56,9 +56,12 @@ export class Renderer implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   readonly insets: InsetManager;
 
+  private lastDiag = new Map<string, string>();
+
   constructor(
     private readonly review: ReviewManager,
-    insets: InsetManager
+    insets: InsetManager,
+    private readonly log?: vscode.LogOutputChannel
   ) {
     this.insets = insets;
     this.disposables.push(
@@ -101,19 +104,75 @@ export class Renderer implements vscode.Disposable {
   }
 
   renderAll(): void {
-    this.insets.prune(vscode.window.visibleTextEditors);
-    for (const ed of vscode.window.visibleTextEditors) this.render(ed);
+    try {
+      this.insets.prune(vscode.window.visibleTextEditors);
+    } catch (e: any) {
+      this.log?.error('prune failed: ' + (e?.stack || e));
+    }
+    for (const ed of vscode.window.visibleTextEditors) {
+      try {
+        this.render(ed);
+      } catch (e: any) {
+        this.log?.error(`render failed for ${ed.document.uri.fsPath}: ${e?.stack || e}`);
+      }
+    }
+  }
+
+  /** Snapshot of what the renderer sees, for `.claude-review/debug` requests. */
+  debugState(): unknown {
+    const ed = (e: vscode.TextEditor) => ({
+      uri: e.document.uri.toString(),
+      key: e.document.uri.scheme === 'file' ? S.keyOf(e.document.uri.fsPath) : null,
+      viewColumn: e.viewColumn,
+      plain: isPlainTextEditor(e),
+      underReview: e.document.uri.scheme === 'file' && this.review.entries.has(S.keyOf(e.document.uri.fsPath)),
+      hunks: e.document.uri.scheme === 'file' ? this.review.hunks(S.keyOf(e.document.uri.fsPath)).length : 0,
+      visibleRanges: e.visibleRanges.map((r) => [r.start.line, r.end.line]),
+    });
+    return {
+      visibleTextEditors: vscode.window.visibleTextEditors.map(ed),
+      activeTextEditor: vscode.window.activeTextEditor ? ed(vscode.window.activeTextEditor) : null,
+      tabGroups: vscode.window.tabGroups.all.map((g) => ({
+        viewColumn: g.viewColumn,
+        isActive: g.isActive,
+        tabs: g.tabs.map((t) => ({
+          label: t.label,
+          active: t.isActive,
+          input: t.input ? t.input.constructor?.name : null,
+          uri: (t.input as any)?.uri?.toString(),
+        })),
+      })),
+      entries: [...this.review.entries.keys()],
+      useInsets: this.useInsets(),
+      useToolbars: this.useToolbars(),
+      insetsLive: this.insets.count(),
+      insetsFailed: this.insets.failed,
+      lastDiag: Object.fromEntries(this.lastDiag),
+    };
+  }
+
+  /** Logs one line per editor whenever what we decide for it changes (helps diagnose "nothing is drawn"). */
+  private diag(editor: vscode.TextEditor, msg: string): void {
+    const k = editor.document.uri.toString() + '#' + String(editor.viewColumn);
+    if (this.lastDiag.get(k) === msg) return;
+    this.lastDiag.set(k, msg);
+    this.log?.info(`render ${editor.document.uri.fsPath} [col ${editor.viewColumn}]: ${msg}`);
   }
 
   render(editor: vscode.TextEditor): void {
-    if (editor.document.uri.scheme !== 'file') return;
+    if (editor.document.uri.scheme !== 'file') {
+      this.diag(editor, `not a file (scheme ${editor.document.uri.scheme})`);
+      return;
+    }
     if (!isPlainTextEditor(editor)) {
+      this.diag(editor, 'skipped (shown inside a diff editor)');
       this.clear(editor); // inside a (multi-)diff editor the diff is already shown natively
       return;
     }
     const key = S.keyOf(editor.document.uri.fsPath);
     const hunks = this.review.entries.has(key) ? this.review.hunks(key) : [];
     if (!hunks.length) {
+      this.diag(editor, this.review.entries.has(key) ? 'no changes' : 'not under review');
       this.clear(editor);
       return;
     }
@@ -209,6 +268,10 @@ export class Renderer implements vscode.Disposable {
     editor.setDecorations(this.removedRuler, ruler);
     if (insets) this.insets.render(editor, blocks, maxLines);
     else this.insets.clear(editor);
+    this.diag(
+      editor,
+      `${hunks.length} changes, ${added.length} added lines, ${insets ? `${blocks.length} inset blocks (${this.insets.count()} live${this.insets.failed ? ', FAILED' : ''})` : `fallback (${hints.length} removed hints)`}`
+    );
   }
 
   private hoverFor(
@@ -263,12 +326,20 @@ export class Renderer implements vscode.Disposable {
  * duplicate the diff.
  */
 export function isPlainTextEditor(editor: vscode.TextEditor): boolean {
-  if (editor.viewColumn === undefined) return false; // embedded (multi-diff, peek, …)
-  const group = vscode.window.tabGroups.all.find((g) => g.viewColumn === editor.viewColumn);
-  const input = group?.activeTab?.input;
-  if (!input) return true;
-  if (input instanceof vscode.TabInputText) return input.uri.toString() === editor.document.uri.toString();
-  return false; // TabInputTextDiff, TabInputTextMultiDiff, notebooks, webviews…
+  // Only skip when there is positive evidence of a diff showing this file and no plain tab
+  // for it is active. editor.viewColumn can be undefined in some Cursor layouts, so it is not
+  // used as evidence on its own.
+  const uri = editor.document.uri.toString();
+  const active = vscode.window.tabGroups.all.map((g) => g.activeTab?.input).filter((i) => i !== undefined);
+  if (active.some((i) => i instanceof vscode.TabInputText && i.uri.toString() === uri)) return true;
+  const inDiff = active.some(
+    (i) =>
+      (i instanceof vscode.TabInputTextDiff && (i.modified.toString() === uri || i.original.toString() === uri)) ||
+      (typeof (vscode as any).TabInputTextMultiDiff === 'function' &&
+        i instanceof (vscode as any).TabInputTextMultiDiff &&
+        ((i as any).textDiffs || []).some((d: any) => d.modified?.toString() === uri || d.original?.toString() === uri))
+  );
+  return !inDiff;
 }
 
 /** Display columns of a line (tabs expanded). */

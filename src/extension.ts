@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext): Api {
     },
     log
   );
-  renderer = new Renderer(review, insets);
+  renderer = new Renderer(review, insets, log);
   context.subscriptions.push(
     log,
     review,
@@ -84,7 +84,25 @@ export function activate(context: vscode.ExtensionContext): Api {
     vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration('workbench.colorTheme') && resetPalette())
   );
   registerCommands(context);
+  // Diagnostics without a command palette: create <store>/debug and the state is written to <store>/debug-out.json.
+  const debugTimer = setInterval(() => {
+    for (const dir of review.storeDirs()) {
+      const req = path.join(dir, 'debug');
+      if (!fs.existsSync(req)) continue;
+      try {
+        fs.rmSync(req, { force: true });
+        renderer.renderAll();
+        const state = { at: new Date().toISOString(), app: vscode.env.appName, version: vscode.version, renderer: renderer.debugState() };
+        fs.writeFileSync(path.join(dir, 'debug-out.json'), JSON.stringify(state, null, 2));
+      } catch (e: any) {
+        log.error('debug dump failed: ' + (e?.stack || e));
+      }
+    }
+  }, 1000);
+  context.subscriptions.push({ dispose: () => clearInterval(debugTimer) });
   updateContexts();
+  // Editors restored at startup were already visible before we activated: no visible-editors event will come.
+  renderer.schedule(0);
   log.info(
     `activated; editorInsets ${insetApi() ? 'available' : 'not enabled (decoration fallback)'}; stores: ${review.storeDirs().join(', ')}`
   );
