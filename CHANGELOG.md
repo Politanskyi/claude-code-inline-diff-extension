@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.13
+- No change count on the Claude Code tab, like Cursor's chat tab.
+
 ## 0.1.12
 - Claude Changes list redrawn like Cursor's (webview): "N Files", always-visible Undo All / Keep All / Review, Undo All confirmed by a second click, file icons from the icon theme, +N -M after the name.
 - Undo All / Keep All hidden while Claude works (new `Stop` hook; existing installs get it on update).

@@ -345,9 +345,8 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   }
 
   private update(): void {
-    const t = this.review.totals();
     if (!this.view) return;
-    this.view.badge = t.changes ? { value: t.changes, tooltip: summaryText(t.files, t.changes) } : undefined;
+    // No count on the chat tab: Cursor's file list under its chat has none either (the header says "N Files").
     void this.view.webview.postMessage({ a: 'state', ...this.state() });
   }
 

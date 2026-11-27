@@ -163,7 +163,7 @@ Object.assign(pkg, {
   name: 'claude-inline-diff',
   displayName: 'Claude Inline Diff',
   description: "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
-  version: '0.1.12',
+  version: '0.1.13',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
