@@ -284,7 +284,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
               );
           }
         })();
-    } else if (m.a === 'review') run('reviewAll');
+    } else if (m.a === 'review') run('reviewAll', this.listed);
     else if (m.a === 'install') run('setUp');
   }
 

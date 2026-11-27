@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.5
+- Fix: **Review** in the Claude Changes list of a chat with nothing left to review opened the changes another chat had left waiting, instead of this chat's own diff. It now opens what the list shows.
+
 ## 0.3.4
 - Claude Changes: the section title shows how many files wait for Keep / Undo (`CLAUDE CHANGES (3 FILES TO REVIEW)`), also while the list is collapsed. Nothing is added when all is decided. The editor only lets a section change its title once it has been opened in the window, so a list that was never expanded since the window loaded has no count yet (the status bar shows it then).
 - Claude Changes: the list shows the files of the chat on screen also while changes wait for Keep / Undo: what another chat left for review is listed in that chat. Undo All / Keep All and the count in the section title are of the files listed (the editor and the status bar still show every waiting change).

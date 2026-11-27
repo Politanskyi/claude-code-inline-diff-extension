@@ -1139,15 +1139,17 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('nextFileText', () => navigateFile(1));
   reg('placeChangesView', () => placeChangesView(true));
   reg('showChangesList', () => changesPanel?.show());
-  reg('reviewAll', async () => {
-    const keys = review.pendingKeys();
+  // From the list: the files it shows (the chat on screen); from the palette: every waiting file.
+  reg('reviewAll', async (arg?: unknown) => {
+    const keys = Array.isArray(arg) ? arg.filter((k): k is string => typeof k === 'string' && review.entries.has(k)) : review.pendingKeys();
     if (!keys.length) return reviewChat();
     const resources = keys.map((k): DiffResource => {
       const e = review.entries.get(k)!;
       const file = vscode.Uri.file(e.path);
       return [file, baseUri(e), file];
     });
-    await openMultiDiff(`Claude changes · ${M.plural(review.totals().changes, 'change')}`, resources);
+    const changes = keys.reduce((n, k) => n + review.hunks(k).length, 0);
+    await openMultiDiff(`Claude changes · ${M.plural(changes, 'change')}`, resources);
   });
   reg('setUp', setUp);
   reg('installHooks', () => installHooks());
