@@ -8,6 +8,7 @@ import * as setup from './core/setup';
 import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi } from './core/argv';
+import { findConflicts, addUserKeybindings, keyFor, Conflict } from './core/keybindings';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -493,8 +494,84 @@ async function enableInsets(): Promise<void> {
   }
 }
 
+// ---------- keyboard-shortcut conflicts ----------
+
+function shortcutConflicts(): Conflict[] {
+  const ours = (ctx.extension.packageJSON?.contributes?.keybindings || []) as any[];
+  const others = vscode.extensions.all
+    .filter((e) => e.id.toLowerCase() !== EXTENSION_ID && Array.isArray(e.packageJSON?.contributes?.keybindings))
+    .map((e) => ({ extension: e.packageJSON.displayName || e.id, keybindings: e.packageJSON.contributes.keybindings }));
+  const found = findConflicts(ours, others, process.platform);
+  log.info(
+    `shortcut check: ${ours.length} own keybindings, ${others.length} other extensions with keybindings, ${found.length} conflicts` +
+      (found.length ? ': ' + found.map((c) => `${c.key} (${c.theirs.map((t) => t.extension).join(', ')})`).join('; ') : '')
+  );
+  return found;
+}
+
+function userKeybindingsPath(): string {
+  // <user data>/User/globalStorage/<ext id> → <user data>/User/keybindings.json
+  return path.join(path.dirname(path.dirname(ctx.globalStorageUri.fsPath)), 'keybindings.json');
+}
+
+async function fixKeybindings(conflicts = shortcutConflicts()): Promise<void> {
+  if (!conflicts.length) {
+    void vscode.window.showInformationMessage('No other extension uses Claude Inline Diff shortcuts.');
+    return;
+  }
+  const file = userKeybindingsPath();
+  const entries = conflicts.map((c) => ({ key: keyFor(c.ours, process.platform)!, command: c.ours.command, when: c.ours.when }));
+  try {
+    const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    const next = addUserKeybindings(text, entries);
+    if (next === null) {
+      log.info('keybindings: already present in ' + file);
+      void vscode.window.showInformationMessage('Your keybindings.json already gives Claude Inline Diff priority.');
+      return;
+    }
+    if (text) fs.copyFileSync(file, file + '.bak-claude-inline-diff');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, next);
+    log.info(`keybindings: added ${entries.length} entries to ${file}`);
+    void vscode.window.showInformationMessage(
+      `Shortcuts fixed: ${entries.length} entries added to keybindings.json (active only inside Claude changes).`
+    );
+  } catch (e: any) {
+    void vscode.window.showErrorMessage(`Could not update ${file}: ${e.message}`);
+  }
+}
+
+async function checkShortcutConflicts(): Promise<void> {
+  const conflicts = shortcutConflicts();
+  const sig = conflicts.map((c) => c.key + '>' + c.ours.command).join(',');
+  if (!conflicts.length || ctx.globalState.get('shortcutConflictsSeen') === sig) return;
+  const file = userKeybindingsPath();
+  try {
+    if (
+      fs.existsSync(file) &&
+      addUserKeybindings(
+        fs.readFileSync(file, 'utf8'),
+        conflicts.map((c) => ({ key: keyFor(c.ours, process.platform)!, command: c.ours.command, when: c.ours.when }))
+      ) === null
+    )
+      return;
+  } catch {
+    /* unreadable: still offer */
+  }
+  const exts = [...new Set(conflicts.flatMap((c) => c.theirs.map((t) => t.extension)))].join(', ');
+  const keys = [...new Set(conflicts.map((c) => c.key))].slice(0, 5).join(', ');
+  const pick = await vscode.window.showWarningMessage(
+    `${exts} also use ${keys}, so Keep/Undo shortcuts may not work. Give Claude Inline Diff priority inside Claude changes (adds entries to your keybindings.json)?`,
+    'Fix Shortcuts',
+    'Not Now'
+  );
+  await ctx.globalState.update('shortcutConflictsSeen', sig);
+  if (pick === 'Fix Shortcuts') await fixKeybindings(conflicts);
+}
+
 async function firstRunChecks(): Promise<void> {
   if (process.env.CLAUDE_INLINE_DIFF_TEST) return;
+  void checkShortcutConflicts();
   const st = setup.status(bundledHook());
   if (st.scriptInstalled && st.configured && st.installedVersion !== st.bundledVersion) {
     try {
@@ -654,6 +731,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     if (pick) await openAt(pick.key, review.hunks(pick.key)[0]);
   });
   reg('installHooks', installHooks);
+  reg('fixKeybindings', () => fixKeybindings());
   reg('uninstallHooks', uninstallHooks);
   reg('hookStatus', hookStatus);
   reg('enableInsets', enableInsets);

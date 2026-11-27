@@ -119,11 +119,6 @@ export class ReviewManager implements vscode.Disposable {
     return [...out];
   }
 
-  storeForFile(abs: string): string {
-    const root = S.projectRootFor(path.dirname(abs));
-    return S.storeDirFor(abs, root, this.sharedConfig());
-  }
-
   // ---------- loading ----------
 
   private stamp(): string {
@@ -611,7 +606,8 @@ export class ReviewManager implements vscode.Disposable {
   queueFeedback(key: string, text: string, excerpt?: string): S.Feedback | undefined {
     const e = this.entries.get(key);
     if (!e) return undefined;
-    return S.queueFeedback(this.storeForFile(e.path), { sessionId: e.sessionId, path: e.path, text, excerpt, ts: Date.now() });
+    // Same store as the file's snapshot: the hook created it there, and reads feedback from there.
+    return S.queueFeedback(e.storeDir, { sessionId: e.sessionId, path: e.path, text, excerpt, ts: Date.now() });
   }
 
   /** Feedback waiting for Claude to pick it up (shown in the status bar tooltip). */
