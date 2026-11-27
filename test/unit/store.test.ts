@@ -68,6 +68,17 @@ describe('store', () => {
     expect(S.loadSteps(sb.store)).toHaveLength(0);
   });
 
+  it('lists a prompt that changed nothing only when asked (a new chat is the current one)', () => {
+    S.beginStep(sb.store, 'old', 'p1', 1000);
+    S.recordStepFile(sb.store, 'old', '/a', { existed: true, content: 'c' }, 1000);
+    S.beginStep(sb.store, 'new', 'hello', 2000);
+    expect(S.loadSteps(sb.store).map((s) => s.sessionId)).toEqual(['old']);
+    expect(S.loadSteps(sb.store, true).map((s) => [s.sessionId, s.files.length])).toEqual([
+      ['new', 0],
+      ['old', 1],
+    ]);
+  });
+
   it('drops a chat folder that only has its state file left, once it is old', () => {
     S.shareStep(sb.store, 'idle', 't00000000001000', 'p');
     S.beginStep(sb.store, 'busy', 'p', Date.now());

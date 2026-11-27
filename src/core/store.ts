@@ -652,7 +652,11 @@ export function sessionStepPaths(storeDir: string, sessionId: string): string[] 
   return [...out];
 }
 
-export function loadSteps(storeDir: string): Step[] {
+/**
+ * The steps in a store, newest first. A prompt that changed no file leaves an empty step; it is left out unless
+ * `withEmpty` (the window needs it to know which chat got the latest prompt: a new chat starts an empty list).
+ */
+export function loadSteps(storeDir: string, withEmpty = false): Step[] {
   const root = path.join(storeDir, 'steps');
   const out: Step[] = [];
   let sessions: string[] = [];
@@ -681,7 +685,7 @@ export function loadSteps(storeDir: string): Step[] {
       } catch {
         /* no files */
       }
-      if (files.length) out.push({ ...meta, dir, storeDir, files });
+      if (files.length || withEmpty) out.push({ ...meta, dir, storeDir, files });
     }
   }
   return out.sort((a, b) => b.ts - a.ts);

@@ -212,7 +212,8 @@ export class ReviewManager implements vscode.Disposable {
     if (recomputeStores) this.stores = this.computeStores();
     const global = S.globalStoreDir();
     const steps: S.Step[] = [];
-    for (const s of this.stores) steps.push(...S.loadSteps(s));
+    // With the prompts that changed nothing yet: a new chat's first prompt makes it the current one (empty list).
+    for (const s of this.stores) steps.push(...S.loadSteps(s, true));
     this.steps = steps.sort((a, b) => b.ts - a.ts);
     this.own = M.ownSessions(this.steps, global);
     const next = new Map<string, S.Entry>();
