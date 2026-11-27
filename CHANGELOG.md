@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.32
+## 0.2.0 — first release
+Claude Code's edits reviewed inline in Cursor / VS Code, like Cursor's own agent diff:
+- red removed blocks between the lines (proposed `editorInsets`, with a stable fallback), green added lines, one Cursor-style `Undo / Keep` pill;
+- Keep / Undo per change, per file and for everything, with Cursor's keys (Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter, Cmd/Ctrl+Shift+Backspace) and Alt+J/K/L/H navigation; Cmd/Ctrl+Z reverts a Keep or an Undo;
+- **Claude Changes** list under the Claude Code chat (Undo All / Keep All / Review, the chat's history once reviewed) and **Claude Steps** (revert to before a prompt);
+- edits from Edit/Write/MultiEdit/NotebookEdit and from Bash (git repos), "Undo with feedback" that reaches Claude;
+- snapshots outside the project (`~/.claude/inline-diff/projects/`), no network, no telemetry.
+
+Since 0.1.31:
 - One-step setup: a single **Set Up…** (first run, the Claude Changes empty state, its `…` menu, the command palette) installs the hook and *Edit automatically* together; both work in the next Claude chat, no restart. Red removed-code blocks are the third, unticked item (argv.json + a full restart, with a *Quit Cursor* button), and are offered again after the first change is shown.
 - Releases: pushing a `v*` tag builds, tests and attaches `claude-inline-diff.vsix` to a GitHub release (`.github/workflows/release.yml`), so installing needs no build.
 - README and INSTALL start with a four-step quick start.
