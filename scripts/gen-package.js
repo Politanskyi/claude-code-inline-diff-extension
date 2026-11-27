@@ -13,6 +13,9 @@ const commands = [
   C('undo', 'Revert Last Keep/Undo', 'reply'),
   // Text-only twins (no icon) so the editor title bar / floating bar show words like Cursor's buttons.
   { command: 'claudeInlineDiff.keepFileText', title: 'Keep File', category: 'Claude Inline Diff' },
+  // Like Cursor's "Keep File ⌘⏎": the label shows the shortcut (Cmd/Ctrl+Enter in the default key scheme).
+  { command: 'claudeInlineDiff.keepFileTextMac', title: 'Keep File ⌘⏎', category: 'Claude Inline Diff' },
+  { command: 'claudeInlineDiff.keepFileTextCtrl', title: 'Keep File Ctrl+Enter', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.undoFileText', title: 'Undo File', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.keepAllText', title: 'Keep All', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.undoAllText', title: 'Undo All', category: 'Claude Inline Diff' },
@@ -100,6 +103,7 @@ const configuration = {
     'claudeInlineDiff.pollIntervalMs': P('number', 700, 'How often to look for new snapshots (ms). File watchers are used too.', { minimum: 200 }),
   },
 };
+const cursorKeys = "config.claudeInlineDiff.keybindingScheme != 'alt'";
 const barWhen = 'resourceScheme == file && config.claudeInlineDiff.floatingBar';
 const fileWhen = 'resourceScheme == file && claudeInlineDiff.activeFileHasChanges';
 const menus = {
@@ -114,8 +118,11 @@ const menus = {
   // Like Cursor: the editor's bar acts on this file only; Undo All / Keep All live in the Claude Changes list.
   // Cursor renders only the first two items of this menu, so there is no room for ‹ › file arrows.
   'editor/content': [
-    { command: 'claudeInlineDiff.undoFileText', group: 'claudeInlineDiff@1', when: `${barWhen} && resourcePath in claudeInlineDiff.files` },
-    { command: 'claudeInlineDiff.keepFileText', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.files` },
+    // Like Cursor: only in the active editor.
+    { command: 'claudeInlineDiff.undoFileText', group: 'claudeInlineDiff@1', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles` },
+    { command: 'claudeInlineDiff.keepFileTextMac', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && isMac && ${cursorKeys}` },
+    { command: 'claudeInlineDiff.keepFileTextCtrl', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && !isMac && ${cursorKeys}` },
+    { command: 'claudeInlineDiff.keepFileText', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && config.claudeInlineDiff.keybindingScheme == 'alt'` },
     // Cursor's variant for a file without changes while other files have some.
     { command: 'claudeInlineDiff.keepAllChangesText', group: 'claudeInlineDiff@5', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
     { command: 'claudeInlineDiff.nextFileText', group: 'claudeInlineDiff@6', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
@@ -151,7 +158,7 @@ const menus = {
     { command: 'claudeInlineDiff.acceptFile', group: 'inline@1', when: 'view == claudeInlineDiff.changes && viewItem == session' },
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
   ],
-  commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'undoOneText', 'keepOneText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
+  commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'keepFileTextMac', 'keepFileTextCtrl', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'undoOneText', 'keepOneText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
 };
 const color = (id, description, d) => ({ id: 'claudeInlineDiff.' + id, description, defaults: { dark: d.dark, light: d.light, highContrast: d.hc || d.dark, highContrastLight: d.hcl || d.light } });
 const colors = [
@@ -169,7 +176,7 @@ Object.assign(pkg, {
   name: 'claude-inline-diff',
   displayName: 'Claude Inline Diff',
   description: "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
-  version: '0.1.10',
+  version: '0.1.11',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

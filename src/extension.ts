@@ -139,6 +139,8 @@ function updateContexts(): void {
   const key = activeKey();
   const hunks = key ? review.hunks(key) : [];
   setContext('claudeInlineDiff.activeFileHasChanges', hunks.length > 0);
+  // The file bar shows only in the active editor, like Cursor's.
+  setContext('claudeInlineDiff.activeFiles', key && hunks.length ? [review.entries.get(key)!.path] : []);
   const ed = vscode.window.activeTextEditor;
   setContext('claudeInlineDiff.cursorInHunk', !!ed && hunks.length > 0 && !!M.hunkAtLine(hunks, ed.selection.active.line));
   setContext('claudeInlineDiff.canUndoAccept', !!key && review.canNativeUndoMeanAccept(key));
@@ -746,6 +748,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
     (...a: any[]) =>
       vscode.commands.executeCommand('claudeInlineDiff.' + id, ...a.filter((x) => x instanceof vscode.Uri));
   reg('keepFileText', forward('acceptFile'));
+  reg('keepFileTextMac', forward('acceptFile'));
+  reg('keepFileTextCtrl', forward('acceptFile'));
   reg('undoFileText', forward('rejectFile'));
   reg('keepAllText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
   reg('undoOneText', () => vscode.commands.executeCommand('claudeInlineDiff.rejectAll'));

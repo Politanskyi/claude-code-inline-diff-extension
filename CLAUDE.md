@@ -72,7 +72,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - The floating Keep all changes / Review Next File bar hides when the file has Cursor's own diffs (`inlineDiffs.activeEditorWithDiffs`).
 - Pill (inset row, 26px = Cursor's 24px pill + 2px gap, fractional heightInLines): `⌃ i of n ⌄ | Undo | Keep` (feedback via context menu / list), one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned unless the editor overflows horizontally.
 - Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
-- Floating Undo File / Keep File via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu); Undo All / Keep All / Review in the Claude Changes list.
+- Floating Undo File / Keep File ⌘⏎ via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu), only in the active editor (`claudeInlineDiff.activeFiles`); Cursor's own file bar sits in the breadcrumb row, which extensions cannot use; Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
 - e2e: 16 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 

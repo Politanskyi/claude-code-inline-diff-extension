@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -115,6 +115,16 @@
       {
         "command": "claudeInlineDiff.keepFileText",
         "title": "Keep File",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.keepFileTextMac",
+        "title": "Keep File ⌘⏎",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.keepFileTextCtrl",
+        "title": "Keep File Ctrl+Enter",
         "category": "Claude Inline Diff"
       },
       {
@@ -562,12 +572,22 @@
         {
           "command": "claudeInlineDiff.undoFileText",
           "group": "claudeInlineDiff@1",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.files"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.activeFiles"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileTextMac",
+          "group": "claudeInlineDiff@2",
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.activeFiles && isMac && config.claudeInlineDiff.keybindingScheme != 'alt'"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileTextCtrl",
+          "group": "claudeInlineDiff@2",
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.activeFiles && !isMac && config.claudeInlineDiff.keybindingScheme != 'alt'"
         },
         {
           "command": "claudeInlineDiff.keepFileText",
           "group": "claudeInlineDiff@2",
-          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.files"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && resourcePath in claudeInlineDiff.activeFiles && config.claudeInlineDiff.keybindingScheme == 'alt'"
         },
         {
           "command": "claudeInlineDiff.keepAllChangesText",
@@ -717,6 +737,14 @@
         },
         {
           "command": "claudeInlineDiff.keepFileText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileTextMac",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileTextCtrl",
           "when": "false"
         },
         {

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.11
+- File bar: "Keep File ⌘⏎" (Ctrl+Enter off macOS) like Cursor's, and only in the active editor.
+
 ## 0.1.10
 - Fix: a Claude edit right after Undo/Keep could vanish from review (the editor had not reloaded the write yet, so the fresh baseline looked resolved and was dropped).
 - Pill exactly Cursor's size (24px, 2px below the change, fractional inset height); the "…" button moved off the pill (Undo with feedback stays in the context menu and the Claude Changes list).
