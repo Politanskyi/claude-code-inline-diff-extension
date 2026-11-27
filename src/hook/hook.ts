@@ -37,7 +37,9 @@ export interface HookContext {
 const defaultCtx: HookContext = { env: process.env, now: () => Date.now() };
 
 function projectRoot(data: HookInput, ctx: HookContext): string {
-  return S.projectRootFor(ctx.env.CLAUDE_PROJECT_DIR || data.cwd || process.cwd());
+  // Real path, like the file paths: symlinked projects, macOS /tmp → /private/tmp and Windows 8.3 names
+  // (C:\Users\RUNNER~1) must not make a project file look "outside the project".
+  return S.realPath(S.projectRootFor(ctx.env.CLAUDE_PROJECT_DIR || data.cwd || process.cwd()));
 }
 
 function targetFile(data: HookInput): string | null {

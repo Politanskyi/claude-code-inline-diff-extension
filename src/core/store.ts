@@ -124,8 +124,14 @@ export function projectRootFor(start: string): string {
   return path.resolve(start);
 }
 
+/** Path comparison form: absolute, normalized, case-folded on case-insensitive file systems. */
+function cmpForm(p: string): string {
+  const r = path.resolve(p);
+  return CASE_INSENSITIVE ? r.toLowerCase() : r;
+}
+
 export function isInside(child: string, parent: string): boolean {
-  const rel = path.relative(parent, child);
+  const rel = path.relative(cmpForm(parent), cmpForm(child));
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 

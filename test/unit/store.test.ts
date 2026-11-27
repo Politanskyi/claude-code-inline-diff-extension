@@ -59,6 +59,7 @@ describe('store', () => {
     expect(S.isInside('/a/b/c', '/a/b')).toBe(true);
     expect(S.isInside('/a/bc', '/a/b')).toBe(false);
     expect(S.isInside('/a/b', '/a/b')).toBe(false);
+    if (S.CASE_INSENSITIVE) expect(S.isInside('/A/B/c', '/a/b')).toBe(true);
   });
 
   it('formats feedback for Claude', () => {

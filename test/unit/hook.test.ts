@@ -91,6 +91,16 @@ describe('hook: Edit / MultiEdit / Write', () => {
     expect(S.loadEntries(sb.store)).toHaveLength(1);
   });
 
+  it('keeps project files in the project store when cwd is a symlink to the project', () => {
+    if (process.platform === 'win32') return; // symlinks need admin rights on Windows; 8.3 names cover it there
+    const link = path.join(sb.root, 'link-to-project');
+    fs.symlinkSync(sb.project, link);
+    const f = sb.write('a.ts', 'v1');
+    handle(payload('PreToolUse', 'Edit', { file_path: path.join(link, 'a.ts') }, { cwd: link }), ctx());
+    expect(S.loadEntries(sb.store).map((e) => e.path)).toEqual([f]);
+    expect(S.loadEntries(S.globalStoreDir(sb.env))).toHaveLength(0);
+  });
+
   it('skips binary and oversized files', () => {
     fs.writeFileSync(path.join(sb.project, 'bin.dat'), Buffer.from([1, 0, 2]));
     handle(payload('PreToolUse', 'Write', { file_path: path.join(sb.project, 'bin.dat') }), ctx());
