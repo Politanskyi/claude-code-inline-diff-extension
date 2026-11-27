@@ -24,7 +24,17 @@ async function until(fn, what, ms = 8000) {
 
 function hook(event, tool, input, extra = {}) {
   const r = spawnSync(process.execPath, [HOOK], {
-    input: JSON.stringify({ session_id: 'e2e-session', transcript_path: '/x', cwd: WS, hook_event_name: event, tool_name: tool, tool_input: input, tool_use_id: 'toolu_' + Math.random(), permission_mode: 'acceptEdits', ...extra }),
+    input: JSON.stringify({
+      session_id: 'e2e-session',
+      transcript_path: '/x',
+      cwd: WS,
+      hook_event_name: event,
+      tool_name: tool,
+      tool_input: input,
+      tool_use_id: 'toolu_' + Math.random(),
+      permission_mode: 'acceptEdits',
+      ...extra,
+    }),
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     encoding: 'utf8',
   });
@@ -51,14 +61,26 @@ function shot(name) {
   if (!SHOTS) return;
   try {
     fs.mkdirSync(SHOTS, { recursive: true });
-    fs.appendFileSync(path.join(SHOTS, 'windows.txt'), name + '\n' + execFileSync('xwininfo', ['-root', '-tree'], { encoding: 'utf8', timeout: 5000 }).split('\n').filter((l) => /"/.test(l) && !/has no name/.test(l)).join('\n') + '\n');
+    fs.appendFileSync(
+      path.join(SHOTS, 'windows.txt'),
+      name +
+        '\n' +
+        execFileSync('xwininfo', ['-root', '-tree'], { encoding: 'utf8', timeout: 5000 })
+          .split('\n')
+          .filter((l) => /"/.test(l) && !/has no name/.test(l))
+          .join('\n') +
+        '\n'
+    );
   } catch {}
   fs.mkdirSync(SHOTS, { recursive: true });
   try {
     // Capture the workbench window itself (Cursor opens a separate login window that can cover it).
     let win = 'root';
     try {
-      const ids = execFileSync('xdotool', ['search', '--name', 'workspace'], { encoding: 'utf8', timeout: 5000 }).trim().split('\n').filter(Boolean);
+      const ids = execFileSync('xdotool', ['search', '--name', 'workspace'], { encoding: 'utf8', timeout: 5000 })
+        .trim()
+        .split('\n')
+        .filter(Boolean);
       if (ids.length) {
         win = ids[ids.length - 1];
         execFileSync('xdotool', ['windowraise', win], { timeout: 5000 });
@@ -133,12 +155,21 @@ test('a Claude edit shows up inline (hunks, insets, reveal on edit)', async () =
   claudeWrite('src/config.ts', AFTER);
   await until(() => api.review.pendingKeys().length === 1, 'review entry');
   const key = api.review.pendingKeys()[0];
-  await until(() => vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath === abs, 'revealOnEdit opened the file');
+  await until(
+    () => vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath === abs,
+    'revealOnEdit opened the file'
+  );
   await until(() => vscode.window.activeTextEditor.document.getText() === AFTER, 'editor shows Claude text');
   const hunks = api.review.hunks(key);
   assert.strictEqual(hunks.length, 4, 'four hunks, got ' + JSON.stringify(hunks));
   if (api.insetsAvailable()) await until(() => api.renderer.insets.count() >= 2, 'inset blocks drawn');
-  diag({ editor: vscode.env.appName, version: vscode.version, insetsAvailable: api.insetsAvailable(), insetCount: api.renderer.insets.count(), insetFailed: api.renderer.insets.failed });
+  diag({
+    editor: vscode.env.appName,
+    version: vscode.version,
+    insetsAvailable: api.insetsAvailable(),
+    insetCount: api.renderer.insets.count(),
+    insetFailed: api.renderer.insets.failed,
+  });
   await vscode.commands.executeCommand('notifications.clearAll');
   await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar').then(undefined, () => {});
   await sleep(1500);
@@ -174,11 +205,17 @@ test('Reject restores old lines in the file and saves it', async () => {
   assert.ok(ed.document.getText().includes("console.log('Hello ' + name);"));
   assert.ok(!ed.document.isDirty, 'saved after reject');
   assert.ok(fs.readFileSync(ed.document.uri.fsPath, 'utf8').includes("'Hello ' + name"));
-  assert.ok(api.review.hunks(key).every((h) => !h.bLines.join('\n').includes('Hello, ')), 'greet change gone');
+  assert.ok(
+    api.review.hunks(key).every((h) => !h.bLines.join('\n').includes('Hello, ')),
+    'greet change gone'
+  );
   await sleep(800);
   shot('05-after-reject');
   await vscode.commands.executeCommand('claudeInlineDiff.undo');
-  assert.ok(api.review.hunks(key).some((h) => h.bLines.join('\n').includes('Hello, ')), 'greet change back');
+  assert.ok(
+    api.review.hunks(key).some((h) => h.bLines.join('\n').includes('Hello, ')),
+    'greet change back'
+  );
   assert.ok(ed.document.getText().includes('Hello, ${name}!'));
 });
 
@@ -186,7 +223,10 @@ test('user edits outside Claude hunks are absorbed, not shown as Claude changes'
   const ed = vscode.window.activeTextEditor;
   const key = api.review.pendingKeys()[0];
   const n0 = api.review.hunks(key).length;
-  const lineOfGreet = ed.document.getText().split('\n').findIndex((l) => l.startsWith('export function greet'));
+  const lineOfGreet = ed.document
+    .getText()
+    .split('\n')
+    .findIndex((l) => l.startsWith('export function greet'));
   const we = new vscode.WorkspaceEdit();
   we.insert(ed.document.uri, new vscode.Position(lineOfGreet, 0), '// my own comment\n');
   assert.ok(await vscode.workspace.applyEdit(we), 'edit applied');
@@ -255,7 +295,16 @@ test('a second Claude edit to an open file shows up as a new change (baseline ke
     await until(() => api.review.hunks(key).some((h) => h.bLines.join('\n').includes('VERSION')), 'new hunk');
   } catch (e) {
     const d = vscode.workspace.textDocuments.find((x) => x.uri.fsPath === abs);
-    throw new Error('new hunk missing: ' + JSON.stringify({ before, now: api.review.hunks(key).length, dirty: d && d.isDirty, docHasVersion: d && d.getText().includes('VERSION'), diskHasVersion: fs.readFileSync(abs, 'utf8').includes('VERSION') }));
+    throw new Error(
+      'new hunk missing: ' +
+        JSON.stringify({
+          before,
+          now: api.review.hunks(key).length,
+          dirty: d && d.isDirty,
+          docHasVersion: d && d.getText().includes('VERSION'),
+          diskHasVersion: fs.readFileSync(abs, 'utf8').includes('VERSION'),
+        })
+    );
   }
   assert.strictEqual(api.review.entries.get(key).content.includes('VERSION'), false, 'baseline unchanged by a later Claude edit');
 });
@@ -271,7 +320,9 @@ test('Cursor agent payloads are ignored', async () => {
 });
 
 test('decoration fallback renders without insets', async () => {
-  await vscode.workspace.getConfiguration('claudeInlineDiff').update('deletedLines.renderer', 'decoration', vscode.ConfigurationTarget.Global);
+  await vscode.workspace
+    .getConfiguration('claudeInlineDiff')
+    .update('deletedLines.renderer', 'decoration', vscode.ConfigurationTarget.Global);
   await sleep(500);
   assert.strictEqual(api.insetsAvailable(), false);
   assert.strictEqual(api.renderer.insets.count(), 0);

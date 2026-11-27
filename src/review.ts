@@ -505,7 +505,7 @@ export class ReviewManager implements vscode.Disposable {
    * True when the newest action is a Keep or an Undo on this document and the doc was not edited since:
    * Cmd/Ctrl+Z then reverts that action (the change comes back for review), not just the text.
    */
-  canNativeUndoMeanAccept(key: string): boolean {
+  canRevertLastAction(key: string): boolean {
     const top = this.history[this.history.length - 1];
     if (!top || (top.kind !== 'accept' && top.kind !== 'reject') || !top.files.some((f) => f.key === key)) return false;
     const d = this.openDoc(key);

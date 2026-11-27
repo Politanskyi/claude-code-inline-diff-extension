@@ -10,7 +10,16 @@ const watch = process.argv.includes('--watch');
 const root = path.resolve(__dirname, '..');
 const hookVersion = /HOOK_VERSION = '([\d.]+)'/.exec(fs.readFileSync(path.join(root, 'src/hook/hook.ts'), 'utf8'))[1];
 
-const common = { bundle: true, platform: 'node', target: 'node18', format: 'cjs', sourcemap: !production, minify: false, logLevel: 'info', absWorkingDir: root };
+const common = {
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'cjs',
+  sourcemap: !production,
+  minify: false,
+  logLevel: 'info',
+  absWorkingDir: root,
+};
 const builds = [
   { ...common, entryPoints: ['src/extension.ts'], outfile: 'dist/extension.js', external: ['vscode'] },
   {
@@ -18,7 +27,9 @@ const builds = [
     sourcemap: false,
     entryPoints: ['src/hook/hook.ts'],
     outfile: 'dist/hook.js',
-    banner: { js: `#!/usr/bin/env node\n// claude-inline-diff hook v${hookVersion} — https://github.com/Politanskyi/claude-code-inline-diff-extension (MIT).\n// Safe to delete: run "Claude Inline Diff: Uninstall Claude Code Hook" to remove it cleanly.` },
+    banner: {
+      js: `#!/usr/bin/env node\n// claude-inline-diff hook v${hookVersion} — https://github.com/Politanskyi/claude-code-inline-diff-extension (MIT).\n// Safe to delete: run "Claude Inline Diff: Uninstall Claude Code Hook" to remove it cleanly.`,
+    },
   },
   { ...common, sourcemap: false, entryPoints: ['src/uninstall.ts'], outfile: 'dist/uninstall.js' },
 ].filter((b) => fs.existsSync(path.join(root, b.entryPoints[0])));

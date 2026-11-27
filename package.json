@@ -1,7 +1,7 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.14",
-  "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
+  "version": "0.1.15",
+  "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
     "build": "node scripts/build.js",
@@ -133,26 +133,6 @@
         "category": "Claude Inline Diff"
       },
       {
-        "command": "claudeInlineDiff.keepAllText",
-        "title": "Keep All",
-        "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.undoAllText",
-        "title": "Undo All",
-        "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.undoOneText",
-        "title": "Undo",
-        "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.keepOneText",
-        "title": "Keep",
-        "category": "Claude Inline Diff"
-      },
-      {
         "command": "claudeInlineDiff.nextFileText",
         "title": "Review Next File",
         "category": "Claude Inline Diff"
@@ -161,23 +141,6 @@
         "command": "claudeInlineDiff.keepAllChangesText",
         "title": "Keep all changes",
         "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.reviewText",
-        "title": "Review",
-        "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.undoFileItem",
-        "title": "Undo File",
-        "category": "Claude Inline Diff",
-        "icon": "$(close)"
-      },
-      {
-        "command": "claudeInlineDiff.keepFileItem",
-        "title": "Keep File",
-        "category": "Claude Inline Diff",
-        "icon": "$(check)"
       },
       {
         "command": "claudeInlineDiff.reviewAll",
@@ -281,11 +244,6 @@
       {
         "command": "claudeInlineDiff.openFile",
         "title": "Open File at First Change",
-        "category": "Claude Inline Diff"
-      },
-      {
-        "command": "claudeInlineDiff.revealHunk",
-        "title": "Show Change",
         "category": "Claude Inline Diff"
       }
     ],
@@ -530,7 +488,7 @@
         "claudeInlineDiff.pollIntervalMs": {
           "type": "number",
           "default": 700,
-          "markdownDescription": "How often to look for new snapshots (ms). File watchers are used too.",
+          "markdownDescription": "How often to look for new snapshots (ms). File watchers are used too. Applies after reloading the window.",
           "minimum": 200
         }
       }
@@ -664,10 +622,6 @@
           "when": "false"
         },
         {
-          "command": "claudeInlineDiff.revealHunk",
-          "when": "false"
-        },
-        {
           "command": "claudeInlineDiff.revertStep",
           "when": "false"
         },
@@ -692,39 +646,11 @@
           "when": "false"
         },
         {
-          "command": "claudeInlineDiff.keepAllText",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.undoAllText",
-          "when": "false"
-        },
-        {
           "command": "claudeInlineDiff.nextFileText",
           "when": "false"
         },
         {
           "command": "claudeInlineDiff.keepAllChangesText",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.undoOneText",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.keepOneText",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.reviewText",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.undoFileItem",
-          "when": "false"
-        },
-        {
-          "command": "claudeInlineDiff.keepFileItem",
           "when": "false"
         }
       ]
@@ -742,7 +668,7 @@
       },
       {
         "id": "claudeInlineDiff.addedWordBackground",
-        "description": "Background of words Claude changed.",
+        "description": "Flash on a change Claude just made (Follow Claude).",
         "defaults": {
           "dark": "#0ce91b26",
           "light": "#0ce91b26",
@@ -752,7 +678,7 @@
       },
       {
         "id": "claudeInlineDiff.addedGutter",
-        "description": "Overview ruler (scrollbar) marker for added lines; also the Keep button.",
+        "description": "Overview ruler (scrollbar) marker for added lines.",
         "defaults": {
           "dark": "charts.green",
           "light": "charts.green",

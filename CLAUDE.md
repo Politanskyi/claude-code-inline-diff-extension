@@ -2,7 +2,7 @@
 
 VS Code / Cursor extension (TypeScript) that shows Claude Code's edits (made through the official
 Claude Code extension panel or the CLI) inline in the working file, Cursor-agent style: red removed
-blocks between lines, green added lines, word highlights, Keep/Undo per change/file/all,
+blocks between lines, green added lines, optional word marks, Keep/Undo per change/file/all,
 Cursor's keys, auto-advance, status bar, badges, undo.
 
 Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.json` → `enable-proposed-api`).
@@ -16,11 +16,13 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 
 ## Layout
 - `src/core/` — no `vscode` import, unit-tested: `diff.ts` (Myers + word diff, ported MIT), `model.ts`
-  (accept/reject/absorb math), `store.ts` (on-disk format shared by hook and extension), `setup.ts`
-  (settings.json install/uninstall), `highlight.ts` (tiny tokenizer for removed code)
+  (accept/reject/absorb math, key labels), `regions.ts` (per-edit grouping), `store.ts` (on-disk format
+  shared by hook and extension), `setup.ts` (settings.json install/uninstall), `iconTheme.ts` (file icons
+  for the Changes list), `keybindings.ts` (conflicts with other extensions), `layout.ts` (where the Claude
+  chat lives), `argv.ts` (argv.json `enable-proposed-api`)
 - `src/hook/hook.ts` — Claude Code hook (PreToolUse/PostToolUse/UserPromptSubmit/Stop), bundled standalone; `turns/` markers = Claude is working (Stop does not fire on user interrupt, so a quiet turn expires after 3 min)
 - `src/review.ts` — ReviewManager (state, actions, undo, absorbing user edits)
-- `src/render.ts`, `src/insets.ts`, `src/theme.ts` — decorations, editorInsets webviews, theme colours
+- `src/render.ts`, `src/insets.ts` — decorations (+ hover fallback), editorInsets webviews (removed blocks, pill)
 - `src/views.ts` — status bar, file badges, Claude Changes list (webview, Cursor-style; icons via `src/core/iconTheme.ts`), Claude Steps tree, CodeLens
 - `src/extension.ts` — activation and commands
 - `docs/` — RESEARCH.md, INSTALL.uk.md, MANUAL_TESTING.uk.md
@@ -51,11 +53,11 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `TextDocument.isDirty` is not reliable inside onDidChangeTextDocument; Claude's disk write is detected by
   "document text == file on disk" instead (review.ts `matchesDisk`).
 - Never `await` a non-modal notification inside a command (it blocks until dismissed; hung the e2e).
-- Insets do not scroll horizontally with the editor; the pill is right-aligned, or anchored to the code indentation when the editor overflows horizontally.
+- Insets do not scroll horizontally with the editor; the pill stays right-aligned in the visible part.
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
 
 ## Verified in Cursor
-- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 16/16.
+- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 17/17.
   Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, all tests pass.
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
 - `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating per-file Undo File / Keep File bar).
@@ -70,11 +72,11 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Grouping: the hook records edit regions (`src/core/regions.ts`, `BaselineFile.regions`) per Claude tool call; hunks are diffed inside regions (Cursor diffs per agent edit), whole-file diff when regions do not fit.
 - Pill placement: a 1px full-width probe + IntersectionObserver finds the visible right edge of the inset (inset is as wide as the scroll width).
 - The floating Keep all changes / Review Next File bar hides when the file has Cursor's own diffs (`inlineDiffs.activeEditorWithDiffs`).
-- Pill (inset row, 26px = Cursor's 24px pill + 2px gap, fractional heightInLines): `⌃ i of n ⌄ | Undo | Keep` (feedback via context menu / list), one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned unless the editor overflows horizontally.
+- Pill (inset row, 26px = Cursor's 24px pill + 2px gap, fractional heightInLines): `⌃ i of n ⌄ | Undo | Keep` (feedback only via the editor context menu), one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned.
 - Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
 - Floating Undo File / Keep File ⌘⏎ via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu), only in the active editor (`claudeInlineDiff.activeFiles`); Cursor's own file bar sits in the breadcrumb row, which extensions cannot use; Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
-- e2e: 16 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
+- e2e: 17 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
 ## Next ideas (not started)
 - Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.

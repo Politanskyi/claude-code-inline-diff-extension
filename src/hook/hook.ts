@@ -258,6 +258,8 @@ function feedbackOutput(
   ctx: HookContext
 ): string {
   const stores = new Set([S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env), S.globalStoreDir(ctx.env)]);
+  // A subagent's tool calls carry the parent's session_id plus agent_id: the reason is for the main agent.
+  if (event === 'PostToolUse' && data.agent_id) return '';
   const items: S.Feedback[] = [];
   for (const s of stores) items.push(...S.takeFeedback(s, data.session_id));
   if (!items.length) return '';

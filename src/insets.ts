@@ -8,9 +8,8 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { CharRange } from './core/diff';
-import { tokenizeLines, TokenKind } from './core/highlight';
-import { currentPalette, Palette } from './theme';
 import { HunkRef } from './review';
+import { keyLabels } from './core/model';
 
 /** Our own declaration of the proposed API surface we use. */
 interface WebviewEditorInset {
@@ -35,14 +34,10 @@ export function insetApi(): CreateInset | undefined {
   return probed || undefined;
 }
 
-/** Cursor-style pill under a change: `⌃ 2 of 5 ⌄ | Undo ⌘N | Keep ⌘Y`. */
+/** Cursor-style pill under a change: `⌃ 2 of 5 ⌄ | Undo ⌘N | Keep`. */
 export interface Toolbar {
   index: number; // 1-based position of this change in the file
   total: number;
-  /** Indentation (columns) of the change's last line: anchor used when the editor scrolls horizontally and the right edge is unknown. */
-  anchorCols: number;
-  /** Longest line in the document, in columns: tells the webview whether the editor overflows horizontally. */
-  maxCols: number;
 }
 
 export interface InsetBlock {
@@ -59,7 +54,6 @@ export interface InsetBlock {
 export interface InsetActions {
   accept(ref: HunkRef): void;
   reject(ref: HunkRef): void;
-  feedback(ref: HunkRef): void;
   navigate(ref: HunkRef, dir: 1 | -1): void;
 }
 
@@ -80,49 +74,36 @@ export function editorMetrics(doc?: vscode.TextDocument) {
   let lh = c.get<number>('lineHeight', 0) || 0;
   if (lh > 0 && lh < 8) lh = Math.round(lh * fontSize); // multiplier form
   if (lh === 0) lh = Math.round(fontSize * (process.platform === 'darwin' ? 1.5 : 1.35));
+  const k = keyLabels(
+    process.platform === 'darwin',
+    vscode.workspace.getConfiguration('claudeInlineDiff').get<string>('keybindingScheme', 'both')
+  );
   return {
+    // Shortcut labels on the pill (part of the signature: a key-scheme change redraws it).
+    keep: k.keep,
+    undo: k.undo,
     fontSize,
     lineHeight: lh,
     fontFamily: c.get<string>('fontFamily', 'monospace'),
     fontWeight: c.get<string>('fontWeight', 'normal'),
     tabSize: c.get<number>('tabSize', 4) || 4,
     ligatures: c.get<unknown>('fontLigatures', false),
-    // An editor that scrolls sideways is this many columns (plus the scrollbar) wider than its longest line.
-    scrollBeyond: c.get<number>('scrollBeyondLastColumn', 4) ?? 4,
   };
 }
 
-const KIND_STYLE = (p: Palette, k: TokenKind) => {
-  const s = p[k];
-  if (!s || !s.color) return '';
-  const fs = s.fontStyle || '';
-  return `color:${s.color};${fs.includes('italic') ? 'font-style:italic;' : ''}${fs.includes('bold') ? 'font-weight:bold;' : ''}`;
-};
-
-/** Renders one line's tokens with removed-word highlights layered on top. */
-export function renderLine(tokens: { kind: TokenKind; text: string }[], removed: CharRange[], palette: Palette): string {
-  // Split tokens at removed-range boundaries.
-  const cuts = new Set<number>();
+/** One removed line, in one colour like Cursor's, with optional removed-word marks (`highlightWords`). */
+export function renderLine(text: string, removed: CharRange[]): string {
+  const cuts = new Set<number>([0, text.length]);
   for (const r of removed) {
-    cuts.add(r.start);
-    cuts.add(r.end);
+    cuts.add(Math.max(0, Math.min(text.length, r.start)));
+    cuts.add(Math.max(0, Math.min(text.length, r.end)));
   }
-  let col = 0;
+  const points = [...cuts].sort((x, y) => x - y);
   let html = '';
-  for (const t of tokens) {
-    let i = 0;
-    while (i < t.text.length) {
-      let j = i + 1;
-      while (j < t.text.length && !cuts.has(col + j)) j++;
-      const piece = t.text.slice(i, j);
-      const start = col + i;
-      const inRemoved = removed.some((r) => start >= r.start && start < r.end);
-      const style = KIND_STYLE(palette, t.kind);
-      const cls = inRemoved ? ' class="w"' : '';
-      html += style || cls ? `<span${cls}${style ? ` style="${style}"` : ''}>${esc(piece)}</span>` : esc(piece);
-      i = j;
-    }
-    col += t.text.length;
+  for (let k = 0; k + 1 < points.length; k++) {
+    const piece = text.slice(points[k], points[k + 1]);
+    const marked = removed.some((r) => points[k] >= r.start && points[k] < r.end);
+    html += marked ? `<span class="w">${esc(piece)}</span>` : esc(piece);
   }
   return html || '&#8203;';
 }
@@ -132,26 +113,22 @@ export function insetHtml(
   shownLines: string[],
   hidden: number,
   nonce: string,
-  palette: Palette,
   m: ReturnType<typeof editorMetrics>
 ): string {
-  const tokens = tokenizeLines(shownLines, block.languageId);
   const body = shownLines
-    .map((_, i) =>
-      renderLine(
-        tokens[i],
-        block.removed.filter((r) => r.line === i),
-        {} as Palette // one colour, like Cursor's removed lines
-      )
+    .map(
+      (line, i) =>
+        `<div class="l">${renderLine(
+          line,
+          block.removed.filter((r) => r.line === i)
+        )}</div>`
     )
-    .map((h) => `<div class="l">${h}</div>`)
     .join('');
   const more = hidden
-    ? `<div class="l more">⋯ ${hidden} more removed line${hidden === 1 ? '' : 's'} — hover the change or open the side-by-side diff</div>`
+    ? `<div class="l more">⋯ ${hidden} more removed line${hidden === 1 ? '' : 's'} — open the side-by-side diff to see them</div>`
     : '';
-  const isMac = process.platform === 'darwin';
-  const kY = isMac ? '⌘Y' : 'Ctrl+Y';
-  const kN = isMac ? '⌘N' : 'Ctrl+N';
+  const kY = m.keep;
+  const kN = m.undo;
   const t = block.toolbar;
   const toolbar = t
     ? `<div class="tbrow"><div class="tb" id="tb" role="toolbar" aria-label="Change ${t.index} of ${t.total}">` +
@@ -244,7 +221,6 @@ export class InsetManager implements vscode.Disposable {
     const create = insetApi();
     if (!create || this.failed) return;
     const m = editorMetrics(editor.document);
-    const palette = currentPalette();
     const margin = 60;
     const vis = editor.visibleRanges;
     const near = (line: number) => !vis.length || vis.some((r) => line >= r.start.line - margin && line <= r.end.line + margin);
@@ -258,7 +234,7 @@ export class InsetManager implements vscode.Disposable {
       const height = shown.length + (hidden ? 1 : 0) + (b.toolbar ? PILL_ROW / m.lineHeight : 0);
       const sig = crypto
         .createHash('sha1')
-        .update(JSON.stringify([b.afterLine, height, b.lines, b.removed, b.toolbar, b.ref, b.languageId, m, palette]))
+        .update(JSON.stringify([b.afterLine, height, b.lines, b.removed, b.toolbar, b.ref, m]))
         .digest('hex');
       const reuse = current.get(sig);
       if (reuse && !reuse.disposed) {
@@ -273,11 +249,10 @@ export class InsetManager implements vscode.Disposable {
         inset.webview.onDidReceiveMessage((msg: { a?: string }) => {
           if (msg?.a === 'accept') this.actions.accept(b.ref);
           else if (msg?.a === 'reject') this.actions.reject(b.ref);
-          else if (msg?.a === 'feedback') this.actions.feedback(b.ref);
           else if (msg?.a === 'next') this.actions.navigate(b.ref, 1);
           else if (msg?.a === 'prev') this.actions.navigate(b.ref, -1);
         });
-        inset.webview.html = insetHtml(b, shown, hidden, crypto.randomBytes(12).toString('base64'), palette, m);
+        inset.webview.html = insetHtml(b, shown, hidden, crypto.randomBytes(12).toString('base64'), m);
         next.set(sig, live);
       } catch (e: any) {
         this.log.warn('editor inset failed, falling back to decorations: ' + (e?.message || e));

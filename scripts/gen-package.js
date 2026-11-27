@@ -1,7 +1,13 @@
 // One-off generator for package.json contributions (kept for maintainability: edit and re-run).
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-const C = (command, title, icon, extra = {}) => ({ command: 'claudeInlineDiff.' + command, title, category: 'Claude Inline Diff', ...(icon ? { icon: '$(' + icon + ')' } : {}), ...extra });
+const C = (command, title, icon, extra = {}) => ({
+  command: 'claudeInlineDiff.' + command,
+  title,
+  category: 'Claude Inline Diff',
+  ...(icon ? { icon: '$(' + icon + ')' } : {}),
+  ...extra,
+});
 const commands = [
   C('acceptHunk', 'Keep Change', 'check'),
   C('rejectHunk', 'Undo Change', 'discard'),
@@ -17,16 +23,8 @@ const commands = [
   { command: 'claudeInlineDiff.keepFileTextMac', title: 'Keep File ⌘⏎', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.keepFileTextCtrl', title: 'Keep File Ctrl+Enter', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.undoFileText', title: 'Undo File', category: 'Claude Inline Diff' },
-  { command: 'claudeInlineDiff.keepAllText', title: 'Keep All', category: 'Claude Inline Diff' },
-  { command: 'claudeInlineDiff.undoAllText', title: 'Undo All', category: 'Claude Inline Diff' },
-  { command: 'claudeInlineDiff.undoOneText', title: 'Undo', category: 'Claude Inline Diff' },
-  { command: 'claudeInlineDiff.keepOneText', title: 'Keep', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.nextFileText', title: 'Review Next File', category: 'Claude Inline Diff' },
   { command: 'claudeInlineDiff.keepAllChangesText', title: 'Keep all changes', category: 'Claude Inline Diff' },
-  { command: 'claudeInlineDiff.reviewText', title: 'Review', category: 'Claude Inline Diff' },
-  // Row actions in the Claude Changes list, like Cursor's ✕ Reject / ✓ Accept.
-  C('undoFileItem', 'Undo File', 'close'),
-  C('keepFileItem', 'Keep File', 'check'),
   C('reviewAll', 'Review All Changes (multi-file diff)', 'diff-multiple'),
   C('nextHunk', 'Next Change', 'arrow-down'),
   C('nextHunkInFile', 'Next Change in This File'),
@@ -46,7 +44,6 @@ const commands = [
   C('clearSnapshots', 'Delete Review Snapshots (.claude-review)…'),
   C('refresh', 'Refresh', 'refresh'),
   C('openFile', 'Open File at First Change'),
-  C('revealHunk', 'Show Change'),
 ];
 const when = {
   hunk: 'editorTextFocus && claudeInlineDiff.cursorInHunk',
@@ -82,25 +79,86 @@ const P = (type, def, description, extra = {}) => ({ type, default: def, markdow
 const configuration = {
   title: 'Claude Inline Diff',
   properties: {
-    'claudeInlineDiff.storage.location': P('string', 'project', 'Where review snapshots live. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). `home`: `~/.claude/inline-diff/store/`. Files outside the project always use `home`.', { enum: ['project', 'home'] }),
+    'claudeInlineDiff.storage.location': P(
+      'string',
+      'project',
+      'Where review snapshots live. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). `home`: `~/.claude/inline-diff/store/`. Files outside the project always use `home`.',
+      { enum: ['project', 'home'] }
+    ),
     'claudeInlineDiff.storage.projectDirName': P('string', '.claude-review', 'Folder name of the project-local store.'),
-    'claudeInlineDiff.trackBashEdits': P('boolean', true, 'Detect files changed by Claude\'s **Bash** tool (git repositories only: compares `git status` before/after each command).'),
-    'claudeInlineDiff.keybindingScheme': P('string', 'both', '`cursor`: Cmd/Ctrl+Y / N per change, Cmd/Ctrl+Shift+Y / N per file. `alt`: Cmd/Ctrl+Alt+Enter / Backspace (+Shift for file). `both`: all of them. Keys are only active while the cursor is inside a Claude change (file keys: while the file has changes).', { enum: ['cursor', 'alt', 'both'] }),
-    'claudeInlineDiff.autoAdvance': P('string', 'cursor', 'Where the cursor goes after Keep / Undo. `cursor` (like Cursor): Keep of a change moves to the next change in the same file; Undo, Keep File and Undo File stay put. `hunkThenFile`: every action moves to the next change, then the next file. `hunk`: every action moves to the next change in the file. `off`: never move.', { enum: ['cursor', 'hunkThenFile', 'hunk', 'off'] }),
-    'claudeInlineDiff.followClaude': P('boolean', false, 'When Claude lands a new change in a visible file, scroll to it and briefly highlight it. Off by default, like Cursor. Never moves the view while your cursor is inside a change.'),
-    'claudeInlineDiff.revealOnEdit': P('boolean', false, 'Open a file (preview tab, focus stays where it is) when Claude starts changing it, scrolled to the change. Off by default, like Cursor.'),
-    'claudeInlineDiff.deletedLines.renderer': P('string', 'auto', '`auto`: red inline blocks via the `editorInsets` proposed API when enabled, otherwise decorations. `inset` / `decoration` force one.', { enum: ['auto', 'inset', 'decoration'] }),
-    'claudeInlineDiff.deletedLines.maxLines': P('number', 30, 'Removed lines drawn per block before collapsing the rest.', { minimum: 3, maximum: 500 }),
-    'claudeInlineDiff.hunkToolbar': P('string', 'cursor', 'Pill under a change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `cursor` (like Cursor): one pill, under the change nearest to where you last were, with the text cursor or the mouse; lines below it shift by one row when it moves, because extensions cannot overlay the editor. `all`: under every change. `active`: under the change at the text cursor only. `off`: use CodeLens instead.', { enum: ['cursor', 'all', 'active', 'off'] }),
-    'claudeInlineDiff.showCodeLens': P('boolean', false, 'Also show Keep / Undo CodeLens above changes and at the top of the file (always used when the editorInsets API is unavailable or `hunkToolbar` is `off`).'),
-    'claudeInlineDiff.floatingBar': P('boolean', true, 'Floating **Undo File / Keep File** buttons at the bottom-right of the editor, like Cursor\'s per-file bar (Cursor shows two buttons there); Undo All / Keep All are in the Claude Changes list (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line).'),
-    'claudeInlineDiff.highlightWords': P('boolean', false, 'Mark changed words inside removed lines. Off by default: Cursor shows removed lines in one colour.'),
+    'claudeInlineDiff.trackBashEdits': P(
+      'boolean',
+      true,
+      "Detect files changed by Claude's **Bash** tool (git repositories only: compares `git status` before/after each command)."
+    ),
+    'claudeInlineDiff.keybindingScheme': P(
+      'string',
+      'both',
+      '`cursor`: Cmd/Ctrl+Y / N per change, Cmd/Ctrl+Shift+Y / N per file. `alt`: Cmd/Ctrl+Alt+Enter / Backspace (+Shift for file). `both`: all of them. Keys are only active while the cursor is inside a Claude change (file keys: while the file has changes).',
+      { enum: ['cursor', 'alt', 'both'] }
+    ),
+    'claudeInlineDiff.autoAdvance': P(
+      'string',
+      'cursor',
+      'Where the cursor goes after Keep / Undo. `cursor` (like Cursor): Keep of a change moves to the next change in the same file; Undo, Keep File and Undo File stay put. `hunkThenFile`: every action moves to the next change, then the next file. `hunk`: every action moves to the next change in the file. `off`: never move.',
+      { enum: ['cursor', 'hunkThenFile', 'hunk', 'off'] }
+    ),
+    'claudeInlineDiff.followClaude': P(
+      'boolean',
+      false,
+      'When Claude lands a new change in a visible file, scroll to it and briefly highlight it. Off by default, like Cursor. Never moves the view while your cursor is inside a change.'
+    ),
+    'claudeInlineDiff.revealOnEdit': P(
+      'boolean',
+      false,
+      'Open a file (preview tab, focus stays where it is) when Claude starts changing it, scrolled to the change. Off by default, like Cursor.'
+    ),
+    'claudeInlineDiff.deletedLines.renderer': P(
+      'string',
+      'auto',
+      '`auto`: red inline blocks via the `editorInsets` proposed API when enabled, otherwise decorations. `inset` / `decoration` force one.',
+      { enum: ['auto', 'inset', 'decoration'] }
+    ),
+    'claudeInlineDiff.deletedLines.maxLines': P('number', 30, 'Removed lines drawn per block before collapsing the rest.', {
+      minimum: 3,
+      maximum: 500,
+    }),
+    'claudeInlineDiff.hunkToolbar': P(
+      'string',
+      'cursor',
+      'Pill under a change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `cursor` (like Cursor): one pill, under the change nearest to where you last were, with the text cursor or the mouse; lines below it shift by one row when it moves, because extensions cannot overlay the editor. `all`: under every change. `active`: under the change at the text cursor only. `off`: use CodeLens instead.',
+      { enum: ['cursor', 'all', 'active', 'off'] }
+    ),
+    'claudeInlineDiff.showCodeLens': P(
+      'boolean',
+      false,
+      'Also show Keep / Undo CodeLens above changes and at the top of the file (always used when the editorInsets API is unavailable or `hunkToolbar` is `off`).'
+    ),
+    'claudeInlineDiff.floatingBar': P(
+      'boolean',
+      true,
+      "Floating **Undo File / Keep File** buttons at the bottom-right of the editor, like Cursor's per-file bar (Cursor shows two buttons there); Undo All / Keep All are in the Claude Changes list (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line)."
+    ),
+    'claudeInlineDiff.highlightWords': P(
+      'boolean',
+      false,
+      'Mark changed words inside removed lines. Off by default: Cursor shows removed lines in one colour.'
+    ),
     'claudeInlineDiff.saveAfterReject': P('boolean', true, 'Save the file after Reject so Claude reads what you see.'),
-    'claudeInlineDiff.absorbUserEdits': P('boolean', true, 'Your own edits outside Claude\'s changes are folded into the baseline (never shown as Claude\'s). Edits inside a change become part of it.'),
+    'claudeInlineDiff.absorbUserEdits': P(
+      'boolean',
+      true,
+      "Your own edits outside Claude's changes are folded into the baseline (never shown as Claude's). Edits inside a change become part of it."
+    ),
     'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
     'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before moving a file Claude created to the trash on Reject.'),
     'claudeInlineDiff.stepRetentionDays': P('number', 7, 'Keep per-step snapshots (for step revert) this many days.', { minimum: 1 }),
-    'claudeInlineDiff.pollIntervalMs': P('number', 700, 'How often to look for new snapshots (ms). File watchers are used too.', { minimum: 200 }),
+    'claudeInlineDiff.pollIntervalMs': P(
+      'number',
+      700,
+      'How often to look for new snapshots (ms). File watchers are used too. Applies after reloading the window.',
+      { minimum: 200 }
+    ),
   },
 };
 const cursorKeys = "config.claudeInlineDiff.keybindingScheme != 'alt'";
@@ -119,13 +177,37 @@ const menus = {
   // Cursor renders only the first two items of this menu, so there is no room for ‹ › file arrows.
   'editor/content': [
     // Like Cursor: only in the active editor.
-    { command: 'claudeInlineDiff.undoFileText', group: 'claudeInlineDiff@1', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles` },
-    { command: 'claudeInlineDiff.keepFileTextMac', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && isMac && ${cursorKeys}` },
-    { command: 'claudeInlineDiff.keepFileTextCtrl', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && !isMac && ${cursorKeys}` },
-    { command: 'claudeInlineDiff.keepFileText', group: 'claudeInlineDiff@2', when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && config.claudeInlineDiff.keybindingScheme == 'alt'` },
+    {
+      command: 'claudeInlineDiff.undoFileText',
+      group: 'claudeInlineDiff@1',
+      when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles`,
+    },
+    {
+      command: 'claudeInlineDiff.keepFileTextMac',
+      group: 'claudeInlineDiff@2',
+      when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && isMac && ${cursorKeys}`,
+    },
+    {
+      command: 'claudeInlineDiff.keepFileTextCtrl',
+      group: 'claudeInlineDiff@2',
+      when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && !isMac && ${cursorKeys}`,
+    },
+    {
+      command: 'claudeInlineDiff.keepFileText',
+      group: 'claudeInlineDiff@2',
+      when: `${barWhen} && resourcePath in claudeInlineDiff.activeFiles && config.claudeInlineDiff.keybindingScheme == 'alt'`,
+    },
     // Cursor's variant for a file without changes while other files have some.
-    { command: 'claudeInlineDiff.keepAllChangesText', group: 'claudeInlineDiff@5', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
-    { command: 'claudeInlineDiff.nextFileText', group: 'claudeInlineDiff@6', when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs` },
+    {
+      command: 'claudeInlineDiff.keepAllChangesText',
+      group: 'claudeInlineDiff@5',
+      when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs`,
+    },
+    {
+      command: 'claudeInlineDiff.nextFileText',
+      group: 'claudeInlineDiff@6',
+      when: `${barWhen} && resourcePath not in claudeInlineDiff.files && claudeInlineDiff.hasChanges && !inlineDiffs.activeEditorWithDiffs`,
+    },
   ],
   'editor/context': [
     { command: 'claudeInlineDiff.acceptHunk', group: '0_claudeInlineDiff@1', when: 'claudeInlineDiff.cursorInHunk' },
@@ -145,16 +227,36 @@ const menus = {
   'view/item/context': [
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
   ],
-  commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'keepFileTextMac', 'keepFileTextCtrl', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'undoOneText', 'keepOneText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
+  commandPalette: [
+    'openFile',
+    'revertStep',
+    'refresh',
+    'keepFileText',
+    'keepFileTextMac',
+    'keepFileTextCtrl',
+    'undoFileText',
+    'nextFileText',
+    'keepAllChangesText',
+  ].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
 };
-const color = (id, description, d) => ({ id: 'claudeInlineDiff.' + id, description, defaults: { dark: d.dark, light: d.light, highContrast: d.hc || d.dark, highContrastLight: d.hcl || d.light } });
+const color = (id, description, d) => ({
+  id: 'claudeInlineDiff.' + id,
+  description,
+  defaults: { dark: d.dark, light: d.light, highContrast: d.hc || d.dark, highContrastLight: d.hcl || d.light },
+});
 const colors = [
   // Same sources as Cursor's native inline diff: the theme's diffEditor colours for lines,
   // rgba(12,233,27,.15) / rgba(242,13,59,.25) for changed words (Cursor 3.32 CSS).
-  color('addedLineBackground', 'Background of lines Claude added or changed.', { dark: 'diffEditor.insertedLineBackground', light: 'diffEditor.insertedLineBackground' }),
-  color('addedWordBackground', 'Background of words Claude changed.', { dark: '#0ce91b26', light: '#0ce91b26' }),
-  color('addedGutter', 'Overview ruler (scrollbar) marker for added lines; also the Keep button.', { dark: 'charts.green', light: 'charts.green' }),
-  color('removedLineBackground', 'Background of removed code blocks.', { dark: 'diffEditor.removedLineBackground', light: 'diffEditor.removedLineBackground' }),
+  color('addedLineBackground', 'Background of lines Claude added or changed.', {
+    dark: 'diffEditor.insertedLineBackground',
+    light: 'diffEditor.insertedLineBackground',
+  }),
+  color('addedWordBackground', 'Flash on a change Claude just made (Follow Claude).', { dark: '#0ce91b26', light: '#0ce91b26' }),
+  color('addedGutter', 'Overview ruler (scrollbar) marker for added lines.', { dark: 'charts.green', light: 'charts.green' }),
+  color('removedLineBackground', 'Background of removed code blocks.', {
+    dark: 'diffEditor.removedLineBackground',
+    light: 'diffEditor.removedLineBackground',
+  }),
   color('removedWordBackground', 'Background of removed words.', { dark: '#f20d3b40', light: '#f20d3b40' }),
   color('removedGutter', 'Overview ruler (scrollbar) marker for removed lines.', { dark: 'charts.red', light: 'charts.red' }),
   color('badgeForeground', 'Explorer / tab badge for files with Claude changes.', { dark: '#d29922', light: '#9a6700' }),
@@ -162,8 +264,9 @@ const colors = [
 Object.assign(pkg, {
   name: 'claude-inline-diff',
   displayName: 'Claude Inline Diff',
-  description: "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
-  version: '0.1.14',
+  description:
+    "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
+  version: '0.1.15',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
@@ -186,10 +289,23 @@ Object.assign(pkg, {
       // VS Code moves it to the Explorer if Claude Code is not installed.
       'claude-sidebar-secondary': [
         // Like Cursor's file list under the chat: shown only while there is something to review (or the hook is missing).
-        { type: 'webview', id: 'claudeInlineDiff.changes', name: 'Claude Changes', icon: '$(sparkle)', contextualTitle: 'Claude Changes', when: 'claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady' },
+        {
+          type: 'webview',
+          id: 'claudeInlineDiff.changes',
+          name: 'Claude Changes',
+          icon: '$(sparkle)',
+          contextualTitle: 'Claude Changes',
+          when: 'claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady',
+        },
       ],
       scm: [
-        { id: 'claudeInlineDiff.steps', name: 'Claude Steps', icon: '$(history)', contextualTitle: 'Claude Steps', visibility: 'collapsed' },
+        {
+          id: 'claudeInlineDiff.steps',
+          name: 'Claude Steps',
+          icon: '$(history)',
+          contextualTitle: 'Claude Steps',
+          visibility: 'collapsed',
+        },
       ],
     },
     viewsWelcome: [
@@ -205,9 +321,12 @@ Object.assign(pkg, {
     'format:check': 'prettier --check "src/**/*.ts" "test/**/*.ts"',
     test: 'vitest run',
     'test:e2e': 'node scripts/build.js && node test/e2e/run.js',
-    package: 'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository --no-rewrite-relative-links -o claude-inline-diff.vsix',
+    package:
+      'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository --no-rewrite-relative-links -o claude-inline-diff.vsix',
     'vscode:uninstall': 'node ./dist/uninstall.js',
   },
 });
-delete pkg.main_; delete pkg.author; delete pkg.directories;
+delete pkg.main_;
+delete pkg.author;
+delete pkg.directories;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');

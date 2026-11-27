@@ -126,3 +126,11 @@ describe('nearestHunk (where Cursor puts its one pill)', () => {
     expect(M.nearestHunk([], 3)).toBeUndefined();
   });
 });
+
+describe('keyLabels', () => {
+  it('follows the key scheme and the platform', () => {
+    expect(M.keyLabels(true, 'both')).toMatchObject({ keep: '⌘Y', undo: '⌘N', fileKeep: '⌘↵' });
+    expect(M.keyLabels(true, 'alt')).toMatchObject({ keep: '⌥⌘↵', undo: '⌥⌘⌫' });
+    expect(M.keyLabels(false, 'cursor')).toMatchObject({ keep: 'Ctrl+Y', fileUndo: 'Ctrl+Shift+Backspace' });
+  });
+});

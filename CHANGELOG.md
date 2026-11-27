@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.15
+- Undo with feedback goes to the main Claude agent, not to a subagent that happens to call a tool first.
+- Undo All warns before moving files Claude created to the trash.
+- Shortcut labels (pill, hover, CodeLens, status bar) follow `keybindingScheme`.
+- Cleanup: dead commands, the old tree view code, the unused syntax colouring (`theme.ts`, `highlight.ts`) removed; a manifest test catches commands nothing can reach; docs match the current behaviour.
+
 ## 0.1.14
 - Claude Changes list: "Undo / Keep" for one file, "Undo All / Keep All" for several, like Cursor.
 
@@ -17,12 +23,12 @@
 
 ## 0.1.10
 - Fix: a Claude edit right after Undo/Keep could vanish from review (the editor had not reloaded the write yet, so the fresh baseline looked resolved and was dropped).
-- Pill exactly Cursor's size (24px, 2px below the change, fractional inset height); the "…" button moved off the pill (Undo with feedback stays in the context menu and the Claude Changes list).
+- Pill exactly Cursor's size (24px, 2px below the change, fractional inset height); the "…" button moved off the pill (Undo with feedback stays in the editor context menu).
 
 ## 0.1.9
 - Changes group per Claude edit (edit regions recorded by the hook), like Cursor's agent diff.
 - Cursor-measured look: removed text in one colour, word marks off by default, pill colours/sizes, Keep without shortcut.
-- Pill stays inside the visible editor width; Keep all changes registered; floating bar hidden over Cursor's own diffs; singular Undo/Keep header for one file.
+- Pill stays inside the visible editor width; Keep all changes registered; floating bar hidden over Cursor's own diffs.
 
 ## 0.1.0
 - First release: inline review of Claude Code edits (editorInsets red blocks + decoration fallback), word-level

@@ -181,6 +181,14 @@ describe('hook: feedback delivery', () => {
     expect(JSON.parse(out).hookSpecificOutput.hookEventName).toBe('PostToolUse');
   });
 
+  it("keeps it for the main agent when a subagent's tool call comes first", () => {
+    S.queueFeedback(sb.store, { sessionId: 'sess-1', path: '/x/a.ts', text: 'no', ts: 1 });
+    sb.write('a.ts', 'v1');
+    expect(claudeEdit('a.ts', 'v2', 'Edit', { agent_id: 'sub-1', agent_type: 'general-purpose' })).toBe('');
+    expect(S.pendingFeedback(sb.store)).toHaveLength(1);
+    expect(claudeEdit('a.ts', 'v3')).toContain('PostToolUse');
+  });
+
   it("does not deliver another session's feedback", () => {
     S.queueFeedback(sb.store, { sessionId: 'other', path: '/x/a.ts', text: 'no', ts: 1 });
     expect(handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'UserPromptSubmit', prompt: 'x' }, ctx())).toBe('');

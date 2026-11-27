@@ -21,4 +21,23 @@ describe('package.json ↔ extension.ts', () => {
     ];
     expect(used.filter((c) => !known.has(c))).toEqual([]);
   });
+
+  it('every command hidden from the palette is reachable from a menu, keybinding or the code', () => {
+    const code = ['extension', 'views', 'insets', 'render', 'review']
+      .map((f) => fs.readFileSync(path.join(root, `src/${f}.ts`), 'utf8'))
+      .join('\n')
+      .replace(/reg\('[\w]+'/g, '');
+    const hidden = pkg.contributes.menus.commandPalette.filter((i: any) => i.when === 'false').map((i: any) => i.command);
+    const reachable = new Set([
+      ...Object.values(pkg.contributes.menus)
+        .flat()
+        .filter((i: any) => i.when !== 'false')
+        .map((i: any) => i.command),
+      ...pkg.contributes.keybindings.map((k: { command: string }) => k.command),
+    ]);
+    const orphans = hidden.filter(
+      (c: string) => !reachable.has(c) && !code.includes(c) && !code.includes(`'${c.replace('claudeInlineDiff.', '')}'`)
+    );
+    expect(orphans).toEqual([]);
+  });
 });

@@ -125,11 +125,6 @@ export function hunkAtLine(hunks: Hunk[], line: number): Hunk | undefined {
   );
 }
 
-export function hunkIndexAtLine(hunks: Hunk[], line: number): number {
-  const h = hunkAtLine(hunks, line);
-  return h ? hunks.indexOf(h) : -1;
-}
-
 /** The line a hunk is "at" for navigation. */
 export function hunkAnchorLine(h: Hunk): number {
   return h.bLines.length ? h.bStart : Math.max(0, h.bStart - 1);
@@ -173,4 +168,15 @@ export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' :
 /** "3 files · 7 changes" */
 export function summaryText(files: number, changes: number): string {
   return `${plural(files, 'file')} · ${plural(changes, 'change')}`;
+}
+
+/** Shortcut labels for Keep / Undo (one change, whole file) under the chosen key scheme (`keybindingScheme`). */
+export function keyLabels(isMac: boolean, scheme: string) {
+  if (scheme === 'alt')
+    return isMac
+      ? { keep: '⌥⌘↵', undo: '⌥⌘⌫', fileKeep: '⇧⌥⌘↵', fileUndo: '⇧⌥⌘⌫' }
+      : { keep: 'Ctrl+Alt+Enter', undo: 'Ctrl+Alt+Backspace', fileKeep: 'Ctrl+Shift+Alt+Enter', fileUndo: 'Ctrl+Shift+Alt+Backspace' };
+  return isMac
+    ? { keep: '⌘Y', undo: '⌘N', fileKeep: '⌘↵', fileUndo: '⇧⌘⌫' }
+    : { keep: 'Ctrl+Y', undo: 'Ctrl+N', fileKeep: 'Ctrl+Enter', fileUndo: 'Ctrl+Shift+Backspace' };
 }

@@ -1,21 +1,16 @@
-// Status bar ("N files · M changes" + prev/next, "Claude editing <file>"),
-// Explorer/tab badges, CodeLens Accept/Reject, and the "Claude Changes" /
-// "Claude Steps" trees in the Source Control container.
+// Status bar ("N files · M changes" + prev/next, "Claude editing <file>"), Explorer/tab badges,
+// CodeLens (fallback when pills are off), the Claude Changes list (a webview under the Claude Code chat)
+// and the Claude Steps tree (Source Control).
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as S from './core/store';
 import { IconThemeDoc, iconIdFor, parseJsonc } from './core/iconTheme';
-import { hunkStat, summaryText, hunkAnchorLine, plural } from './core/model';
+import { hunkStat, summaryText, hunkAnchorLine, plural, keyLabels, totals } from './core/model';
 import { ReviewManager, cfg } from './review';
 
-const isMac = process.platform === 'darwin';
-const KEY = {
-  y: isMac ? '⌘Y' : 'Ctrl+Y',
-  n: isMac ? '⌘N' : 'Ctrl+N',
-  fileKeep: isMac ? '⌘↵' : 'Ctrl+Enter',
-  fileUndo: isMac ? '⇧⌘⌫' : 'Ctrl+Shift+Backspace',
-};
+/** Shortcut labels under the current key scheme (read on use, so a settings change applies at once). */
+const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybindingScheme', 'both'));
 
 // ---------- status bar ----------
 
@@ -61,7 +56,7 @@ export class StatusBar implements vscode.Disposable {
       this.main.text = `$(sparkle) ${summaryText(files, changes)}`;
       const fb = this.review.pendingFeedbackCount();
       const md = new vscode.MarkdownString(
-        `**Claude changes to review**\n\n${KEY.y} keep · ${KEY.n} undo (cursor in a change)\n\n${KEY.fileKeep} keep file · ${KEY.fileUndo} undo file` +
+        `**Claude changes to review**\n\n${keys().keep} keep · ${keys().undo} undo (cursor in a change)\n\n${keys().fileKeep} keep file · ${keys().fileUndo} undo file` +
           (fb ? `\n\n$(comment) ${plural(fb, 'feedback note')} waiting for Claude's next turn` : ''),
         true
       );
@@ -134,7 +129,6 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
 
   constructor(
     private readonly review: ReviewManager,
-    private readonly insetsActive: () => boolean,
     private readonly toolbarsActive: () => boolean
   ) {
     this.disposables = [
@@ -156,21 +150,20 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
     const top = new vscode.Range(0, 0, 0, 0);
     const out: vscode.CodeLens[] = [
       new vscode.CodeLens(top, { title: `$(sparkle) Claude: ${plural(hunks.length, 'change')}`, command: 'claudeInlineDiff.nextHunk' }),
-      new vscode.CodeLens(top, { title: `Undo File ${KEY.fileUndo}`, command: 'claudeInlineDiff.rejectFile', arguments: [doc.uri] }),
-      new vscode.CodeLens(top, { title: `Keep File ${KEY.fileKeep}`, command: 'claudeInlineDiff.acceptFile', arguments: [doc.uri] }),
+      new vscode.CodeLens(top, { title: `Undo File ${keys().fileUndo}`, command: 'claudeInlineDiff.rejectFile', arguments: [doc.uri] }),
+      new vscode.CodeLens(top, { title: `Keep File ${keys().fileKeep}`, command: 'claudeInlineDiff.acceptFile', arguments: [doc.uri] }),
     ];
     if (this.review.pendingKeys().length > 1)
       out.push(new vscode.CodeLens(top, { title: 'Next file →', command: 'claudeInlineDiff.nextFile' }));
     if (toolbars) return out;
-    void this.insetsActive;
     hunks.forEach((h, i) => {
       const line = Math.min(hunkAnchorLine(h), doc.lineCount - 1);
       const r = new vscode.Range(line, 0, line, 0);
       const ref = { key, aStart: h.aStart, bStart: h.bStart };
       out.push(
         new vscode.CodeLens(r, { title: `${i + 1} of ${hunks.length}`, command: 'claudeInlineDiff.nextHunk' }),
-        new vscode.CodeLens(r, { title: `$(discard) Undo ${KEY.n}`, command: 'claudeInlineDiff.rejectHunk', arguments: [ref] }),
-        new vscode.CodeLens(r, { title: `$(check) Keep ${KEY.y}`, command: 'claudeInlineDiff.acceptHunk', arguments: [ref] }),
+        new vscode.CodeLens(r, { title: `$(discard) Undo ${keys().undo}`, command: 'claudeInlineDiff.rejectHunk', arguments: [ref] }),
+        new vscode.CodeLens(r, { title: `$(check) Keep ${keys().keep}`, command: 'claudeInlineDiff.acceptHunk', arguments: [ref] }),
         new vscode.CodeLens(r, {
           title: '$(comment) Undo with feedback',
           command: 'claudeInlineDiff.rejectHunkWithFeedback',
@@ -267,8 +260,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
         key,
         name: path.basename(e.path),
         dir: path.dirname(rel) === '.' ? '' : path.dirname(rel),
-        added: hunks.reduce((n, h) => n + h.bLines.length, 0),
-        removed: hunks.reduce((n, h) => n + h.aLines.length, 0),
+        ...totals(hunks),
         changes: hunks.length,
         isNew: !e.existed,
         bash: e.source === 'bash',
@@ -443,17 +435,6 @@ render();
   dispose(): void {
     this.disposables.forEach((d) => d.dispose());
   }
-}
-
-/** Tree node → command argument (tree inline actions pass the node). */
-export function refFromNode(n: any): { key: string; aStart: number; bStart: number } | undefined {
-  if (n && n.kind === 'hunk') return { key: n.key, aStart: n.hunk.aStart, bStart: n.hunk.bStart };
-  return undefined;
-}
-export function keysFromNode(n: any): string[] | undefined {
-  if (n?.kind === 'file') return [n.key];
-  if (n?.kind === 'session') return n.keys;
-  return undefined;
 }
 
 // ---------- Claude Steps tree ----------
