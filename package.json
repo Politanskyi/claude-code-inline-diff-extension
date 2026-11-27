@@ -20,7 +20,7 @@
     "claude code",
     "inline diff",
     "cursor",
-    "accept reject",
+    "keep undo",
     "code review"
   ],
   "license": "MIT",
@@ -478,7 +478,7 @@
         "claudeInlineDiff.saveAfterReject": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Save the file after Reject so Claude reads what you see."
+          "markdownDescription": "Save the file after Undo so Claude reads what you see."
         },
         "claudeInlineDiff.absorbUserEdits": {
           "type": "boolean",
@@ -488,12 +488,12 @@
         "claudeInlineDiff.confirmRejectAll": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Ask before rejecting all changes in all files."
+          "markdownDescription": "Ask again before Undo All undoes the changes in every file."
         },
         "claudeInlineDiff.confirmDeleteCreatedFile": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Ask before moving a file Claude created to the trash on Reject."
+          "markdownDescription": "Ask before Undo moves a file Claude created to the trash."
         },
         "claudeInlineDiff.stepRetentionDays": {
           "type": "number",

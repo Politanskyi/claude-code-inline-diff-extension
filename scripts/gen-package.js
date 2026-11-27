@@ -151,14 +151,14 @@ const configuration = {
       false,
       'Mark changed words inside removed lines. Off by default: Cursor shows removed lines in one colour.'
     ),
-    'claudeInlineDiff.saveAfterReject': P('boolean', true, 'Save the file after Reject so Claude reads what you see.'),
+    'claudeInlineDiff.saveAfterReject': P('boolean', true, 'Save the file after Undo so Claude reads what you see.'),
     'claudeInlineDiff.absorbUserEdits': P(
       'boolean',
       true,
       "Your own edits outside Claude's changes are folded into the baseline (never shown as Claude's). Edits inside a change become part of it."
     ),
-    'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
-    'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before moving a file Claude created to the trash on Reject.'),
+    'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask again before Undo All undoes the changes in every file.'),
+    'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before Undo moves a file Claude created to the trash.'),
     'claudeInlineDiff.stepRetentionDays': P(
       'number',
       7,
@@ -295,7 +295,7 @@ Object.assign(pkg, {
   private: true,
   engines: { vscode: '^1.90.0' },
   categories: ['Other', 'SCM Providers', 'AI'],
-  keywords: ['claude', 'claude code', 'inline diff', 'cursor', 'accept reject', 'code review'],
+  keywords: ['claude', 'claude code', 'inline diff', 'cursor', 'keep undo', 'code review'],
   activationEvents: ['onStartupFinished'],
   main: './dist/extension.js',
   enabledApiProposals: ['editorInsets', 'contribEditorContentMenu'],

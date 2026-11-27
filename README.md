@@ -33,7 +33,7 @@ It uses Claude Code hooks, so no API key is needed and there's no proxy. No tele
 | ✅ | After **Keep** the cursor moves to the next change in the same file; Undo, Keep File and Undo File stay put (Cursor's behaviour; `autoAdvance` offers the old "then next file" mode) | e2e + manual |
 | ✅ | Cursor's navigation keys: **Alt+J / Alt+K** next/previous change in the file, **Alt+L / Alt+H** next/previous file (while Cursor's own agent has pending diffs, Cursor's built-in Alt+L wins; use Cmd/Ctrl+Alt+PageDown / PageUp) | manual |
 | ✅ | Floating bar on a file without Claude changes: **Keep all changes / Review Next File**, like Cursor | manual in Cursor 3.32 |
-| ✅ | **Undo** for accept, reject, file/all and step revert (own stack; Cmd/Ctrl+Z right after a Keep or an Undo reverts it, and the change comes back for review) | e2e (own stack); Cmd+Z: manual |
+| ✅ | **Undo** for Keep, Undo, file/all and step revert (own stack; Cmd/Ctrl+Z right after a Keep or an Undo reverts it, and the change comes back for review) | e2e (own stack); Cmd+Z: manual |
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
 | ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` while the list is hidden (click opens it), `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
@@ -54,7 +54,7 @@ Claude Code (panel or CLI)                               Cursor / VS Code
  ├─ PreToolUse  Edit|MultiEdit|Write|NotebookEdit|Bash ─► hook saves the file as it was ("baseline")
  ├─ (tool writes the file)                                       │
  ├─ PostToolUse ──────────────────────────────────────► marks it landed; Bash: git before/after
- ├─ UserPromptSubmit ─────────────────────────────────► new "step"; delivers reject feedback
+ ├─ UserPromptSubmit ─────────────────────────────────► new "step"; delivers Undo feedback
  └─ Stop ─────────────────────────────────────────────► turn over: Undo All / Keep All come back
                                                                  ▼
                                    extension diffs baseline ↔ file and draws the review inline
@@ -96,7 +96,12 @@ The full guide, with every step done by hand, is in Ukrainian: **[docs/INSTALL.u
 | `highlightWords` | `false` | mark changed words inside removed lines (Cursor does not) |
 | `storage.projectDirName` | `.claude-review` | snapshot folder name inside the project (`storage.location: project`) |
 | `pollIntervalMs` | `700` | how often the store is checked for new edits (applies after reloading the window) |
-| `saveAfterReject`, `absorbUserEdits`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
+| `showCodeLens` | `false` | also show Keep / Undo as CodeLens (always used when red blocks are unavailable or `hunkToolbar: off`) |
+| `saveAfterReject` | `true` | save the file after Undo, so Claude reads what you see |
+| `absorbUserEdits` | `true` | your own edits outside Claude's changes join the "before" text instead of showing as Claude's |
+| `confirmRejectAll` | `true` | Undo All asks again before undoing every file |
+| `confirmDeleteCreatedFile` | `true` | ask before Undo moves a file Claude created to the trash |
+| `stepRetentionDays` | `7` | how long step snapshots (for *Revert to Before This Step*) are kept; unreviewed changes outside any project expire after the same time |
 
 ## Keys
 
