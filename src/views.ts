@@ -36,7 +36,8 @@ export class StatusBar implements vscode.Disposable {
     this.next.text = '$(chevron-down)';
     this.next.tooltip = 'Next Claude change (Alt+F5)';
     this.next.command = 'claudeInlineDiff.nextHunk';
-    this.main.command = 'claudeInlineDiff.listFiles';
+    // Opens the Claude Changes list (nicer than a quick pick); the editor keeps focus for Cmd+Y / Cmd+N.
+    this.main.command = { command: 'claudeInlineDiff.changes.open', title: 'Show Claude Changes', arguments: [{ preserveFocus: true }] };
     this.disposables = [
       this.main,
       this.prev,

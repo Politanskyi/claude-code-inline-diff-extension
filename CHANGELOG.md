@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.23
+- Clicking the status bar summary opens the Claude Changes list (it used to open a plain quick pick).
+
 ## 0.1.22
 - Claude Changes no longer expands itself on new changes: like Cursor, only you expand or collapse it.
 
