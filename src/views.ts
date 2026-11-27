@@ -1,4 +1,4 @@
-// Status bar ("N files · M changes" + prev/next, "Claude editing <file>"), Explorer/tab badges,
+// Status bar ("N files · M changes", "Claude editing <file>"), Explorer/tab badges,
 // CodeLens (fallback when pills are off), the Claude Changes list (a webview under the Claude Code chat)
 // and the Claude Steps tree (Source Control).
 import * as vscode from 'vscode';
@@ -17,8 +17,6 @@ const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybind
 
 export class StatusBar implements vscode.Disposable {
   private main = vscode.window.createStatusBarItem('claudeInlineDiff.summary', vscode.StatusBarAlignment.Left, 1000);
-  private prev = vscode.window.createStatusBarItem('claudeInlineDiff.prev', vscode.StatusBarAlignment.Left, 999);
-  private next = vscode.window.createStatusBarItem('claudeInlineDiff.next', vscode.StatusBarAlignment.Left, 998);
   private editing = vscode.window.createStatusBarItem('claudeInlineDiff.editing', vscode.StatusBarAlignment.Left, 1001);
   private disposables: vscode.Disposable[];
 
@@ -27,21 +25,11 @@ export class StatusBar implements vscode.Disposable {
     private readonly list?: ChangesPanel
   ) {
     this.main.name = 'Claude Inline Diff: changes to review';
-    this.prev.name = 'Claude Inline Diff: previous change';
-    this.next.name = 'Claude Inline Diff: next change';
     this.editing.name = 'Claude Inline Diff: Claude is editing';
-    this.prev.text = '$(chevron-up)';
-    this.prev.tooltip = 'Previous Claude change (Shift+Alt+F5)';
-    this.prev.command = 'claudeInlineDiff.prevHunk';
-    this.next.text = '$(chevron-down)';
-    this.next.tooltip = 'Next Claude change (Alt+F5)';
-    this.next.command = 'claudeInlineDiff.nextHunk';
     // Opens the Claude Changes list (nicer than a quick pick); the editor keeps focus for Cmd+Y / Cmd+N.
     this.main.command = 'claudeInlineDiff.showChangesList';
     this.disposables = [
       this.main,
-      this.prev,
-      this.next,
       this.editing,
       review.onDidChange(() => this.update()),
       review.onActivity(() => this.update()),
@@ -65,12 +53,8 @@ export class StatusBar implements vscode.Disposable {
       this.main.tooltip = md;
       this.main.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
       this.main.show();
-      this.prev.show();
-      this.next.show();
     } else {
       this.main.hide();
-      this.prev.hide();
-      this.next.hide();
     }
     const act = this.review.activity.find((a) => Date.now() - a.ts < 60_000);
     if (act) {

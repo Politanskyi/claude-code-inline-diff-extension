@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.25
+- Status bar: no ▲ ▼ arrows (the pill arrows and Alt+J / Alt+K do the same).
+
 ## 0.1.24
 - The status bar summary shows the Claude Changes list through the view's focus command, then gives focus back to the editor (checked live). New command *Show Claude Changes*.
 
