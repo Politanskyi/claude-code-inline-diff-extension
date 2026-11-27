@@ -1,0 +1,133 @@
+# Claude Inline Diff
+
+Review **Claude Code's** edits the way Cursor's agent shows its own: **right in the working file**.
+Removed code appears as red blocks between your lines, added code is green, and changed words are highlighted.
+Accept or Reject each change, a whole file, or everything, with **Cmd/Ctrl+Y** and **Cmd/Ctrl+N**. There's no separate diff tab.
+
+Works with the **official Claude Code extension** in Cursor / VS Code (its chat panel) and with the Claude Code CLI.
+It uses Claude Code hooks, so no API key is needed, there's no proxy, and it makes no network calls.
+
+![Inline diff](docs/media/inline-diff.png)
+
+![Accept → auto-advance → Reject](docs/media/review-flow.gif)
+
+**Extension id:** `inlinediff.claude-inline-diff`
+
+## Features
+
+| | Feature | Verified by |
+|---|---|---|
+| ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e (VS Code 1.148) + screenshot |
+| ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Accept/Reject links | e2e + screenshot |
+| ✅ | Added lines green, **changed words** highlighted on both sides | unit + e2e |
+| ✅ | Floating **Reject / Accept** buttons on each red block; CodeLens on pure additions; file-level CodeLens and editor-title buttons | e2e (rendering), clicks: manual |
+| ✅ | **Cmd/Ctrl+Y / Cmd/Ctrl+N** (cursor in a change), **Cmd/Ctrl+Shift+Y / N** (file); alternative scheme Cmd/Ctrl+Alt+Enter / Backspace | commands e2e; key presses: manual |
+| ✅ | Accept / Reject **per change, per file, all files**; Reject saves the file so Claude sees it | e2e |
+| ✅ | **Auto-advance** to the next change, then the next file | e2e |
+| ✅ | **Undo** for accept, reject, file/all and step revert (own stack; Cmd/Ctrl+Z right after an accept undoes it; native Cmd/Ctrl+Z after a reject restores Claude's text) | e2e (own stack); Cmd+Z: manual |
+| ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
+| ✅ | Files Claude **created**: Reject moves them to the trash (with confirmation) | e2e |
+| ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
+| ✅ | **Claude Changes** panel (Source Control view): sessions → files → changes, inline actions | manual |
+| ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
+| ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
+| ✅ | **Reject with feedback**: the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
+| ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
+| ✅ | Safe hook install/uninstall: backup, permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup | unit (temp `CLAUDE_CONFIG_DIR`) |
+| ✅ | Snapshots in the project (`.claude-review/`, ignores itself via its own `.gitignore`) or in `~/.claude/inline-diff/store` | unit |
+
+## How it works
+
+```
+Claude Code (panel or CLI)                               Cursor / VS Code
+ ├─ PreToolUse  Edit|MultiEdit|Write|NotebookEdit|Bash ─► hook saves the file as it was ("baseline")
+ ├─ (tool writes the file)                                       │
+ ├─ PostToolUse ──────────────────────────────────────► marks it landed; Bash: git before/after
+ └─ UserPromptSubmit ─────────────────────────────────► new "step"; delivers reject feedback
+                                                                 ▼
+                                   extension diffs baseline ↔ file and draws the review inline
+```
+
+- **Accept** writes Claude's lines into the baseline and leaves the file alone.
+- **Reject** writes the baseline's lines back into the file and saves it.
+- When a file has nothing left to review, its baseline is deleted.
+- The hook never blocks Claude. It always exits 0, has a hard timeout, and prints nothing (except feedback JSON).
+
+## Install
+
+The full step-by-step guide is in Ukrainian: **[docs/INSTALL.uk.md](docs/INSTALL.uk.md)**. Short version:
+
+```bash
+npm ci && npm run package                    # → claude-inline-diff.vsix
+cursor --install-extension claude-inline-diff.vsix
+```
+
+1. Add the extension id to **`~/.cursor/argv.json`**. The command *Claude Inline Diff: Enable Inline Removed-Code Blocks (argv.json)…* can do it for you:
+   ```jsonc
+   "enable-proposed-api": ["inlinediff.claude-inline-diff"]
+   ```
+2. **Quit Cursor completely** and start it again. *Reload Window* is not enough.
+3. Run **Claude Inline Diff: Install Claude Code Hook**.
+4. In the Claude Code panel, choose **Edit automatically** (or set `claudeCode.initialPermissionMode` to `acceptEdits`). Edits then land directly and you review them inline, instead of in Claude's diff tab.
+
+## Settings (`claudeInlineDiff.*`)
+
+| Setting | Default | |
+|---|---|---|
+| `storage.location` | `project` | `project` (`<git root>/.claude-review/`) or `home` |
+| `keybindingScheme` | `both` | `cursor` (Cmd+Y/N), `alt` (Cmd+Alt+Enter/Backspace), `both` |
+| `autoAdvance` | `hunkThenFile` | `hunkThenFile`, `hunk`, `off` |
+| `deletedLines.renderer` | `auto` | `auto`, `inset`, `decoration` |
+| `deletedLines.maxLines` | `30` | collapse longer removed blocks |
+| `revealOnEdit` | `true` | open the file Claude edits (preview, focus stays) |
+| `trackBashEdits` | `true` | detect Bash edits via git |
+| `saveAfterReject`, `absorbUserEdits`, `highlightWords`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
+
+## Keys
+
+| Action | Cursor scheme | Alt scheme |
+|---|---|---|
+| Accept change (cursor inside) | Cmd/Ctrl+Y | Cmd/Ctrl+Alt+Enter |
+| Reject change | Cmd/Ctrl+N | Cmd/Ctrl+Alt+Backspace |
+| Accept file | Cmd/Ctrl+Shift+Y | Cmd/Ctrl+Shift+Alt+Enter |
+| Reject file | Cmd/Ctrl+Shift+N | Cmd/Ctrl+Shift+Alt+Backspace |
+| Next / previous change | Alt+F5 / Shift+Alt+F5 | same |
+| Next / previous file | Ctrl+Alt+PageDown / PageUp (Cmd+Alt on macOS) | same |
+| Undo last accept | Cmd/Ctrl+Z (right after the accept) | *Undo Last Review Action* |
+
+These keys apply only while the text cursor is inside a Claude change (file keys: while the file has changes).
+Anywhere else, Cmd+N still means *New File* and Cmd+Y still means *Redo*.
+
+They never fire while the Claude panel has focus, so they don't clash with the official extension's shortcuts (e.g. its opt-in Cmd+N *New conversation*). See [docs/RESEARCH.md §6](docs/RESEARCH.md).
+
+## Known limits
+
+- `editorInsets` is a **proposed API**. It needs the `argv.json` line and a full restart, it can't be published to the Marketplace, and it may change.
+  - If it's unavailable, the extension falls back to decorations automatically.
+  - Inset blocks don't scroll horizontally with very long lines.
+  - Cursor support for this API is **untested here** (verified in VS Code 1.148). Please check it with [docs/MANUAL_TESTING.uk.md](docs/MANUAL_TESTING.uk.md).
+- The minimap shows no markers (the stable API has no minimap colour for decorations). The scrollbar (overview ruler) does.
+- Bash edits are detected **only in git repositories**, and only for files that are text, not binary, and ≤ 8 MB.
+- Feedback reaches Claude on your **next message**, or on its next tool call. Claude Code offers no documented way to push text into an idle session.
+- The hook needs `node` on PATH, or it falls back to the editor's own binary via `ELECTRON_RUN_AS_NODE`. The Windows variant of that fallback is untested.
+- If Claude edits a file while you have **unsaved** changes in it, VS Code itself shows a conflict. Save before letting Claude edit; the official extension's `autosave` (default on) does this.
+
+## Development
+
+```bash
+npm run build      # esbuild → dist/extension.js, dist/hook.js, dist/uninstall.js
+npm test           # vitest (unit: diff, model, store, hook, setup, argv, highlight)
+npm run lint && npm run format:check && npm run typecheck
+xvfb-run -a -s "-screen 0 1600x1000x24" npm run test:e2e   # real VS Code, simulated Claude hook payloads
+npm run package    # claude-inline-diff.vsix
+```
+
+See [CLAUDE.md](CLAUDE.md) for architecture notes and progress.
+
+## Credits & license
+
+MIT. The diff engine and review math (`src/core/diff.ts`, `src/core/model.ts`) are ported from
+[claude-code-inline-review](https://github.com/broosk1993/claude-code-inline-review) by Brusk Awat (MIT, see
+`THIRD_PARTY_LICENSE_claude-code-inline-review.txt`).
+
+The editorInsets idea was inspired by *hunker*. No code from that project was used (it is unlicensed), and the inset renderer here is an independent implementation.

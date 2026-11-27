@@ -134,7 +134,6 @@ Object.assign(pkg, {
   enabledApiProposals: ['editorInsets'],
   capabilities: { untrustedWorkspaces: { supported: true }, virtualWorkspaces: false },
   icon: 'media/icon.png',
-  repository: { type: 'git', url: 'https://example.invalid/claude-inline-diff.git' },
   contributes: {
     commands,
     keybindings,
@@ -161,7 +160,7 @@ Object.assign(pkg, {
     'format:check': 'prettier --check "src/**/*.ts" "test/**/*.ts"',
     test: 'vitest run',
     'test:e2e': 'node scripts/build.js && node test/e2e/run.js',
-    package: 'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository -o claude-inline-diff.vsix',
+    package: 'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository --no-rewrite-relative-links -o claude-inline-diff.vsix',
     'vscode:uninstall': 'node ./dist/uninstall.js',
   },
 });

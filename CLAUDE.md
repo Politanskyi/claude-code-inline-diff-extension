@@ -42,8 +42,8 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 4 Hook install/uninstall | done (temp CLAUDE_CONFIG_DIR tests; acceptEdits offer + rollback; vscode:uninstall cleanup) |
 | 5 Rendering (insets + fallback) | done — verified in real VS Code 1.148 via e2e (insets drawn, decoration fallback, screenshots in docs/media) |
 | 6 Controls, navigation, status bar, undo | done — e2e: accept/reject/undo/auto-advance/absorb/new-file trash/Bash/feedback/steps |
-| 7 vsix + docs | todo |
-| 8 Panel, Bash, steps, feedback | partly in core |
+| 7 vsix + docs | done — `npm run package` → claude-inline-diff.vsix (11 files, ~50 KB; installs via code CLI); README, docs/INSTALL.uk.md, docs/MANUAL_TESTING.uk.md |
+| 8 Panel, Bash, steps, feedback | done — Claude Changes (sessions→files→hunks) + Claude Steps views, Bash via git, step revert, `Claude editing <file>`, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
 
 ## Known issues / lessons
 - VS Code 1.148 refuses `editorInsets` even in dev mode unless `--enable-proposed-api <id>` is passed (e2e passes it).
@@ -53,3 +53,8 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Never `await` a non-modal notification inside a command (it blocks until dismissed; hung the e2e).
 - Insets do not scroll horizontally with the editor; buttons are anchored right after the first removed line.
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
+
+## Next ideas (not started)
+- Live check in Cursor (docs/MANUAL_TESTING.uk.md) — esp. whether Cursor honours `enable-proposed-api` for editorInsets and runs `vscode:uninstall`.
+- Optional Stop-hook delivery of feedback; per-session filter in the Changes view; light-theme screenshot.
+- CI has not run yet (repo has no remote in the authoring sandbox).
