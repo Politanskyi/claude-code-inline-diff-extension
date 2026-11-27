@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import * as S from './core/store';
 import { Hunk, wordDiff } from './core/diff';
-import { hunkStat } from './core/model';
+import { hunkStat, hunkAtLine } from './core/model';
 import { ReviewManager, cfg } from './review';
 import { InsetManager, InsetBlock } from './insets';
 
@@ -16,11 +16,14 @@ export class Renderer implements vscode.Disposable {
     backgroundColor: color('addedLineBackground'),
     overviewRulerColor: color('addedGutter'),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
-    borderColor: color('addedGutter'),
-    borderStyle: 'solid',
-    borderWidth: '0 0 0 3px',
   });
-  private addedWord = vscode.window.createTextEditorDecorationType({ backgroundColor: color('addedWordBackground'), borderRadius: '2px' });
+  // Cursor's .inline-diff-inner-change-added: rgba(12,233,27,.15) fill with a 1px edge in the same colour.
+  private addedWord = vscode.window.createTextEditorDecorationType({
+    backgroundColor: color('addedWordBackground'),
+    borderColor: color('addedWordBackground'),
+    borderStyle: 'solid',
+    borderWidth: '0 1px',
+  });
   /** Fallback: a red rule where lines were removed, with a "−N lines" hint and the old code on hover. */
   private removedAbove = vscode.window.createTextEditorDecorationType({
     borderColor: color('removedGutter'),
@@ -46,6 +49,9 @@ export class Renderer implements vscode.Disposable {
     overviewRulerColor: color('removedGutter'),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
+  /** Brief glow on lines Claude just wrote (Cursor shows new agent edits the same way). */
+  private flashDeco = vscode.window.createTextEditorDecorationType({ isWholeLine: true, backgroundColor: color('addedWordBackground') });
+  private flashTimers = new Map<vscode.TextEditor, NodeJS.Timeout>();
   private timer: NodeJS.Timeout | undefined;
   private disposables: vscode.Disposable[] = [];
   readonly insets: InsetManager;
@@ -58,18 +64,29 @@ export class Renderer implements vscode.Disposable {
     this.disposables.push(
       this.addedLine,
       this.addedWord,
+      this.flashDeco,
       this.removedAbove,
       this.removedBelow,
       this.removedHint,
       this.removedRuler,
       review.onDidChange(() => this.schedule()),
       vscode.window.onDidChangeVisibleTextEditors(() => this.schedule(0)),
+      vscode.window.tabGroups.onDidChangeTabs(() => this.schedule(0)),
       vscode.window.onDidChangeTextEditorVisibleRanges(() => this.schedule(120)),
+      vscode.window.onDidChangeTextEditorSelection((e) => {
+        if (cfg<string>('hunkToolbar', 'all') === 'active' && this.useInsets()) this.schedule(30);
+        void e;
+      }),
       vscode.window.onDidChangeActiveColorTheme(() => this.schedule(0)),
       vscode.workspace.onDidChangeConfiguration(
         (e) => (e.affectsConfiguration('claudeInlineDiff') || e.affectsConfiguration('editor')) && this.schedule(0)
       )
     );
+  }
+
+  /** Whether Keep/Undo pills are drawn under changes (so CodeLens is not needed). */
+  useToolbars(): boolean {
+    return this.useInsets() && cfg<string>('hunkToolbar', 'all') !== 'off';
   }
 
   /** Whether removed code is drawn as inset blocks right now. */
@@ -90,6 +107,10 @@ export class Renderer implements vscode.Disposable {
 
   render(editor: vscode.TextEditor): void {
     if (editor.document.uri.scheme !== 'file') return;
+    if (!isPlainTextEditor(editor)) {
+      this.clear(editor); // inside a (multi-)diff editor the diff is already shown natively
+      return;
+    }
     const key = S.keyOf(editor.document.uri.fsPath);
     const hunks = this.review.entries.has(key) ? this.review.hunks(key) : [];
     if (!hunks.length) {
@@ -109,8 +130,24 @@ export class Renderer implements vscode.Disposable {
     const ruler: vscode.Range[] = [];
     const blocks: InsetBlock[] = [];
     const isMac = process.platform === 'darwin';
+    const tbMode = insets ? cfg<string>('hunkToolbar', 'all') : 'off';
+    const cursorLine = editor.selection.active.line;
+    const activeHunk = tbMode === 'active' ? hunkAtLine(hunks, cursorLine) : undefined;
+    const maxCols = tbMode !== 'off' ? maxColumns(doc, editor.options.tabSize as number) : 0;
+    const tabSize = (editor.options.tabSize as number) || 4;
 
-    for (const h of hunks) {
+    hunks.forEach((h, index) => {
+      const ref = { key, aStart: h.aStart, bStart: h.bStart };
+      const wantToolbar = tbMode === 'all' || (tbMode === 'active' && activeHunk === h);
+      const lastText = h.bLines.length ? h.bLines[h.bLines.length - 1] : h.aLines[h.aLines.length - 1] || '';
+      const toolbar = wantToolbar
+        ? {
+            index: index + 1,
+            total: hunks.length,
+            anchorCols: columns(lastText.slice(0, lastText.length - lastText.trimStart().length), tabSize),
+            maxCols,
+          }
+        : undefined;
       const wd = words && h.aLines.length && h.bLines.length ? wordDiff(h.aLines, h.bLines) : null;
       // Mostly rewritten lines: word highlights would just be noise.
       const showWords = wd && wd.addedRatio < 0.7;
@@ -124,21 +161,34 @@ export class Renderer implements vscode.Disposable {
           if (line <= last) addedWords.push(new vscode.Range(line, r.start, line, r.end));
         }
       }
-      if (!h.aLines.length) continue;
-      const ref = { key, aStart: h.aStart, bStart: h.bStart };
       if (insets) {
-        blocks.push({
-          afterLine: h.bStart - 1,
-          lines: h.aLines,
-          removed: showWords ? wd!.removed : [],
-          languageId: doc.languageId,
-          ref,
-          buttons: true,
-          stat: hunkStat(h),
-        });
-        const at = Math.min(Math.max(h.bStart, 0), last);
-        ruler.push(new vscode.Range(at, 0, at, 0));
-      } else {
+        // Red block above the change; the pill goes under the change (inside the red block for a pure deletion).
+        if (h.aLines.length) {
+          blocks.push({
+            afterLine: h.bStart - 1,
+            lines: h.aLines,
+            removed: showWords ? wd!.removed : [],
+            languageId: doc.languageId,
+            ref,
+            toolbar: h.bLines.length ? undefined : toolbar,
+          });
+          const at = Math.min(Math.max(h.bStart, 0), last);
+          ruler.push(new vscode.Range(at, 0, at, 0));
+        }
+        if (h.bLines.length && toolbar) {
+          blocks.push({
+            afterLine: Math.min(h.bStart + h.bLines.length - 1, last),
+            lines: [],
+            removed: [],
+            languageId: doc.languageId,
+            ref,
+            toolbar,
+          });
+        }
+        return;
+      }
+      if (!h.aLines.length) return;
+      {
         const hover = this.hoverFor(h, doc.languageId, ref, isMac);
         const n = h.aLines.length;
         const hintText = `−${n} line${n === 1 ? '' : 's'} removed (hover to see)`;
@@ -150,7 +200,7 @@ export class Renderer implements vscode.Disposable {
           hints.push({ range: lineEnd(doc, last), hoverMessage: hover, renderOptions: { after: { contentText: hintText } } });
         }
       }
-    }
+    });
     editor.setDecorations(this.addedLine, added);
     editor.setDecorations(this.addedWord, addedWords);
     editor.setDecorations(this.removedAbove, above);
@@ -173,13 +223,26 @@ export class Renderer implements vscode.Disposable {
     const arg = encodeURIComponent(JSON.stringify([ref]));
     const md = new vscode.MarkdownString(
       `**Removed by Claude** (${hunkStat(h)})\n\n${fence}${languageId}\n${lines.join('\n')}\n${fence}\n\n` +
-        `[$(check) Accept](command:claudeInlineDiff.acceptHunk?${arg}) ${isMac ? '⌘Y' : 'Ctrl+Y'} · ` +
-        `[$(discard) Reject](command:claudeInlineDiff.rejectHunk?${arg}) ${isMac ? '⌘N' : 'Ctrl+N'} · ` +
+        `[$(check) Keep](command:claudeInlineDiff.acceptHunk?${arg}) ${isMac ? '⌘Y' : 'Ctrl+Y'} · ` +
+        `[$(discard) Undo](command:claudeInlineDiff.rejectHunk?${arg}) ${isMac ? '⌘N' : 'Ctrl+N'} · ` +
         `[$(diff) Side-by-side](command:claudeInlineDiff.showDiff)`,
       true
     );
     md.isTrusted = { enabledCommands: ['claudeInlineDiff.acceptHunk', 'claudeInlineDiff.rejectHunk', 'claudeInlineDiff.showDiff'] };
     return md;
+  }
+
+  flash(editor: vscode.TextEditor, ranges: vscode.Range[], ms = 1400): void {
+    editor.setDecorations(this.flashDeco, ranges);
+    const old = this.flashTimers.get(editor);
+    if (old) clearTimeout(old);
+    this.flashTimers.set(
+      editor,
+      setTimeout(() => {
+        editor.setDecorations(this.flashDeco, []);
+        this.flashTimers.delete(editor);
+      }, ms)
+    );
   }
 
   clear(editor: vscode.TextEditor): void {
@@ -192,6 +255,37 @@ export class Renderer implements vscode.Disposable {
     if (this.timer) clearTimeout(this.timer);
     this.disposables.forEach((d) => d.dispose());
   }
+}
+
+/**
+ * True for an editor shown in a normal text tab. Editors embedded in a diff or
+ * multi-diff editor also appear in visibleTextEditors; drawing there would
+ * duplicate the diff.
+ */
+export function isPlainTextEditor(editor: vscode.TextEditor): boolean {
+  if (editor.viewColumn === undefined) return false; // embedded (multi-diff, peek, …)
+  const group = vscode.window.tabGroups.all.find((g) => g.viewColumn === editor.viewColumn);
+  const input = group?.activeTab?.input;
+  if (!input) return true;
+  if (input instanceof vscode.TabInputText) return input.uri.toString() === editor.document.uri.toString();
+  return false; // TabInputTextDiff, TabInputTextMultiDiff, notebooks, webviews…
+}
+
+/** Display columns of a line (tabs expanded). */
+export function columns(line: string, tabSize: number): number {
+  let col = 0;
+  for (const ch of line) col = ch === '\t' ? col + tabSize - (col % tabSize) : col + 1;
+  return col;
+}
+
+const maxColsCache = new WeakMap<vscode.TextDocument, { version: number; cols: number }>();
+function maxColumns(doc: vscode.TextDocument, tabSize: number): number {
+  const hit = maxColsCache.get(doc);
+  if (hit && hit.version === doc.version) return hit.cols;
+  let cols = 0;
+  for (let i = 0; i < doc.lineCount; i++) cols = Math.max(cols, columns(doc.lineAt(i).text, tabSize || 4));
+  maxColsCache.set(doc, { version: doc.version, cols });
+  return cols;
 }
 
 function lineEnd(doc: vscode.TextDocument, line: number): vscode.Range {

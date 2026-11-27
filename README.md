@@ -2,16 +2,20 @@
 
 Review **Claude Code's** edits the way Cursor's agent shows its own: **right in the working file**.
 Removed code appears as red blocks between your lines, added code is green, and changed words are highlighted.
-Accept or Reject each change, a whole file, or everything, with **Cmd/Ctrl+Y** and **Cmd/Ctrl+N**. There's no separate diff tab.
+**Keep** or **Undo** each change, a whole file, or everything, with Cursor's own keys (**Cmd/Ctrl+Y**, **Cmd/Ctrl+N**, **Cmd/Ctrl+Enter**, **Cmd/Ctrl+Shift+Backspace**). There's no separate diff tab.
 
 Works with the **official Claude Code extension** in Cursor / VS Code (its chat panel) and with the Claude Code CLI.
 It uses Claude Code hooks, so no API key is needed, there's no proxy, and it makes no network calls.
 
 ![Inline diff in Cursor 3.32.4](docs/media/cursor-inline-diff.png)
 
-*Above: Cursor 3.32.4 (Cursor Dark). Below: the review flow in VS Code.*
+*Cursor 3.32.4, Cursor Dark: red removed blocks, Cursor-style `⌃ 1 of 4 ⌄ │ Undo │ Keep` pill under each change, floating **Undo All / Keep All** bar. Colours and button styles follow Cursor's own inline-diff CSS.*
 
-![Accept → auto-advance → Reject](docs/media/review-flow.gif)
+| Cursor Light | Review All (multi-file diff) |
+|---|---|
+| ![](docs/media/cursor-light.png) | ![](docs/media/cursor-review-all.png) |
+
+![Keep → auto-advance → Undo](docs/media/review-flow.gif)
 
 **Extension id:** `inlinediff.claude-inline-diff`
 
@@ -20,20 +24,23 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | | Feature | Verified by |
 |---|---|---|
 | ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e in **Cursor 3.32.4** (via `~/.cursor/argv.json`) and VS Code 1.148 + screenshots |
-| ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Accept/Reject links | e2e + screenshot |
+| ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Keep/Undo links; CodeLens `1 of 4 · Undo · Keep` | e2e + screenshot |
 | ✅ | Added lines green, **changed words** highlighted on both sides | unit + e2e |
-| ✅ | Floating **Reject / Accept** buttons on each red block; CodeLens on pure additions; file-level CodeLens and editor-title buttons | e2e (rendering), clicks: manual |
-| ✅ | **Cmd/Ctrl+Y / Cmd/Ctrl+N** (cursor in a change), **Cmd/Ctrl+Shift+Y / N** (file); alternative scheme Cmd/Ctrl+Alt+Enter / Backspace | commands e2e; key presses: manual |
-| ✅ | Accept / Reject **per change, per file, all files**; Reject saves the file so Claude sees it | e2e |
+| ✅ | Cursor-style **pill under each change**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep ⌘Y │ …` (right-aligned like Cursor; anchored to the code when the editor scrolls horizontally) | e2e in Cursor + screenshots; clicks: manual |
+| ✅ | Floating **Undo All / Keep All / Next File ›** bar at the bottom-right of the editor (`editor/content`, proposed `contribEditorContentMenu`) | e2e screenshot in Cursor |
+| ✅ | **Follow Claude**: a new change in a visible file is scrolled into view and briefly highlighted (never while your cursor is in a change) | e2e |
+| ✅ | **Review All**: every changed file in one multi-file diff editor (inline blocks are suppressed there) | e2e in Cursor + screenshot |
+| ✅ | Cursor's keys, taken from Cursor 3.32's source: **Cmd/Ctrl+Y / N** (change), **Cmd/Ctrl+Enter / Cmd/Ctrl+Shift+Backspace** (file); also Cmd/Ctrl+Shift+Y / N; alternative scheme Cmd/Ctrl+Alt+Enter / Backspace | commands e2e; key presses: manual |
+| ✅ | Keep / Undo **per change, per file, all files**; Undo saves the file so Claude sees it | e2e |
 | ✅ | **Auto-advance** to the next change, then the next file | e2e |
 | ✅ | **Undo** for accept, reject, file/all and step revert (own stack; Cmd/Ctrl+Z right after an accept undoes it; native Cmd/Ctrl+Z after a reject restores Claude's text) | e2e (own stack); Cmd+Z: manual |
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
-| ✅ | Files Claude **created**: Reject moves them to the trash (with confirmation) | e2e |
+| ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
 | ✅ | **Claude Changes** panel (Source Control view): sessions → files → changes, inline actions | manual |
 | ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
-| ✅ | **Reject with feedback**: the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
+| ✅ | **Undo with feedback** (the `…` button): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
 | ✅ | Safe hook install/uninstall: backup, permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup | unit (temp `CLAUDE_CONFIG_DIR`) |
 | ✅ | Snapshots in the project (`.claude-review/`, ignores itself via its own `.gitignore`) or in `~/.claude/inline-diff/store` | unit |
@@ -50,8 +57,8 @@ Claude Code (panel or CLI)                               Cursor / VS Code
                                    extension diffs baseline ↔ file and draws the review inline
 ```
 
-- **Accept** writes Claude's lines into the baseline and leaves the file alone.
-- **Reject** writes the baseline's lines back into the file and saves it.
+- **Keep** writes Claude's lines into the baseline and leaves the file alone.
+- **Undo** writes the baseline's lines back into the file and saves it.
 - When a file has nothing left to review, its baseline is deleted.
 - The hook never blocks Claude. It always exits 0, has a hard timeout, and prints nothing (except feedback JSON).
 
@@ -81,6 +88,9 @@ cursor --install-extension claude-inline-diff.vsix
 | `autoAdvance` | `hunkThenFile` | `hunkThenFile`, `hunk`, `off` |
 | `deletedLines.renderer` | `auto` | `auto`, `inset`, `decoration` |
 | `deletedLines.maxLines` | `30` | collapse longer removed blocks |
+| `hunkToolbar` | `all` | pill under every change (`all`), only at the cursor (`active`, like Cursor), or CodeLens (`off`) |
+| `floatingBar` | `true` | floating Undo All / Keep All |
+| `followClaude` | `true` | scroll to and flash Claude's new changes |
 | `revealOnEdit` | `true` | open the file Claude edits (preview, focus stays) |
 | `trackBashEdits` | `true` | detect Bash edits via git |
 | `saveAfterReject`, `absorbUserEdits`, `highlightWords`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
@@ -89,13 +99,13 @@ cursor --install-extension claude-inline-diff.vsix
 
 | Action | Cursor scheme | Alt scheme |
 |---|---|---|
-| Accept change (cursor inside) | Cmd/Ctrl+Y | Cmd/Ctrl+Alt+Enter |
-| Reject change | Cmd/Ctrl+N | Cmd/Ctrl+Alt+Backspace |
-| Accept file | Cmd/Ctrl+Shift+Y | Cmd/Ctrl+Shift+Alt+Enter |
-| Reject file | Cmd/Ctrl+Shift+N | Cmd/Ctrl+Shift+Alt+Backspace |
+| Keep change (cursor inside) | Cmd/Ctrl+Y | Cmd/Ctrl+Alt+Enter |
+| Undo change | Cmd/Ctrl+N | Cmd/Ctrl+Alt+Backspace |
+| Keep file | **Cmd/Ctrl+Enter** or Cmd/Ctrl+Shift+Y | Cmd/Ctrl+Shift+Alt+Enter |
+| Undo file | **Cmd/Ctrl+Shift+Backspace** or Cmd/Ctrl+Shift+N | Cmd/Ctrl+Shift+Alt+Backspace |
 | Next / previous change | Alt+F5 / Shift+Alt+F5 | same |
 | Next / previous file | Ctrl+Alt+PageDown / PageUp (Cmd+Alt on macOS) | same |
-| Undo last accept | Cmd/Ctrl+Z (right after the accept) | *Undo Last Review Action* |
+| Revert the last Keep | Cmd/Ctrl+Z (right after it) | *Revert Last Keep/Undo* |
 
 These keys apply only while the text cursor is inside a Claude change (file keys: while the file has changes).
 Anywhere else, Cmd+N still means *New File* and Cmd+Y still means *Redo*.
@@ -108,6 +118,9 @@ They never fire while the Claude panel has focus, so they don't clash with the o
   - If it's unavailable, the extension falls back to decorations automatically.
   - Inset blocks don't scroll horizontally with very long lines.
   - Verified working in **Cursor 3.32.4** (VS Code 1.147 base) with the `~/.cursor/argv.json` line, and in VS Code 1.148. Without the line, the decoration fallback is used (also verified).
+- Cursor 3 moves extension buttons in the tab row into the `…` menu, so the *Undo File / Keep File* title buttons are not visible there; use Cmd/Ctrl+Enter / Cmd/Ctrl+Shift+Backspace or the floating bar.
+- The pill takes one line of height under each change (Cursor's native widget floats over code; extensions cannot overlay the editor). `hunkToolbar: active` shows it only at the cursor.
+- The floating bar uses the editor's standard button style (blue); its colours cannot be customised.
 - The minimap shows no markers (the stable API has no minimap colour for decorations). The scrollbar (overview ruler) does.
 - Bash edits are detected **only in git repositories**, and only for files that are text, not binary, and ≤ 8 MB.
 - Feedback reaches Claude on your **next message**, or on its next tool call. Claude Code offers no documented way to push text into an idle session.

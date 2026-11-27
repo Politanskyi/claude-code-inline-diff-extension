@@ -60,8 +60,16 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
 - `contribEditorContentMenu` / `editor/content` exist in Cursor's build (candidate for a floating review bar).
 
+## Cursor-parity pass (from Cursor 3.32 source/CSS, verified with screenshots in the sandbox Cursor)
+- Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
+  `editor.action.inlineDiffs.*` registrations.
+- Colours: theme diffEditor.inserted/removedLineBackground; words rgba(12,233,27,.15) / rgba(242,13,59,.25); no gutter bar.
+- Pill under each change (inset row): `⌃ i of n ⌄ | Undo | Keep | …`, right-aligned unless the editor overflows horizontally.
+- Floating Undo All / Keep All / Next File via `editor/content` (proposed contribEditorContentMenu).
+- Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
+- e2e: 16 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
+
 ## Next ideas (not started)
 - Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.
-- Inset buttons clip in narrow editors (they sit after the first removed line's text).
 - Optional Stop-hook delivery of feedback; per-session filter in the Changes view; light-theme screenshot.
 - CI has not run yet (repo has no remote in the authoring sandbox).

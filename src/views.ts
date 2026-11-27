@@ -12,8 +12,8 @@ const isMac = process.platform === 'darwin';
 const KEY = {
   y: isMac ? '⌘Y' : 'Ctrl+Y',
   n: isMac ? '⌘N' : 'Ctrl+N',
-  sy: isMac ? '⇧⌘Y' : 'Ctrl+Shift+Y',
-  sn: isMac ? '⇧⌘N' : 'Ctrl+Shift+N',
+  fileKeep: isMac ? '⌘↵' : 'Ctrl+Enter',
+  fileUndo: isMac ? '⇧⌘⌫' : 'Ctrl+Shift+Backspace',
 };
 
 // ---------- status bar ----------
@@ -55,7 +55,7 @@ export class StatusBar implements vscode.Disposable {
       this.main.text = `$(sparkle) ${summaryText(files, changes)}`;
       const fb = this.review.pendingFeedbackCount();
       const md = new vscode.MarkdownString(
-        `**Claude changes to review**\n\n${KEY.y} accept · ${KEY.n} reject (cursor in a change)\n\n${KEY.sy} / ${KEY.sn} accept / reject file` +
+        `**Claude changes to review**\n\n${KEY.y} keep · ${KEY.n} undo (cursor in a change)\n\n${KEY.fileKeep} keep file · ${KEY.fileUndo} undo file` +
           (fb ? `\n\n$(comment) ${plural(fb, 'feedback note')} waiting for Claude's next turn` : ''),
         true
       );
@@ -128,7 +128,8 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
 
   constructor(
     private readonly review: ReviewManager,
-    private readonly insetsActive: () => boolean
+    private readonly insetsActive: () => boolean,
+    private readonly toolbarsActive: () => boolean
   ) {
     this.disposables = [
       vscode.languages.registerCodeLensProvider({ scheme: 'file' }, this),
@@ -139,35 +140,39 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
   }
 
   provideCodeLenses(doc: vscode.TextDocument): vscode.CodeLens[] {
-    if (!cfg('showCodeLens', true)) return [];
+    const always = cfg('showCodeLens', false);
+    const toolbars = this.toolbarsActive();
+    // Cursor-style pills under each change (plus Undo File / Keep File in the title bar) replace CodeLens.
+    if (!always && toolbars) return [];
     const key = S.keyOf(doc.uri.fsPath);
     const hunks = this.review.entries.has(key) ? this.review.hunks(key) : [];
     if (!hunks.length) return [];
     const top = new vscode.Range(0, 0, 0, 0);
     const out: vscode.CodeLens[] = [
       new vscode.CodeLens(top, { title: `$(sparkle) Claude: ${plural(hunks.length, 'change')}`, command: 'claudeInlineDiff.nextHunk' }),
-      new vscode.CodeLens(top, { title: `Accept file ${KEY.sy}`, command: 'claudeInlineDiff.acceptFile', arguments: [doc.uri] }),
-      new vscode.CodeLens(top, { title: `Reject file ${KEY.sn}`, command: 'claudeInlineDiff.rejectFile', arguments: [doc.uri] }),
+      new vscode.CodeLens(top, { title: `Undo File ${KEY.fileUndo}`, command: 'claudeInlineDiff.rejectFile', arguments: [doc.uri] }),
+      new vscode.CodeLens(top, { title: `Keep File ${KEY.fileKeep}`, command: 'claudeInlineDiff.acceptFile', arguments: [doc.uri] }),
     ];
     if (this.review.pendingKeys().length > 1)
       out.push(new vscode.CodeLens(top, { title: 'Next file →', command: 'claudeInlineDiff.nextFile' }));
-    const insets = this.insetsActive();
-    for (const h of hunks) {
-      if (insets && h.aLines.length) continue; // the red block carries its own Accept / Reject buttons
+    if (toolbars) return out;
+    void this.insetsActive;
+    hunks.forEach((h, i) => {
       const line = Math.min(hunkAnchorLine(h), doc.lineCount - 1);
       const r = new vscode.Range(line, 0, line, 0);
       const ref = { key, aStart: h.aStart, bStart: h.bStart };
       out.push(
-        new vscode.CodeLens(r, { title: `$(check) Accept ${KEY.y}`, command: 'claudeInlineDiff.acceptHunk', arguments: [ref] }),
-        new vscode.CodeLens(r, { title: `$(discard) Reject ${KEY.n}`, command: 'claudeInlineDiff.rejectHunk', arguments: [ref] }),
+        new vscode.CodeLens(r, { title: `${i + 1} of ${hunks.length}`, command: 'claudeInlineDiff.nextHunk' }),
+        new vscode.CodeLens(r, { title: `$(discard) Undo ${KEY.n}`, command: 'claudeInlineDiff.rejectHunk', arguments: [ref] }),
+        new vscode.CodeLens(r, { title: `$(check) Keep ${KEY.y}`, command: 'claudeInlineDiff.acceptHunk', arguments: [ref] }),
         new vscode.CodeLens(r, {
-          title: '$(comment) Reject with feedback',
+          title: '$(comment) Undo with feedback',
           command: 'claudeInlineDiff.rejectHunkWithFeedback',
           arguments: [ref],
         }),
         new vscode.CodeLens(r, { title: hunkStat(h), command: '' })
       );
-    }
+    });
     return out;
   }
 

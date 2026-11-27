@@ -74,8 +74,7 @@ describe('inset html', () => {
         removed: [],
         languageId: 'typescript',
         ref: { key: 'k', aStart: 0, bStart: 0 },
-        buttons: true,
-        stat: '−3',
+        toolbar: { index: 2, total: 5, anchorCols: 10, maxCols: 80 },
       },
       ['x', 'y'],
       1,
@@ -88,5 +87,8 @@ describe('inset html', () => {
     expect(html).toContain('1 more removed line');
     expect(html).toContain('data-a="accept"');
     expect((html.match(/class="l"/g) || []).length).toBe(2);
+    expect(html).toContain('2 of 5');
+    expect(html).toContain('>Keep<');
+    expect(html).toContain('>Undo<');
   });
 });

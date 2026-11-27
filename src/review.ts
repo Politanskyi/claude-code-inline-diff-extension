@@ -295,6 +295,12 @@ export class ReviewManager implements vscode.Disposable {
     return { files: keys.length, changes: keys.reduce((n, k) => n + this.hunks(k).length, 0) };
   }
 
+  /** Claude touched this file a moment ago (tool call in flight, or its write just landed). */
+  claudeJustWrote(key: string, windowMs = 6000): boolean {
+    const e = this.entries.get(key);
+    return this.isClaudeEditing(key) || (!!e && Date.now() - Math.max(e.landedAt, e.createdAt) < windowMs);
+  }
+
   isClaudeEditing(key: string): boolean {
     return this.activity.some((a) => S.keyOf(a.path) === key && Date.now() - a.ts < 60_000);
   }

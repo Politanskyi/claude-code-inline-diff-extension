@@ -52,7 +52,8 @@
     "onStartupFinished"
   ],
   "enabledApiProposals": [
-    "editorInsets"
+    "editorInsets",
+    "contribEditorContentMenu"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -65,51 +66,82 @@
     "commands": [
       {
         "command": "claudeInlineDiff.acceptHunk",
-        "title": "Accept Change",
+        "title": "Keep Change",
         "category": "Claude Inline Diff",
         "icon": "$(check)"
       },
       {
         "command": "claudeInlineDiff.rejectHunk",
-        "title": "Reject Change",
+        "title": "Undo Change",
         "category": "Claude Inline Diff",
         "icon": "$(discard)"
       },
       {
         "command": "claudeInlineDiff.rejectHunkWithFeedback",
-        "title": "Reject Change with Feedback…",
+        "title": "Undo Change with Feedback for Claude…",
         "category": "Claude Inline Diff",
         "icon": "$(comment-discussion)"
       },
       {
         "command": "claudeInlineDiff.acceptFile",
-        "title": "Accept All Changes in File",
+        "title": "Keep File (all changes in this file)",
         "category": "Claude Inline Diff",
         "icon": "$(check-all)"
       },
       {
         "command": "claudeInlineDiff.rejectFile",
-        "title": "Reject All Changes in File",
+        "title": "Undo File (all changes in this file)",
         "category": "Claude Inline Diff",
         "icon": "$(close-all)"
       },
       {
         "command": "claudeInlineDiff.acceptAll",
-        "title": "Accept All Changes (All Files)",
+        "title": "Keep All (all files)",
         "category": "Claude Inline Diff",
         "icon": "$(check-all)"
       },
       {
         "command": "claudeInlineDiff.rejectAll",
-        "title": "Reject All Changes (All Files)",
+        "title": "Undo All (all files)",
         "category": "Claude Inline Diff",
         "icon": "$(close-all)"
       },
       {
         "command": "claudeInlineDiff.undo",
-        "title": "Undo Last Review Action",
+        "title": "Revert Last Keep/Undo",
         "category": "Claude Inline Diff",
         "icon": "$(reply)"
+      },
+      {
+        "command": "claudeInlineDiff.keepFileText",
+        "title": "Keep File",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.undoFileText",
+        "title": "Undo File",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.keepAllText",
+        "title": "Keep All",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.undoAllText",
+        "title": "Undo All",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.nextFileText",
+        "title": "Next File ›",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.reviewAll",
+        "title": "Review All Changes (multi-file diff)",
+        "category": "Claude Inline Diff",
+        "icon": "$(diff-multiple)"
       },
       {
         "command": "claudeInlineDiff.nextHunk",
@@ -221,6 +253,18 @@
         "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'alt'"
       },
       {
+        "command": "claudeInlineDiff.acceptFile",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
+        "command": "claudeInlineDiff.rejectFile",
+        "key": "ctrl+shift+backspace",
+        "mac": "cmd+shift+backspace",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges && config.claudeInlineDiff.keybindingScheme != 'alt'"
+      },
+      {
         "command": "claudeInlineDiff.acceptHunk",
         "key": "ctrl+alt+enter",
         "mac": "cmd+alt+enter",
@@ -317,6 +361,11 @@
             "off"
           ]
         },
+        "claudeInlineDiff.followClaude": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When Claude lands a new change in a visible file, scroll to it and briefly highlight it (like Cursor's agent). Never moves the view while your cursor is inside a change."
+        },
         "claudeInlineDiff.revealOnEdit": {
           "type": "boolean",
           "default": true,
@@ -339,10 +388,25 @@
           "minimum": 3,
           "maximum": 500
         },
+        "claudeInlineDiff.hunkToolbar": {
+          "type": "string",
+          "default": "all",
+          "markdownDescription": "Cursor-style pill under each change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `all`: under every change. `active`: only under the change at the cursor (like Cursor; lines below shift when it moves). `off`: use CodeLens instead.",
+          "enum": [
+            "all",
+            "active",
+            "off"
+          ]
+        },
         "claudeInlineDiff.showCodeLens": {
           "type": "boolean",
+          "default": false,
+          "markdownDescription": "Also show Keep / Undo CodeLens above changes and at the top of the file (always used when the editorInsets API is unavailable or `hunkToolbar` is `off`)."
+        },
+        "claudeInlineDiff.floatingBar": {
+          "type": "boolean",
           "default": true,
-          "markdownDescription": "Show Accept / Reject above each change and file-level actions at the top of the file."
+          "markdownDescription": "Floating **Undo All / Keep All** buttons at the bottom-right of the editor (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line)."
         },
         "claudeInlineDiff.highlightWords": {
           "type": "boolean",
@@ -386,29 +450,51 @@
     "menus": {
       "editor/title": [
         {
-          "command": "claudeInlineDiff.prevHunk",
+          "command": "claudeInlineDiff.undoFileText",
           "group": "navigation@1",
           "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
         },
         {
-          "command": "claudeInlineDiff.nextHunk",
+          "command": "claudeInlineDiff.keepFileText",
           "group": "navigation@2",
           "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
         },
         {
-          "command": "claudeInlineDiff.acceptFile",
-          "group": "navigation@3",
+          "command": "claudeInlineDiff.prevHunk",
+          "group": "1_claudeInlineDiff@1",
           "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
         },
         {
-          "command": "claudeInlineDiff.rejectFile",
-          "group": "navigation@4",
+          "command": "claudeInlineDiff.nextHunk",
+          "group": "1_claudeInlineDiff@2",
           "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
         },
         {
           "command": "claudeInlineDiff.showDiff",
-          "group": "1_claudeInlineDiff@1",
+          "group": "1_claudeInlineDiff@3",
           "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.reviewAll",
+          "group": "1_claudeInlineDiff@4",
+          "when": "resourceScheme == file && claudeInlineDiff.activeFileHasChanges"
+        }
+      ],
+      "editor/content": [
+        {
+          "command": "claudeInlineDiff.undoAllText",
+          "group": "claudeInlineDiff@1",
+          "when": "claudeInlineDiff.hasChanges && config.claudeInlineDiff.floatingBar"
+        },
+        {
+          "command": "claudeInlineDiff.keepAllText",
+          "group": "claudeInlineDiff@2",
+          "when": "claudeInlineDiff.hasChanges && config.claudeInlineDiff.floatingBar"
+        },
+        {
+          "command": "claudeInlineDiff.nextFileText",
+          "group": "claudeInlineDiff@3",
+          "when": "claudeInlineDiff.multipleFiles && config.claudeInlineDiff.floatingBar"
         }
       ],
       "editor/context": [
@@ -446,6 +532,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "claudeInlineDiff.reviewAll",
+          "group": "navigation@0",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+        },
         {
           "command": "claudeInlineDiff.acceptAll",
           "group": "navigation@1",
@@ -525,6 +616,26 @@
         {
           "command": "claudeInlineDiff.refresh",
           "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.undoFileText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepAllText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.undoAllText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.nextFileText",
+          "when": "false"
         }
       ]
     },
@@ -533,60 +644,60 @@
         "id": "claudeInlineDiff.addedLineBackground",
         "description": "Background of lines Claude added or changed.",
         "defaults": {
-          "dark": "#2ea04326",
-          "light": "#2ea0431f",
-          "highContrast": "#2ea04326",
-          "highContrastLight": "#2ea0431f"
+          "dark": "diffEditor.insertedLineBackground",
+          "light": "diffEditor.insertedLineBackground",
+          "highContrast": "diffEditor.insertedLineBackground",
+          "highContrastLight": "diffEditor.insertedLineBackground"
         }
       },
       {
         "id": "claudeInlineDiff.addedWordBackground",
         "description": "Background of words Claude changed.",
         "defaults": {
-          "dark": "#2ea04366",
-          "light": "#2ea04352",
-          "highContrast": "#2ea04366",
-          "highContrastLight": "#2ea04352"
+          "dark": "#0ce91b26",
+          "light": "#0ce91b26",
+          "highContrast": "#0ce91b26",
+          "highContrastLight": "#0ce91b26"
         }
       },
       {
         "id": "claudeInlineDiff.addedGutter",
-        "description": "Gutter bar / overview ruler for added lines.",
+        "description": "Overview ruler (scrollbar) marker for added lines; also the Keep button.",
         "defaults": {
-          "dark": "#2ea043",
-          "light": "#2ea043",
-          "highContrast": "#2ea043",
-          "highContrastLight": "#2ea043"
+          "dark": "charts.green",
+          "light": "charts.green",
+          "highContrast": "charts.green",
+          "highContrastLight": "charts.green"
         }
       },
       {
         "id": "claudeInlineDiff.removedLineBackground",
         "description": "Background of removed code blocks.",
         "defaults": {
-          "dark": "#f8514926",
-          "light": "#f851491f",
-          "highContrast": "#f8514926",
-          "highContrastLight": "#f851491f"
+          "dark": "diffEditor.removedLineBackground",
+          "light": "diffEditor.removedLineBackground",
+          "highContrast": "diffEditor.removedLineBackground",
+          "highContrastLight": "diffEditor.removedLineBackground"
         }
       },
       {
         "id": "claudeInlineDiff.removedWordBackground",
         "description": "Background of removed words.",
         "defaults": {
-          "dark": "#f8514966",
-          "light": "#f8514952",
-          "highContrast": "#f8514966",
-          "highContrastLight": "#f8514952"
+          "dark": "#f20d3b40",
+          "light": "#f20d3b40",
+          "highContrast": "#f20d3b40",
+          "highContrastLight": "#f20d3b40"
         }
       },
       {
         "id": "claudeInlineDiff.removedGutter",
-        "description": "Marker / overview ruler for removed lines.",
+        "description": "Overview ruler (scrollbar) marker for removed lines.",
         "defaults": {
-          "dark": "#f85149",
-          "light": "#f85149",
-          "highContrast": "#f85149",
-          "highContrastLight": "#f85149"
+          "dark": "charts.red",
+          "light": "charts.red",
+          "highContrast": "charts.red",
+          "highContrastLight": "charts.red"
         }
       },
       {

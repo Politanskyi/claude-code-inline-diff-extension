@@ -228,6 +228,32 @@ test('reject with feedback is delivered to Claude on the next prompt', async () 
   assert.ok(j.hookSpecificOutput.additionalContext.includes('default port'));
 });
 
+test('Review All opens a multi-file diff', async () => {
+  await sleep(1000); // let earlier reveal-on-edit tabs settle
+  await vscode.commands.executeCommand('claudeInlineDiff.reviewAll');
+  await until(() => vscode.window.tabGroups.all.some((g) => g.tabs.some((t) => /Claude changes/.test(t.label))), 'multi-diff tab opened');
+  await sleep(600);
+  shot('06-review-all');
+  await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+});
+
+test('a second Claude edit to an open file shows up as a new change (baseline kept)', async () => {
+  const key = api.review.pendingKeys().find((k) => k.endsWith('config.ts'));
+  const abs = api.review.entries.get(key).path;
+  const ed = await vscode.window.showTextDocument(vscode.Uri.file(abs));
+  ed.selection = new vscode.Selection(0, 0, 0, 0);
+  const before = api.review.hunks(key).length;
+  const text = fs.readFileSync(abs, 'utf8') + '\nexport const VERSION = 2;\n';
+  claudeWrite('src/config.ts', text);
+  try {
+    await until(() => api.review.hunks(key).some((h) => h.bLines.join('\n').includes('VERSION')), 'new hunk');
+  } catch (e) {
+    const d = vscode.workspace.textDocuments.find((x) => x.uri.fsPath === abs);
+    throw new Error('new hunk missing: ' + JSON.stringify({ before, now: api.review.hunks(key).length, dirty: d && d.isDirty, docHasVersion: d && d.getText().includes('VERSION'), diskHasVersion: fs.readFileSync(abs, 'utf8').includes('VERSION') }));
+  }
+  assert.strictEqual(api.review.entries.get(key).content.includes('VERSION'), false, 'baseline unchanged by a later Claude edit');
+});
+
 test('Cursor agent payloads are ignored', async () => {
   const before = api.review.entries.size;
   const abs = path.join(WS, 'cursor-agent.ts');

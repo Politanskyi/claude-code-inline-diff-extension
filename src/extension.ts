@@ -47,6 +47,13 @@ export function activate(context: vscode.ExtensionContext): Api {
       accept: (ref) => void runHunk('accept', ref, true),
       reject: (ref) => void runHunk('reject', ref, true),
       feedback: (ref) => void rejectWithFeedback(ref),
+      navigate: (ref, dir) => {
+        const hunks = review.hunks(ref.key);
+        if (!hunks.length) return;
+        const cur = review.resolveHunk(ref);
+        const i = cur ? hunks.indexOf(cur) : 0;
+        void openAt(ref.key, hunks[(i + dir + hunks.length) % hunks.length]);
+      },
     },
     log
   );
@@ -58,7 +65,11 @@ export function activate(context: vscode.ExtensionContext): Api {
     insets,
     new StatusBar(review),
     new Badges(review),
-    new Lenses(review, () => renderer.useInsets()),
+    new Lenses(
+      review,
+      () => renderer.useInsets(),
+      () => renderer.useToolbars()
+    ),
     new ChangesTree(review),
     new StepsTree(review),
     vscode.workspace.registerTextDocumentContentProvider(BASE_SCHEME, {
@@ -66,6 +77,7 @@ export function activate(context: vscode.ExtensionContext): Api {
     }),
     review.onDidChange(updateContexts),
     review.onNewFile((e) => void revealOnEdit(e)),
+    review.onDidChange(() => followClaude()),
     vscode.window.onDidChangeActiveTextEditor(updateContexts),
     vscode.window.onDidChangeTextEditorSelection(updateContexts),
     vscode.window.onDidChangeActiveColorTheme(() => resetPalette()),
@@ -99,6 +111,7 @@ function activeKey(): string | undefined {
 function updateContexts(): void {
   const pending = review.pendingKeys();
   setContext('claudeInlineDiff.hasChanges', pending.length > 0);
+  setContext('claudeInlineDiff.multipleFiles', pending.length > 1);
   setContext(
     'claudeInlineDiff.files',
     pending.map((k) => review.entries.get(k)!.path)
@@ -199,7 +212,7 @@ async function confirmTrash(key: string): Promise<boolean> {
   if (!cfg('confirmDeleteCreatedFile', true)) return true;
   const e = review.entries.get(key)!;
   const pick = await vscode.window.showWarningMessage(
-    `Claude created ${path.basename(e.path)}. Rejecting moves it to the trash.`,
+    `Claude created ${path.basename(e.path)}. Undoing moves it to the trash.`,
     { modal: true },
     'Move to Trash'
   );
@@ -212,7 +225,7 @@ async function rejectWithFeedback(arg: unknown): Promise<void> {
   const h = review.resolveHunk(ref);
   if (!h) return;
   const text = await vscode.window.showInputBox({
-    title: 'Reject with feedback',
+    title: 'Undo with feedback for Claude',
     prompt: 'Why? Claude gets this with your next message (or after its next tool call if it is still working).',
     placeHolder: 'e.g. keep the old function signature, callers depend on it',
     ignoreFocusOut: true,
@@ -237,6 +250,33 @@ async function revealOnEdit(e: S.Entry): Promise<void> {
     return;
   }
   await openAt(e.key, h, { preserveFocus: true, preview: true });
+}
+
+const knownHunks = new Map<string, Set<string>>();
+const sig = (h: Hunk) => `${h.aLines.join('\n')}\u0000${h.bLines.join('\n')}`;
+
+/** Like Cursor's agent: when Claude lands a new change in a visible file, scroll to it and flash it. */
+function followClaude(): void {
+  for (const key of review.entries.keys()) {
+    const hunks = review.hunks(key);
+    const prev = knownHunks.get(key);
+    const now = new Set(hunks.map(sig));
+    knownHunks.set(key, now);
+    if (!prev || !cfg('followClaude', true) || !review.claudeJustWrote(key)) continue;
+    const fresh = hunks.filter((h) => !prev.has(sig(h)));
+    if (!fresh.length) continue;
+    const ed = editorFor(key);
+    if (!ed) continue;
+    const ranges = fresh.filter((h) => h.bLines.length).map((h) => new vscode.Range(h.bStart, 0, h.bStart + h.bLines.length - 1, 0));
+    if (ranges.length) renderer.flash(ed, ranges);
+    // Don't yank the view while the user is reviewing a change.
+    const inHunk = !!M.hunkAtLine(hunks, ed.selection.active.line) && vscode.window.activeTextEditor === ed;
+    if (!inHunk) {
+      const line = M.hunkAnchorLine(fresh[0]);
+      ed.revealRange(new vscode.Range(line, 0, line, 0), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    }
+  }
+  for (const k of [...knownHunks.keys()]) if (!review.entries.has(k)) knownHunks.delete(k);
 }
 
 function navigateHunk(dir: 1 | -1): void {
@@ -499,8 +539,12 @@ function registerCommands(context: vscode.ExtensionContext): void {
     if (cur && keys.includes(cur)) await advance(cur, Number.MAX_SAFE_INTEGER);
   });
   reg('acceptAll', async () => {
-    const n = await review.acceptFiles(review.pendingKeys(), 'Accept all');
-    if (n) vscode.window.setStatusBarMessage(`$(check-all) Accepted Claude changes in ${M.plural(n, 'file')} (Undo available)`, 4000);
+    const n = await review.acceptFiles(review.pendingKeys(), 'Keep all');
+    if (n)
+      vscode.window.setStatusBarMessage(
+        `$(check-all) Kept Claude changes in ${M.plural(n, 'file')} (Revert Last Keep/Undo to go back)`,
+        4000
+      );
   });
   reg('rejectAll', async () => {
     const keys = review.pendingKeys();
@@ -508,13 +552,13 @@ function registerCommands(context: vscode.ExtensionContext): void {
     if (cfg('confirmRejectAll', true)) {
       const created = keys.filter((k) => review.rejectDeletesFile(k, true)).length;
       const ok = await vscode.window.showWarningMessage(
-        `Reject all Claude changes in ${M.plural(keys.length, 'file')}?${created ? ` ${M.plural(created, 'file')} Claude created will be moved to the trash.` : ''} You can undo this.`,
+        `Undo all Claude changes in ${M.plural(keys.length, 'file')}?${created ? ` ${M.plural(created, 'file')} Claude created will be moved to the trash.` : ''} You can revert this.`,
         { modal: true },
-        'Reject All'
+        'Undo All'
       );
-      if (ok !== 'Reject All') return;
+      if (ok !== 'Undo All') return;
     }
-    await review.rejectFiles(keys, 'Reject all');
+    await review.rejectFiles(keys, 'Undo all');
   });
   reg('undo', async () => {
     const item = await review.undo();
@@ -541,6 +585,35 @@ function registerCommands(context: vscode.ExtensionContext): void {
     if (!e) return;
     const base = vscode.Uri.from({ scheme: BASE_SCHEME, path: vscode.Uri.file(e.path).path, query: 'k=' + encodeURIComponent(e.key) });
     await vscode.commands.executeCommand('vscode.diff', base, vscode.Uri.file(e.path), `${path.basename(e.path)} (before Claude ↔ now)`);
+  });
+  // Text-only twins used by the editor title bar and the floating bar.
+  const forward =
+    (id: string) =>
+    (...a: any[]) =>
+      vscode.commands.executeCommand('claudeInlineDiff.' + id, ...a.filter((x) => x instanceof vscode.Uri));
+  reg('keepFileText', forward('acceptFile'));
+  reg('undoFileText', forward('rejectFile'));
+  reg('keepAllText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
+  reg('undoAllText', () => vscode.commands.executeCommand('claudeInlineDiff.rejectAll'));
+  reg('nextFileText', () => navigateFile(1));
+  reg('reviewAll', async () => {
+    const keys = review.pendingKeys();
+    if (!keys.length) return;
+    const resources = keys.map((k) => {
+      const e = review.entries.get(k)!;
+      const file = vscode.Uri.file(e.path);
+      const base = vscode.Uri.from({ scheme: BASE_SCHEME, path: file.path, query: 'k=' + encodeURIComponent(e.key) });
+      return [file, base, file];
+    });
+    try {
+      await vscode.commands.executeCommand(
+        'vscode.changes',
+        `Claude changes (${M.summaryText(keys.length, review.totals().changes)})`,
+        resources
+      );
+    } catch {
+      await vscode.commands.executeCommand('claudeInlineDiff.showDiff');
+    }
   });
   reg('listFiles', async () => {
     const keys = review.pendingKeys();

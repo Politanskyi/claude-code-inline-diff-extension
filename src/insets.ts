@@ -35,21 +35,32 @@ export function insetApi(): CreateInset | undefined {
   return probed || undefined;
 }
 
+/** Cursor-style pill under a change: `⌃ 2 of 5 ⌄ | Undo ⌘N | Keep ⌘Y`. */
+export interface Toolbar {
+  index: number; // 1-based position of this change in the file
+  total: number;
+  /** Indentation (columns) of the change's last line: anchor used when the editor scrolls horizontally and the right edge is unknown. */
+  anchorCols: number;
+  /** Longest line in the document, in columns: tells the webview whether the editor overflows horizontally. */
+  maxCols: number;
+}
+
 export interface InsetBlock {
   /** 0-based line the block is drawn after; -1 = above the first line. */
   afterLine: number;
+  /** Removed lines to draw (may be empty for a toolbar-only block). */
   lines: string[];
   removed: CharRange[]; // word-level removed ranges, relative to `lines`
   languageId: string;
   ref: HunkRef;
-  buttons: boolean;
-  stat: string;
+  toolbar?: Toolbar;
 }
 
 export interface InsetActions {
   accept(ref: HunkRef): void;
   reject(ref: HunkRef): void;
   feedback(ref: HunkRef): void;
+  navigate(ref: HunkRef, dir: 1 | -1): void;
 }
 
 interface Live {
@@ -114,13 +125,6 @@ export function renderLine(tokens: { kind: TokenKind; text: string }[], removed:
   return html || '&#8203;';
 }
 
-/** Column just past the first removed line's text (tabs expanded), where the buttons float. */
-export function btnLeftCh(line: string, tabSize: number): number {
-  let col = 0;
-  for (const ch of line.replace(/\s+$/, '')) col = ch === '\t' ? col + tabSize - (col % tabSize) : col + 1;
-  return Math.max(col, 20);
-}
-
 export function insetHtml(
   block: InsetBlock,
   shownLines: string[],
@@ -144,36 +148,73 @@ export function insetHtml(
     ? `<div class="l more">⋯ ${hidden} more removed line${hidden === 1 ? '' : 's'} — hover the change or open the side-by-side diff</div>`
     : '';
   const isMac = process.platform === 'darwin';
-  const buttons = block.buttons
-    ? `<div class="btns"><span class="stat">${esc(block.stat)}</span>` +
-      `<button class="rej" data-a="reject" title="Reject change (${isMac ? '⌘N' : 'Ctrl+N'})">Reject <kbd>${isMac ? '⌘N' : 'Ctrl+N'}</kbd></button>` +
-      `<button class="acc" data-a="accept" title="Accept change (${isMac ? '⌘Y' : 'Ctrl+Y'})">Accept <kbd>${isMac ? '⌘Y' : 'Ctrl+Y'}</kbd></button>` +
-      `<button class="fb" data-a="feedback" title="Reject and tell Claude why">…</button></div>`
+  const kY = isMac ? '⌘Y' : 'Ctrl+Y';
+  const kN = isMac ? '⌘N' : 'Ctrl+N';
+  const t = block.toolbar;
+  const toolbar = t
+    ? `<div class="tbrow"><div class="tb" id="tb" role="toolbar" aria-label="Change ${t.index} of ${t.total}">` +
+      (t.total > 1
+        ? `<div class="nav"><button class="ic" data-a="prev" title="Previous change" aria-label="Previous change">${CHEVRON_UP}</button>` +
+          `<span class="ctr">${t.index} of ${t.total}</span>` +
+          `<button class="ic" data-a="next" title="Next change" aria-label="Next change">${CHEVRON_DOWN}</button></div>`
+        : '') +
+      `<button class="b sec" data-a="reject" title="Undo this change (${kN})">Undo<span class="k">${kN}</span></button>` +
+      `<button class="b pri" data-a="accept" title="Keep this change (${kY})">Keep<span class="k">${kY}</span></button>` +
+      `<button class="b sec more-b" data-a="feedback" title="Undo and tell Claude why…">…</button>` +
+      `</div></div>`
     : '';
   const ff = m.fontFamily.replace(/</g, '');
+  const pillH = Math.min(22, m.lineHeight);
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
 html,body{margin:0;padding:0;overflow:hidden;background:transparent}
 body{font-family:${ff};font-size:${m.fontSize}px;font-weight:${m.fontWeight};tab-size:${m.tabSize};-moz-tab-size:${m.tabSize};
  font-feature-settings:${m.ligatures ? '"liga" 1, "calt" 1' : '"liga" 0, "calt" 0'};color:var(--vscode-editor-foreground)}
-.l{height:${m.lineHeight}px;line-height:${m.lineHeight}px;white-space:pre;overflow:hidden;
- background:var(--vscode-claudeInlineDiff-removedLineBackground,rgba(248,81,73,.15));
- box-shadow:inset 3px 0 0 var(--vscode-claudeInlineDiff-removedGutter,#f85149)}
-.w{background:var(--vscode-claudeInlineDiff-removedWordBackground,rgba(248,81,73,.4));border-radius:2px}
+/* Removed code: like Cursor's .inline-diff-removed — theme removed-line background, text at 90% opacity, no gutter bar. */
+.l{height:${m.lineHeight}px;line-height:${m.lineHeight}px;white-space:pre;overflow:hidden;opacity:.9;
+ background:var(--vscode-claudeInlineDiff-removedLineBackground,var(--vscode-diffEditor-removedLineBackground,rgba(242,13,59,.15)))}
+.w{background:var(--vscode-claudeInlineDiff-removedWordBackground,rgba(242,13,59,.25));box-shadow:inset 1px 0 rgba(242,13,59,.25),inset -1px 0 rgba(242,13,59,.25)}
 .more{font-style:italic;opacity:.75;font-family:var(--vscode-font-family);font-size:12px;padding-left:8px}
-.btns{position:absolute;top:0;left:calc(${btnLeftCh(shownLines[0] || '', m.tabSize)}ch + 24px);height:${m.lineHeight}px;display:flex;align-items:center;gap:4px;opacity:.92}
-.btns:hover{opacity:1}
-.stat{font:11px var(--vscode-font-family);opacity:.7;margin-right:4px}
-button{font:11px var(--vscode-font-family);height:${Math.max(16, m.lineHeight - 4)}px;padding:0 7px;border:0;border-radius:4px;cursor:pointer}
-kbd{font:10px var(--vscode-font-family);opacity:.75;margin-left:4px}
-.acc{background:var(--vscode-claudeInlineDiff-addedGutter,#2ea043);color:#fff}
-.rej{background:var(--vscode-claudeInlineDiff-removedGutter,#f85149);color:#fff}
-.fb{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}
-</style></head><body>${body}${more}${buttons}
-<script nonce="${nonce}">const vs=acquireVsCodeApi();document.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>vs.postMessage({a:b.dataset.a})));</script>
+/* Toolbar row: Cursor's acceptRejectPartialEditWidget — pill attached under the change, right edge next to the scrollbar. */
+.tbrow{position:relative;height:${m.lineHeight}px}
+.tb{position:absolute;top:0;right:18px;border-top-left-radius:0;display:flex;flex-direction:row;gap:2px;height:${pillH}px;align-items:stretch;
+ font-family:var(--vscode-font-family);font-size:12px;border-bottom-left-radius:4px;border-bottom-right-radius:4px}
+.nav{display:flex;align-items:center;gap:2px;padding:0 6px;border-radius:4px;color:var(--vscode-input-foreground);
+ background:color-mix(in srgb,var(--vscode-editorWidget-background,var(--vscode-editor-background)) 67%,transparent)}
+.ctr{min-width:36px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ic{background:none;border:0;padding:0 2px;margin:0;cursor:pointer;color:var(--vscode-input-foreground);display:flex;align-items:center;opacity:.8}
+.ic:hover{opacity:1}
+.ic svg{width:14px;height:14px;fill:currentColor}
+.b{display:flex;align-items:center;gap:4px;border:0;border-radius:4px;padding:0 6px;cursor:pointer;font:inherit;white-space:nowrap}
+.pri{background:color-mix(in srgb,var(--vscode-charts-green,#2ea043) 85%,transparent);color:var(--vscode-button-foreground,#fff)}
+.pri:hover{background:var(--vscode-charts-green,#2ea043)}
+.sec{background:var(--vscode-editorWidget-background,var(--vscode-editor-background));color:var(--vscode-input-foreground);
+ box-shadow:inset 0 0 0 1px var(--vscode-widget-border,rgba(128,128,128,.35))}
+.sec:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
+.k{opacity:.7;font-size:11px}
+.more-b{padding:0 5px}
+</style></head><body>${body}${more}${toolbar}
+<script nonce="${nonce}">
+const vs=acquireVsCodeApi();
+document.querySelectorAll('button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();vs.postMessage({a:b.dataset.a})}));
+${
+  t
+    ? `// Right-align like Cursor unless the editor scrolls horizontally (the inset is then wider than the viewport).
+(()=>{const tb=document.getElementById('tb');const c=document.createElement('canvas').getContext('2d');
+c.font=getComputedStyle(document.body).fontWeight+' ${m.fontSize}px '+getComputedStyle(document.body).fontFamily;
+const ch=c.measureText('M'.repeat(50)).width/50||${(m.fontSize * 0.6).toFixed(2)};
+const place=()=>{const w=document.documentElement.clientWidth;
+if(w>(${t.maxCols}+6)*ch){tb.style.right='18px';tb.style.left='auto';}else{tb.style.right='auto';tb.style.left=${t.anchorCols}*ch+'px';}};
+place();addEventListener('resize',place);})();`
+    : ''
+}
+</script>
 </body></html>`;
 }
+
+const CHEVRON_UP = '<svg viewBox="0 0 16 16"><path d="M8 5.3 3.6 9.7l.7.7L8 6.7l3.7 3.7.7-.7z"/></svg>';
+const CHEVRON_DOWN = '<svg viewBox="0 0 16 16"><path d="M8 10.7 3.6 6.3l.7-.7L8 9.3l3.7-3.7.7.7z"/></svg>';
 
 export class InsetManager implements vscode.Disposable {
   private live = new Map<vscode.TextEditor, Map<string, Live>>();
@@ -203,10 +244,10 @@ export class InsetManager implements vscode.Disposable {
       if (!near(b.afterLine)) continue;
       const shown = b.lines.length > maxLines ? b.lines.slice(0, maxLines - 1) : b.lines;
       const hidden = b.lines.length - shown.length;
-      const height = shown.length + (hidden ? 1 : 0);
+      const height = shown.length + (hidden ? 1 : 0) + (b.toolbar ? 1 : 0);
       const sig = crypto
         .createHash('sha1')
-        .update(JSON.stringify([b.afterLine, height, b.lines, b.removed, b.buttons, b.stat, b.languageId, m, palette]))
+        .update(JSON.stringify([b.afterLine, height, b.lines, b.removed, b.toolbar, b.ref, b.languageId, m, palette]))
         .digest('hex');
       const reuse = current.get(sig);
       if (reuse && !reuse.disposed) {
@@ -222,6 +263,8 @@ export class InsetManager implements vscode.Disposable {
           if (msg?.a === 'accept') this.actions.accept(b.ref);
           else if (msg?.a === 'reject') this.actions.reject(b.ref);
           else if (msg?.a === 'feedback') this.actions.feedback(b.ref);
+          else if (msg?.a === 'next') this.actions.navigate(b.ref, 1);
+          else if (msg?.a === 'prev') this.actions.navigate(b.ref, -1);
         });
         inset.webview.html = insetHtml(b, shown, hidden, crypto.randomBytes(12).toString('base64'), palette, m);
         next.set(sig, live);
