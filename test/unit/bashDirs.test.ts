@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'path';
 import { commandDirs } from '../../src/core/bashDirs';
 
-const cwd = path.resolve('/work/app');
-const home = path.resolve('/home/me');
-const dirs = (c: string) => commandDirs(c, cwd, home);
-const r = (...p: string[]) => path.resolve(...p);
+// The same on every machine: Unix rules unless a test says Windows (the default follows the machine it runs on).
+const cwd = '/work/app';
+const home = '/home/me';
+const dirs = (c: string) => commandDirs(c, cwd, home, false);
+const r = (...p: string[]) => path.posix.resolve(...p);
 
 describe('folders a shell command names', () => {
   it('reads cd at the start, absolute and relative', () => {
