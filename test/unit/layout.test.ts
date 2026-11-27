@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { chatContainer, chatContainerFromState, CLAUDE_CHAT_CONTAINER } from '../../src/core/layout';
-import { visibleChatFromText, liveWalText, ChatLogReader } from '../../src/core/layout';
+import { visibleChatFromText, liveWalText, ChatLogReader, NEW_CHAT } from '../../src/core/layout';
 
 const custom = (id: string) =>
   `views.customizations{"viewContainerLocations":{"${id}":2},"viewLocations":{"claudeVSCodeSidebarSecondary":"${id}"}}`;
@@ -86,7 +86,7 @@ describe("official extension's log", () => {
 
   it('does not take a new chat for the next resumed one, and waits for whole lines', () => {
     const r = new ChatLogReader();
-    expect(r.feed(launch('n1', false) + attach('n1'))).toBeUndefined();
+    expect(r.feed(launch('n1', false) + attach('n1'))).toBe(NEW_CHAT);
     r.feed(launch('a1') + resumed(A));
     expect(r.feed(attach('n1'))).toBeUndefined();
     const line = attach('a1');

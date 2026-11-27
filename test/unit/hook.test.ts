@@ -47,11 +47,16 @@ describe('hook: Edit / MultiEdit / Write', () => {
     expect(handle({ ...base, hook_event_name: 'SessionStart', source: 'startup' } as any, ctx())).toBe('');
     expect(S.shownChat(sb.store)).toBeNull();
     // It is a new chat only while its process stays, after the grace time.
-    const noted = JSON.parse(fs.readFileSync(path.join(sb.store, 'chat-new.json'), 'utf8'));
+    const noted = JSON.parse(fs.readFileSync(path.join(sb.store, 'chat-new.json'), 'utf8')).notes[0];
     expect(noted.sessionId).toBe('chat-a');
     expect(S.newChat(sb.store, noted.ts + 100, () => true)).toBeNull();
     expect(S.newChat(sb.store, noted.ts + S.NEW_CHAT_GRACE_MS, () => true)?.sessionId).toBe('chat-a');
     expect(S.newChat(sb.store, noted.ts + S.NEW_CHAT_GRACE_MS, () => false)).toBeNull();
+    // Known from the official extension's log to be a chat on screen: no waiting.
+    expect(S.newChat(sb.store, noted.ts + 100, () => true, 'chat-a')?.sessionId).toBe('chat-a');
+    // A throwaway session started after it (its process is gone) does not push the open chat out.
+    S.noteNewChat(sb.store, 'throwaway', 4242, noted.ts + 50);
+    expect(S.newChat(sb.store, noted.ts + 10_000, (pid) => pid !== 4242)?.sessionId).toBe('chat-a');
     handle({ ...base, hook_event_name: 'UserPromptSubmit', prompt: 'first' } as any, ctx());
     expect(S.shownChat(sb.store)?.sessionId).toBe('chat-a');
     handle({ cwd: sb.project, session_id: 'chat-b', hook_event_name: 'UserPromptSubmit', prompt: 'hi' } as any, ctx());

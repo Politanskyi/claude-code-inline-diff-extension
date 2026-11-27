@@ -53,6 +53,7 @@ export class ReviewManager implements vscode.Disposable {
   /** Sessions of this window's own chats (see M.ownSessions), refreshed with the steps. */
   private own = new Set<string>();
   private shown: string | undefined;
+  private confirmedNew: string | undefined;
   history: HistoryItem[] = [];
   private memo = new Map<string, { baseline: string; text: string; hunks: Hunk[]; regions?: S.Region[] }>();
   private diskCache = new Map<string, { mtimeMs: number; size: number; text: string }>();
@@ -215,7 +216,8 @@ export class ReviewManager implements vscode.Disposable {
     let best: { sessionId: string; ts: number } | null = null;
     for (const s of this.stores) {
       if (s === global) continue;
-      for (const c of [S.shownChat(s), S.newChat(s)]) if (c && (!best || c.ts > best.ts)) best = c;
+      for (const c of [S.shownChat(s), S.newChat(s, Date.now(), undefined, this.confirmedNew)])
+        if (c && (!best || c.ts > best.ts)) best = c;
     }
     return best?.sessionId;
   }
@@ -224,6 +226,16 @@ export class ReviewManager implements vscode.Disposable {
    * The editor's saved state says the Claude Code panel now shows this chat (see layout.visibleChat): switching
    * back to a chat that is still loaded fires no hook. Noted like the hook does, in this window's project stores.
    */
+  /**
+   * The official extension's log says the panel now shows a chat that was just started: the session the hook
+   * noted last is that chat, without waiting to see whether its process stays.
+   */
+  confirmNewChat(): void {
+    const global = S.globalStoreDir();
+    for (const s of this.stores) if (s !== global) this.confirmedNew = S.notedNewChat(s) ?? this.confirmedNew;
+    if (this.shown !== this.computeShown()) this.refresh(false);
+  }
+
   noteShownChat(sessionId: string): void {
     const global = S.globalStoreDir();
     for (const s of this.stores) {

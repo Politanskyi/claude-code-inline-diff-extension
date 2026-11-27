@@ -584,39 +584,53 @@ export function shownChat(storeDir: string): { sessionId: string; ts: number } |
 const newChatPath = (storeDir: string) => path.join(storeDir, 'chat-new.json');
 export const NEW_CHAT_GRACE_MS = 3000;
 
+type NewChatNote = { sessionId: string; pid: number; ts: number };
+
+function newChatNotes(storeDir: string): NewChatNote[] {
+  const c = readJson<{ notes?: unknown } & Partial<NewChatNote>>(newChatPath(storeDir));
+  const list = c && Array.isArray(c.notes) ? c.notes : c ? [c] : [];
+  return (list as Partial<NewChatNote>[]).filter(
+    (n): n is NewChatNote =>
+      !!n && typeof n.sessionId === 'string' && !!n.sessionId && typeof n.pid === 'number' && typeof n.ts === 'number'
+  );
+}
+
 /**
  * SessionStart with source `startup`: a session began, run by process `pid`. It is a new chat on screen only if
  * that process stays: the official extension also starts throwaway sessions to read the configuration, gone in a
- * second or two. See `newChat`.
+ * second or two. The last few are kept, so such a session does not push an open new chat out. See `newChat`.
  */
 export function noteNewChat(storeDir: string, sessionId: string, pid: number, now = Date.now()): void {
   try {
     ensureStore(storeDir);
-    writeJsonAtomic(newChatPath(storeDir), { sessionId, pid, ts: now });
+    writeJsonAtomic(newChatPath(storeDir), { notes: [...newChatNotes(storeDir), { sessionId, pid, ts: now }].slice(-6) });
   } catch {
     /* best effort */
   }
 }
 
 /**
- * The new chat that is open and not written to yet: its process outlived the grace time and still runs. Closing
- * the empty chat ends the process, and the chat shown before is the current one again.
+ * The new chat that is open and not written to yet: the latest session whose process outlived the grace time and
+ * still runs. `confirmed` is a session known to be a chat on screen (the official extension's log said so): no
+ * grace time for it. Closing the empty chat ends the process, and the chat shown before is the current one again.
  */
 export function newChat(
   storeDir: string,
   now = Date.now(),
-  alive: (pid: number) => boolean = pidAlive
+  alive: (pid: number) => boolean = pidAlive,
+  confirmed?: string
 ): { sessionId: string; ts: number } | null {
-  const c = readJson<{ sessionId?: string; pid?: number; ts?: number }>(newChatPath(storeDir));
-  if (!c || typeof c.sessionId !== 'string' || !c.sessionId || typeof c.pid !== 'number' || typeof c.ts !== 'number') return null;
-  if (now - c.ts < NEW_CHAT_GRACE_MS || !alive(c.pid)) return null;
-  return { sessionId: c.sessionId, ts: c.ts };
+  const notes = newChatNotes(storeDir).sort((a, b) => b.ts - a.ts);
+  for (const c of notes) {
+    if ((c.sessionId !== confirmed && now - c.ts < NEW_CHAT_GRACE_MS) || !alive(c.pid)) continue;
+    return { sessionId: c.sessionId, ts: c.ts };
+  }
+  return null;
 }
 
 /** The session of the last `startup` note, whether it is a chat on screen or not. */
 export function notedNewChat(storeDir: string): string | undefined {
-  const c = readJson<{ sessionId?: string }>(newChatPath(storeDir));
-  return c && typeof c.sessionId === 'string' ? c.sessionId : undefined;
+  return newChatNotes(storeDir).sort((a, b) => b.ts - a.ts)[0]?.sessionId;
 }
 
 function pidAlive(pid: number): boolean {

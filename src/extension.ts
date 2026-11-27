@@ -9,7 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
-import { chatContainer, visibleChat, ChatLogReader } from './core/layout';
+import { chatContainer, visibleChat, ChatLogReader, NEW_CHAT } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -957,7 +957,10 @@ function watchClaudeLog(): void {
       }
       pos = size;
       const shown = reader.feed(buf.toString('utf8'));
-      if (live && shown) {
+      if (live && shown === NEW_CHAT) {
+        log.info('Claude Code panel shows a new chat');
+        review.confirmNewChat();
+      } else if (live && shown) {
         log.info('Claude Code panel switched to chat ' + shown.slice(0, 8));
         review.noteShownChat(shown);
       }

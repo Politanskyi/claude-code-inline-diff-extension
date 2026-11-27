@@ -86,10 +86,14 @@ export function visibleChat(stateDb: string): string | null | undefined {
 // no hook fires. Its log says so at once (`session.attach: vscode-<channel>`), and which session a channel runs
 // follows from the lines of its launch. Best effort: the log's wording is not an interface.
 
+/** What `ChatLogReader.feed` returns for a chat that was just started (it has no session id in the log). */
+export const NEW_CHAT = '(new chat)';
+
 export class ChatLogReader {
   private readonly channels = new Map<string, string>();
   private lastLaunch: string | null = null;
   private lastResume: string | null = null;
+  private resumed = false;
   private rest = '';
 
   /** Feeds new log text; returns the session the panel was attached to last in it (if that is known). */
@@ -102,6 +106,7 @@ export class ChatLogReader {
       if (m) {
         this.lastLaunch = m[1];
         this.lastResume = null;
+        this.resumed = line.includes('"resume":');
         continue;
       }
       // A resumed chat names its session, and the panel attaches to its channel right after.
@@ -117,7 +122,8 @@ export class ChatLogReader {
         this.channels.set(m[1], this.lastResume);
         this.lastResume = null;
       }
-      shown = this.channels.get(m[1]);
+      // A launch without a resume, then the attach to its channel: a new chat is on screen.
+      shown = this.channels.get(m[1]) ?? (this.lastLaunch === m[1] && !this.resumed ? NEW_CHAT : undefined);
     }
     return shown;
   }
