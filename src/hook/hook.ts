@@ -17,7 +17,7 @@ import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 import { commandDirs } from '../core/bashDirs';
 
-export const HOOK_VERSION = '1.0.15';
+export const HOOK_VERSION = '1.0.16';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -70,10 +70,12 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
     return '';
   }
   if (event === 'SessionStart') {
-    // An earlier chat was opened from the history (or restored after a reload). Not `startup`: the official
-    // extension also starts throwaway sessions to read the configuration ("Loading config cache"), which are no
-    // chat on screen; a new chat counts from its first prompt. Nothing is printed (it would become context).
+    // An earlier chat was opened from the history (or restored after a reload): it is the one on screen. A
+    // `startup` may be a new chat or one of the official extension's throwaway sessions ("Loading config cache"):
+    // noted with Claude's process id, and the window takes it for a chat only if that process stays.
+    // Nothing is printed (it would become context).
     if (data.source !== 'startup') S.showChat(projectStore(), session, ctx.now());
+    else S.noteNewChat(projectStore(), session, Number(ctx.env.CLAUDE_PID) || process.ppid, ctx.now());
     return '';
   }
   if (event === 'UserPromptSubmit') {

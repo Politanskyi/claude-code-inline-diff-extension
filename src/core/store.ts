@@ -581,6 +581,48 @@ export function shownChat(storeDir: string): { sessionId: string; ts: number } |
   return c && typeof c.sessionId === 'string' && c.sessionId ? { sessionId: c.sessionId, ts: Number(c.ts) || 0 } : null;
 }
 
+const newChatPath = (storeDir: string) => path.join(storeDir, 'chat-new.json');
+export const NEW_CHAT_GRACE_MS = 3000;
+
+/**
+ * SessionStart with source `startup`: a session began, run by process `pid`. It is a new chat on screen only if
+ * that process stays: the official extension also starts throwaway sessions to read the configuration, gone in a
+ * second or two. See `newChat`.
+ */
+export function noteNewChat(storeDir: string, sessionId: string, pid: number, now = Date.now()): void {
+  try {
+    ensureStore(storeDir);
+    writeJsonAtomic(newChatPath(storeDir), { sessionId, pid, ts: now });
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * The new chat that is open and not written to yet: its process outlived the grace time and still runs. Closing
+ * the empty chat ends the process, and the chat shown before is the current one again.
+ */
+export function newChat(
+  storeDir: string,
+  now = Date.now(),
+  alive: (pid: number) => boolean = pidAlive
+): { sessionId: string; ts: number } | null {
+  const c = readJson<{ sessionId?: string; pid?: number; ts?: number }>(newChatPath(storeDir));
+  if (!c || typeof c.sessionId !== 'string' || !c.sessionId || typeof c.pid !== 'number' || typeof c.ts !== 'number') return null;
+  if (now - c.ts < NEW_CHAT_GRACE_MS || !alive(c.pid)) return null;
+  return { sessionId: c.sessionId, ts: c.ts };
+}
+
+function pidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 1) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e: any) {
+    return e?.code === 'EPERM';
+  }
+}
+
 const statePath = (storeDir: string, sessionId: string) => path.join(storeDir, 'steps', safeId(sessionId), 'current.json');
 
 const NO_PROMPT = '(prompt not recorded)';

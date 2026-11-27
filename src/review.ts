@@ -172,7 +172,7 @@ export class ReviewManager implements vscode.Disposable {
   private stamp(): string {
     const parts: string[] = [];
     for (const s of this.stores) {
-      for (const sub of ['baselines', 'activity', 'steps', 'feedback', 'turns', 'chat.json']) {
+      for (const sub of ['baselines', 'activity', 'steps', 'feedback', 'turns', 'chat.json', 'chat-new.json']) {
         try {
           parts.push(String(fs.statSync(path.join(s, sub)).mtimeMs));
         } catch {
@@ -199,10 +199,26 @@ export class ReviewManager implements vscode.Disposable {
     // Stale activity expires on its own.
     if (this.activity.some((a) => Date.now() - a.ts > S.ACTIVITY_STALE_MS)) this.refresh(false);
     if (this.working !== this.computeWorking()) this.refresh(false);
+    // A new chat counts once its process outlived the grace time, and stops counting when it is closed.
+    if (this.shown !== this.computeShown()) this.refresh(false);
   }
 
   /** Claude's turn is running (between the prompt and Stop), like Cursor's agent "generating". */
   working = false;
+
+  /**
+   * The chat on screen, from the hook's notes: the one opened or written to last, or a new chat opened after it
+   * and still open (see S.newChat).
+   */
+  private computeShown(): string | undefined {
+    const global = S.globalStoreDir();
+    let best: { sessionId: string; ts: number } | null = null;
+    for (const s of this.stores) {
+      if (s === global) continue;
+      for (const c of [S.shownChat(s), S.newChat(s)]) if (c && (!best || c.ts > best.ts)) best = c;
+    }
+    return best?.sessionId;
+  }
 
   private computeWorking(): boolean {
     const last = Math.max(0, ...this.stores.map((s) => S.lastTurnActivity(s)));
@@ -216,12 +232,7 @@ export class ReviewManager implements vscode.Disposable {
     for (const s of this.stores) steps.push(...S.loadSteps(s));
     this.steps = steps.sort((a, b) => b.ts - a.ts);
     // The chat opened or written to last in this project (from the hook), also before it changed any file.
-    this.shown = undefined;
-    let shownTs = -1;
-    for (const s of this.stores) {
-      const c = s === global ? null : S.shownChat(s);
-      if (c && c.ts > shownTs) [this.shown, shownTs] = [c.sessionId, c.ts];
-    }
+    this.shown = this.computeShown();
     this.own = M.ownSessions(this.steps, global);
     if (this.shown) this.own.add(this.shown);
     const next = new Map<string, S.Entry>();

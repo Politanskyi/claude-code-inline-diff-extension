@@ -2,7 +2,7 @@
 
 ## 0.3.4
 - Claude Changes: the section title shows how many files wait for Keep / Undo (`CLAUDE CHANGES (3 FILES TO REVIEW)`), also while the list is collapsed. Nothing is added when all is decided. The editor only lets a section change its title once it has been opened in the window, so a list that was never expanded since the window loaded has no count yet (the status bar shows it then).
-- Claude Changes: every chat has its own history, like the file list under each Cursor chat. A new chat starts with an empty list from its first message (before, the previous chat's files stayed until the new chat changed a file); an earlier chat opened from the history shows its own files again. The hook learns that a chat was reopened from a new `SessionStart` entry in `~/.claude/settings.json` (added by itself on update). Hook 1.0.15.
+- Claude Changes: every chat has its own history, like the file list under each Cursor chat. A new chat shows an empty list a few seconds after it is opened (before, the previous chat's files stayed until the new chat changed a file); closing it unused brings the previous chat's files back; an earlier chat opened from the history shows its own files again. The hook learns which chat is open from a new `SessionStart` entry in `~/.claude/settings.json` (added by itself on update). Hook 1.0.16.
 
 ## 0.3.3
 Found while going through the manual checklist live in Cursor 3.32.4:

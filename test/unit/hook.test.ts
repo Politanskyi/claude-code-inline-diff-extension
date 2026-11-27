@@ -46,6 +46,12 @@ describe('hook: Edit / MultiEdit / Write', () => {
     // A startup is not a chat on screen yet: the official extension starts throwaway sessions to read its config.
     expect(handle({ ...base, hook_event_name: 'SessionStart', source: 'startup' } as any, ctx())).toBe('');
     expect(S.shownChat(sb.store)).toBeNull();
+    // It is a new chat only while its process stays, after the grace time.
+    const noted = JSON.parse(fs.readFileSync(path.join(sb.store, 'chat-new.json'), 'utf8'));
+    expect(noted.sessionId).toBe('chat-a');
+    expect(S.newChat(sb.store, noted.ts + 100, () => true)).toBeNull();
+    expect(S.newChat(sb.store, noted.ts + S.NEW_CHAT_GRACE_MS, () => true)?.sessionId).toBe('chat-a');
+    expect(S.newChat(sb.store, noted.ts + S.NEW_CHAT_GRACE_MS, () => false)).toBeNull();
     handle({ ...base, hook_event_name: 'UserPromptSubmit', prompt: 'first' } as any, ctx());
     expect(S.shownChat(sb.store)?.sessionId).toBe('chat-a');
     handle({ cwd: sb.project, session_id: 'chat-b', hook_event_name: 'UserPromptSubmit', prompt: 'hi' } as any, ctx());
