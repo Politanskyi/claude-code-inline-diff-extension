@@ -18,7 +18,7 @@ const builds = [
     sourcemap: false,
     entryPoints: ['src/hook/hook.ts'],
     outfile: 'dist/hook.js',
-    banner: { js: `#!/usr/bin/env node\n// claude-inline-diff hook v${hookVersion} — https://github.com/ (local build). MIT.\n// Safe to delete: run "Claude Inline Diff: Uninstall Claude Code Hook" to remove it cleanly.` },
+    banner: { js: `#!/usr/bin/env node\n// claude-inline-diff hook v${hookVersion} — https://github.com/Politanskyi/claude-code-inline-diff-extension (MIT).\n// Safe to delete: run "Claude Inline Diff: Uninstall Claude Code Hook" to remove it cleanly.` },
   },
   { ...common, sourcemap: false, entryPoints: ['src/uninstall.ts'], outfile: 'dist/uninstall.js' },
 ].filter((b) => fs.existsSync(path.join(root, b.entryPoints[0])));

@@ -1,4 +1,4 @@
-# Claude Inline Diff — notes for Claude sessions
+# Claude Inline Diff
 
 VS Code / Cursor extension (TypeScript) that shows Claude Code's edits (made through the official
 Claude Code extension panel or the CLI) inline in the working file, Cursor-agent style: red removed
@@ -34,7 +34,6 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 
 ## Git
 - Repository: https://github.com/Politanskyi/claude-code-inline-diff-extension, branch `master`.
-- Commit author: `m.politanskyi <politanskiy0072@gmail.com>`.
 
 ## Progress
 | Stage | Status |
@@ -59,12 +58,12 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
 
 ## Verified in Cursor
-- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 14/14.
-  Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, 14/14.
+- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 16/16.
+  Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, all tests pass.
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
 - `contribEditorContentMenu` / `editor/content` exist in Cursor's build (candidate for a floating review bar).
 
-## Cursor-parity pass (from Cursor 3.32 source/CSS, verified with screenshots in the sandbox Cursor)
+## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
   `editor.action.inlineDiffs.*` registrations.
 - Colours: theme diffEditor.inserted/removedLineBackground; words rgba(12,233,27,.15) / rgba(242,13,59,.25); no gutter bar.
@@ -76,4 +75,3 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 ## Next ideas (not started)
 - Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.
 - Optional Stop-hook delivery of feedback; per-session filter in the Changes view; light-theme screenshot.
-- CI has not run yet (repo has no remote in the authoring sandbox).

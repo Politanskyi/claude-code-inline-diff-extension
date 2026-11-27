@@ -307,7 +307,7 @@ Source: https://github.com/broosk1993/claude-code-inline-review (cloned and read
 License is UNLICENSED/private, so **no code was read for reuse or copied**. We take only the publicly described idea: render deleted lines with the proposed `editorInsets` API (`vscode.window.createWebviewTextEditorInset`), enabled with `enabledApiProposals: ["editorInsets"]` plus `argv.json` `"enable-proposed-api"`, and fall back to decorations. Our implementation (`src/insets.ts`) is written from scratch against the VS Code API typings and the behaviour described in §3.1.
 
 ### 5.3 Decisions (summary)
-- Keybindings follow the user's request (Cmd/Ctrl+Y / N per hunk, Cmd/Ctrl+Shift+Y / N per file), active only while the cursor is in a Claude change. Cursor's own documented bulk keys (Cmd+Enter / Cmd+Shift+Backspace, §1.3) are **not** taken over, to avoid clashing with Cursor's agent. An alternative scheme (Ctrl+Alt+Enter / Backspace) is available.
+- Keybindings match Cursor's own (from Cursor 3.32 source): Cmd/Ctrl+Y / N per change, Cmd/Ctrl+Enter / Cmd/Ctrl+Shift+Backspace per file; Cmd/Ctrl+Shift+Y / N also work. All of them are active only while the cursor is in a Claude change (file keys: while the file has Claude changes), so Cursor's agent and normal editing keep their bindings elsewhere. An alternative scheme (Ctrl+Alt+Enter / Backspace) is available.
 - Feedback is delivered on UserPromptSubmit (`additionalContext`), or on Claude's next PostToolUse if it is still working (§2.9). A blocking Stop hook was rejected: it would keep Claude running when the user didn't ask.
 - The hook prints nothing except a JSON `additionalContext` object, and only when feedback is queued.
 
