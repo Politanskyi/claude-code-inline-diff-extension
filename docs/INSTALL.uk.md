@@ -69,9 +69,9 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 
 Що робить команда (✅ unit-тести на тимчасовому `CLAUDE_CONFIG_DIR`):
 - копіює скрипт у `~/.claude/hooks/claude-inline-diff-hook.js`. Якщо задано `CLAUDE_CONFIG_DIR`, скрипт іде туди;
-- додає у `~/.claude/settings.json` три записи:
+- додає у `~/.claude/settings.json` чотири записи:
   - `PreToolUse` і `PostToolUse` з matcher `Edit|MultiEdit|Write|NotebookEdit|Bash`;
-  - `UserPromptSubmit` (без matcher);
+  - `UserPromptSubmit` і `Stop` (без matcher; Stop показує, що Claude закінчив хід). Якщо хук уже встановлено, розширення саме додасть `Stop` під час оновлення;
 - перед зміною робить резервну копію `settings.json.bak-claude-inline-diff-<час>`, зберігає права доступу до файлу й не чіпає чужі хуки;
 - якщо `settings.json` містить невалідний JSON, нічого не змінює й показує помилку.
 
@@ -102,7 +102,7 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 - Коли Claude робить нову правку у відкритому файлі, редактор сам прокручується до неї й на мить підсвічує нові рядки. Поки ваш курсор стоїть у зміні, вигляд не зсувається.
 - **Review All Changes** (у панелі Claude Changes) відкриває всі файли в одному multi-diff, як Review у Cursor 3.
 - У статусбарі є «N files · M changes» зі стрілками ▲ ▼ та індикатор «Claude editing <файл>».
-- Список **Claude Changes** стоїть під чатом Claude Code (як «N Files» під чатом агента Cursor) і з'являється лише тоді, коли є що переглядати (або коли хук не встановлено): угорі **Undo All / Keep All / Review** (коли змінено один файл, просто **Undo / Keep**), рядок файлу з «+N −M», клік відкриває файл, при наведенні **✕** (Undo File) і **✓** (Keep File). Розширення саме ставить його під чат; якщо перенесете деінде, він там і залишиться (повернути: команда *Show Claude Changes Under the Claude Code Chat*). **Claude Steps** показує кроки (один на промпт) з можливістю відкотити крок.
+- Список **Claude Changes** стоїть під чатом Claude Code (як «N Files» під чатом агента Cursor) і з'являється лише тоді, коли є що переглядати (або коли хук не встановлено): угорі «N Files» і завжди видимі **Undo All / Keep All / Review** (коли зміна одна, просто **Undo / Keep**; поки Claude працює, лишається тільки Review; Undo All підтверджується другим кліком через **Confirm**, як у Cursor), рядок файлу з іконкою вашої теми й «+N -M», клік відкриває файл, при наведенні **✕** (Undo File) і **✓** (Keep File). Поки список видно, підсумок у статусбарі не показується. Розширення саме ставить його під чат; якщо перенесете деінде, він там і залишиться (повернути: команда *Show Claude Changes Under the Claude Code Chat*). **Claude Steps** показує кроки (один на промпт) з можливістю відкотити крок.
 - **Claude Inline Diff: Revert Last Keep/Undo** відкочує будь-яку дію рев'ю. Cmd/Ctrl+Z одразу після Keep теж його відкочує.
 - Якщо Cmd+N заважає (наприклад, ви звикли так створювати файл), виставте `"claudeInlineDiff.keybindingScheme": "alt"`. Тоді працюватимуть Cmd/Ctrl+Alt+Enter і Cmd/Ctrl+Alt+Backspace. Утім, Cmd+Y/N і так діють **лише коли курсор усередині зміни Claude**.
 

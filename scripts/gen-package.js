@@ -138,24 +138,11 @@ const menus = {
     { command: 'claudeInlineDiff.showDiff', group: '7_claudeInlineDiff@3', when: 'resourcePath in claudeInlineDiff.files' },
   ],
   'view/title': [
-    // Cursor: "Undo / Keep" for one file, "Undo All / Keep All" for several.
-    { command: 'claudeInlineDiff.undoAllText', group: 'navigation@1', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles' },
-    { command: 'claudeInlineDiff.keepAllText', group: 'navigation@2', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.multipleFiles' },
-    { command: 'claudeInlineDiff.undoOneText', group: 'navigation@1', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles' },
-    { command: 'claudeInlineDiff.keepOneText', group: 'navigation@2', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges && !claudeInlineDiff.multipleFiles' },
-    { command: 'claudeInlineDiff.reviewText', group: 'navigation@3', when: 'view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges' },
     { command: 'claudeInlineDiff.undo', group: '0_history@1', when: 'view == claudeInlineDiff.changes' },
     { command: 'claudeInlineDiff.refresh', group: '1_more@1', when: 'view == claudeInlineDiff.changes || view == claudeInlineDiff.steps' },
     { command: 'claudeInlineDiff.installHooks', group: '1_more@2', when: 'view == claudeInlineDiff.changes' },
   ],
   'view/item/context': [
-    { command: 'claudeInlineDiff.undoFileItem', group: 'inline@1', when: 'view == claudeInlineDiff.changes && viewItem == file' },
-    { command: 'claudeInlineDiff.keepFileItem', group: 'inline@2', when: 'view == claudeInlineDiff.changes && viewItem == file' },
-    { command: 'claudeInlineDiff.showDiff', group: '1_file@1', when: 'view == claudeInlineDiff.changes && viewItem == file' },
-    { command: 'claudeInlineDiff.rejectHunkWithFeedback', group: '1_file@2', when: 'view == claudeInlineDiff.changes && viewItem == hunk' },
-    { command: 'claudeInlineDiff.acceptHunk', group: 'inline@1', when: 'view == claudeInlineDiff.changes && viewItem == hunk' },
-    { command: 'claudeInlineDiff.rejectHunk', group: 'inline@2', when: 'view == claudeInlineDiff.changes && viewItem == hunk' },
-    { command: 'claudeInlineDiff.acceptFile', group: 'inline@1', when: 'view == claudeInlineDiff.changes && viewItem == session' },
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
   ],
   commandPalette: ['openFile', 'revealHunk', 'revertStep', 'refresh', 'keepFileText', 'keepFileTextMac', 'keepFileTextCtrl', 'undoFileText', 'keepAllText', 'undoAllText', 'nextFileText', 'keepAllChangesText', 'undoOneText', 'keepOneText', 'reviewText', 'undoFileItem', 'keepFileItem'].map((c) => ({ command: 'claudeInlineDiff.' + c, when: 'false' })),
@@ -176,7 +163,7 @@ Object.assign(pkg, {
   name: 'claude-inline-diff',
   displayName: 'Claude Inline Diff',
   description: "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
-  version: '0.1.11',
+  version: '0.1.12',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
@@ -199,14 +186,13 @@ Object.assign(pkg, {
       // VS Code moves it to the Explorer if Claude Code is not installed.
       'claude-sidebar-secondary': [
         // Like Cursor's file list under the chat: shown only while there is something to review (or the hook is missing).
-        { id: 'claudeInlineDiff.changes', name: 'Claude Changes', icon: '$(sparkle)', contextualTitle: 'Claude Changes', when: 'claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady' },
+        { type: 'webview', id: 'claudeInlineDiff.changes', name: 'Claude Changes', icon: '$(sparkle)', contextualTitle: 'Claude Changes', when: 'claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady' },
       ],
       scm: [
         { id: 'claudeInlineDiff.steps', name: 'Claude Steps', icon: '$(history)', contextualTitle: 'Claude Steps', visibility: 'collapsed' },
       ],
     },
     viewsWelcome: [
-      { view: 'claudeInlineDiff.changes', when: '!claudeInlineDiff.hookReady', contents: 'Claude Inline Diff needs a small Claude Code hook to see Claude\'s edits.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)' },
       { view: 'claudeInlineDiff.steps', contents: 'Claude steps (one per prompt) appear here; revert any step and everything after it.' },
     ],
   },

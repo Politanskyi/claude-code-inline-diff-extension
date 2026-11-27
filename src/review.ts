@@ -127,7 +127,7 @@ export class ReviewManager implements vscode.Disposable {
   private stamp(): string {
     const parts: string[] = [];
     for (const s of this.stores) {
-      for (const sub of ['baselines', 'activity', 'steps', 'feedback']) {
+      for (const sub of ['baselines', 'activity', 'steps', 'feedback', 'turns']) {
         try {
           parts.push(String(fs.statSync(path.join(s, sub)).mtimeMs));
         } catch {
@@ -153,6 +153,15 @@ export class ReviewManager implements vscode.Disposable {
     if (st !== this.storeStamp) this.refresh(false);
     // Stale activity expires on its own.
     if (this.activity.some((a) => Date.now() - a.ts > 120_000)) this.refresh(false);
+    if (this.working !== this.computeWorking()) this.refresh(false);
+  }
+
+  /** Claude's turn is running (between the prompt and Stop), like Cursor's agent "generating". */
+  working = false;
+
+  private computeWorking(): boolean {
+    const last = Math.max(0, ...this.stores.map((s) => S.lastTurnActivity(s)));
+    return last > 0 && Date.now() - last < S.TURN_STALE_MS;
   }
 
   refresh(recomputeStores: boolean): void {
@@ -175,6 +184,7 @@ export class ReviewManager implements vscode.Disposable {
       }
     }
     this.entries = next;
+    this.working = this.computeWorking();
     const acts: S.Activity[] = [];
     for (const s of this.stores) acts.push(...S.loadActivity(s));
     const actChanged = JSON.stringify(acts) !== JSON.stringify(this.activity);
@@ -491,10 +501,13 @@ export class ReviewManager implements vscode.Disposable {
     if (this.history.length > HISTORY_LIMIT) this.history.shift();
   }
 
-  /** True when the newest action is an accept on this document and the doc was not edited since. */
+  /**
+   * True when the newest action is a Keep or an Undo on this document and the doc was not edited since:
+   * Cmd/Ctrl+Z then reverts that action (the change comes back for review), not just the text.
+   */
   canNativeUndoMeanAccept(key: string): boolean {
     const top = this.history[this.history.length - 1];
-    if (!top || top.kind !== 'accept' || !top.files.some((f) => f.key === key)) return false;
+    if (!top || (top.kind !== 'accept' && top.kind !== 'reject') || !top.files.some((f) => f.key === key)) return false;
     const d = this.openDoc(key);
     return !!d && top.docVersions.get(key) === d.version;
   }

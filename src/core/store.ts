@@ -384,6 +384,40 @@ export function removeEntry(e: Entry): void {
   rm(e.jsonPath.replace(/\.json$/, '.landed'));
 }
 
+// ---------- turns (Claude is working) ----------
+
+/** A Claude turn in progress: set on the prompt, refreshed by every tool call, cleared by Stop. */
+export const TURN_STALE_MS = 180_000; // Stop does not fire when the user interrupts Claude: a quiet turn expires
+const turnPath = (storeDir: string, sessionId: string) => path.join(storeDir, 'turns', safeId(sessionId) + '.json');
+
+export function markTurn(storeDir: string, sessionId: string, now = Date.now()): void {
+  try {
+    fs.mkdirSync(path.join(storeDir, 'turns'), { recursive: true });
+    writeJsonAtomic(turnPath(storeDir, sessionId), { sessionId, ts: now });
+  } catch {
+    /* best effort */
+  }
+}
+
+export function endTurn(storeDir: string, sessionId: string): void {
+  rm(turnPath(storeDir, sessionId));
+}
+
+/** Newest turn activity (ms) of any session in this store, or 0. */
+export function lastTurnActivity(storeDir: string): number {
+  const dir = path.join(storeDir, 'turns');
+  let best = 0;
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const t = readJson<{ ts: number }>(path.join(dir, f));
+      if (t && typeof t.ts === 'number' && t.ts > best) best = t.ts;
+    }
+  } catch {
+    /* none */
+  }
+  return best;
+}
+
 // ---------- activity ----------
 
 const activityPath = (storeDir: string, abs: string) => path.join(storeDir, 'activity', fileNameFor(abs) + '.json');

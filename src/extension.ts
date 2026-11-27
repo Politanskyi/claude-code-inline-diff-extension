@@ -13,7 +13,7 @@ import { chatContainer } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
-import { StatusBar, Badges, Lenses, ChangesTree, StepsTree, refFromNode, keysFromNode } from './views';
+import { StatusBar, Badges, Lenses, ChangesPanel, StepsTree, refFromNode, keysFromNode } from './views';
 import { resetPalette } from './theme';
 
 export const EXTENSION_ID = 'inlinediff.claude-inline-diff';
@@ -21,6 +21,7 @@ const BASE_SCHEME = 'claude-inline-diff-base';
 
 let review: ReviewManager;
 let renderer: Renderer;
+let changesPanel: ChangesPanel | undefined;
 let log: vscode.LogOutputChannel;
 let ctx: vscode.ExtensionContext;
 const contextCache = new Map<string, unknown>();
@@ -60,19 +61,20 @@ export function activate(context: vscode.ExtensionContext): Api {
     log
   );
   renderer = new Renderer(review, insets, log);
+  changesPanel = new ChangesPanel(review);
   context.subscriptions.push(
     log,
     review,
     renderer,
     insets,
-    new StatusBar(review),
+    changesPanel,
+    new StatusBar(review, changesPanel),
     new Badges(review),
     new Lenses(
       review,
       () => renderer.useInsets(),
       () => renderer.useToolbars()
     ),
-    new ChangesTree(review),
     new StepsTree(review),
     vscode.workspace.registerTextDocumentContentProvider(BASE_SCHEME, {
       provideTextDocumentContent: (uri) => review.entries.get(new URLSearchParams(uri.query).get('k') || '')?.content ?? '',
@@ -369,6 +371,7 @@ const bundledHook = () => path.join(ctx.extensionPath, 'dist', 'hook.js');
 function updateHookContext(): void {
   const st = setup.status(bundledHook());
   setContext('claudeInlineDiff.hookReady', st.configured && st.scriptInstalled);
+  changesPanel?.setHookReady(st.configured && st.scriptInstalled);
 }
 
 async function installHooks(): Promise<void> {
@@ -631,10 +634,12 @@ async function firstRunChecks(): Promise<void> {
   void checkShortcutConflicts();
   void placeChangesView(false);
   const st = setup.status(bundledHook());
-  if (st.scriptInstalled && st.configured && st.installedVersion !== st.bundledVersion) {
+  // Our own script is outdated, or a newer version wires an extra event (e.g. Stop): update silently.
+  if (st.scriptInstalled && (st.configured || st.partial) && (st.installedVersion !== st.bundledVersion || !st.configured)) {
     try {
       setup.install({ bundled: bundledHook(), nodeOnPath: nodeOnPath(), execPath: process.execPath }); // silent self-update of our own script
       log.info('hook script updated to v' + st.bundledVersion);
+      updateHookContext();
     } catch (e: any) {
       log.warn('hook update failed: ' + e.message);
     }
@@ -699,10 +704,11 @@ function registerCommands(context: vscode.ExtensionContext): void {
         4000
       );
   });
-  reg('rejectAll', async () => {
+  // 'confirmed': the Claude Changes list already asked (a second click on Undo All, like Cursor).
+  reg('rejectAll', async (arg?: unknown) => {
     const keys = review.pendingKeys();
     if (!keys.length) return;
-    if (cfg('confirmRejectAll', true)) {
+    if (arg !== 'confirmed' && cfg('confirmRejectAll', true)) {
       const created = keys.filter((k) => review.rejectDeletesFile(k, true)).length;
       const ok = await vscode.window.showWarningMessage(
         `Undo all Claude changes in ${M.plural(keys.length, 'file')}?${created ? ` ${M.plural(created, 'file')} Claude created will be moved to the trash.` : ''} You can revert this.`,

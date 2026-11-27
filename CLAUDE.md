@@ -18,10 +18,10 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `src/core/` — no `vscode` import, unit-tested: `diff.ts` (Myers + word diff, ported MIT), `model.ts`
   (accept/reject/absorb math), `store.ts` (on-disk format shared by hook and extension), `setup.ts`
   (settings.json install/uninstall), `highlight.ts` (tiny tokenizer for removed code)
-- `src/hook/hook.ts` — Claude Code hook (PreToolUse/PostToolUse/UserPromptSubmit), bundled standalone
+- `src/hook/hook.ts` — Claude Code hook (PreToolUse/PostToolUse/UserPromptSubmit/Stop), bundled standalone; `turns/` markers = Claude is working (Stop does not fire on user interrupt, so a quiet turn expires after 3 min)
 - `src/review.ts` — ReviewManager (state, actions, undo, absorbing user edits)
 - `src/render.ts`, `src/insets.ts`, `src/theme.ts` — decorations, editorInsets webviews, theme colours
-- `src/views.ts` — status bar, file badges, Claude Changes / Claude Steps trees, CodeLens
+- `src/views.ts` — status bar, file badges, Claude Changes list (webview, Cursor-style; icons via `src/core/iconTheme.ts`), Claude Steps tree, CodeLens
 - `src/extension.ts` — activation and commands
 - `docs/` — RESEARCH.md, INSTALL.uk.md, MANUAL_TESTING.uk.md
 

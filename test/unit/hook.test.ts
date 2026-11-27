@@ -302,3 +302,17 @@ describe('hook: edit regions', () => {
     expect(fs.readdirSync(path.join(sb.store, 'before'))).toEqual([]); // taken at PostToolUse
   });
 });
+
+describe('hook: Claude turn (UserPromptSubmit … Stop)', () => {
+  it('marks the turn on the prompt and on tool calls, clears it on Stop', () => {
+    const store = path.join(sb.project, '.claude-review');
+    handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'UserPromptSubmit', prompt: 'go' }, ctx());
+    const t1 = S.lastTurnActivity(store);
+    expect(t1).toBeGreaterThan(0);
+    sb.write('a.ts', 'v1');
+    claudeEdit('a.ts', 'v2');
+    expect(S.lastTurnActivity(store)).toBeGreaterThan(t1);
+    handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'Stop' }, ctx());
+    expect(S.lastTurnActivity(store)).toBe(0);
+  });
+});

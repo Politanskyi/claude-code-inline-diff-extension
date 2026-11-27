@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.12
+- Claude Changes list redrawn like Cursor's (webview): "N Files", always-visible Undo All / Keep All / Review, Undo All confirmed by a second click, file icons from the icon theme, +N -M after the name.
+- Undo All / Keep All hidden while Claude works (new `Stop` hook; existing installs get it on update).
+- Status bar summary hidden while the list is visible.
+- Cmd/Ctrl+Z right after Undo brings the change back for review (it used to become your own edit).
+
 ## 0.1.11
 - File bar: "Keep File ⌘⏎" (Ctrl+Enter off macOS) like Cursor's, and only in the active editor.
 

@@ -5,6 +5,7 @@
 //   PreToolUse  (Edit|MultiEdit|Write|NotebookEdit|Bash) — snapshot files before Claude changes them
 //   PostToolUse (same)   — mark the write as landed, detect Bash edits, deliver feedback
 //   UserPromptSubmit     — start a new "step" and deliver pending reject feedback
+//   Stop                 — Claude's turn ended (the review list offers Undo All / Keep All again)
 // It never blocks a tool call: every error is swallowed and it always exits 0.
 // No network access, no telemetry.
 import * as fs from 'fs';
@@ -14,7 +15,7 @@ import * as S from '../core/store';
 import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 
-export const HOOK_VERSION = '1.0.2';
+export const HOOK_VERSION = '1.0.3';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -60,13 +61,20 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
   const event = data.hook_event_name;
   const session = data.session_id || 'unknown';
 
+  const projectStore = () => S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
+  if (event === 'Stop') {
+    S.endTurn(projectStore(), session);
+    return '';
+  }
   if (event === 'UserPromptSubmit') {
-    const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
+    const store = projectStore();
+    S.markTurn(store, session, ctx.now());
     S.beginStep(store, session, typeof data.prompt === 'string' ? data.prompt : '', ctx.now());
     housekeeping(store, ctx.now(), ctx.env);
     return feedbackOutput('UserPromptSubmit', data, root, cfg, ctx);
   }
 
+  if (event === 'PreToolUse' || event === 'PostToolUse') S.markTurn(projectStore(), session, ctx.now());
   if (data.tool_name === 'Bash') {
     if (!cfg.trackBash) return '';
     if (event === 'PreToolUse') bashBefore(data, root, cfg, ctx);

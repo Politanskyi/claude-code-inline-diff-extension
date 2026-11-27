@@ -39,7 +39,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
 | ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
-| ✅ | **Claude Changes** list under the Claude Code chat (like the file list under Cursor's agent chat): **Undo All / Keep All / Review**, one row per file with +added −removed, ✕ / ✓ on hover, click to open; hidden while there is nothing to review | manual in Cursor 3.32 |
+| ✅ | **Claude Changes** list under the Claude Code chat, drawn like the file list under Cursor's agent chat: "N Files" with always-visible **Undo All / Keep All / Review** (Undo / Keep for a single change; only Review while Claude is working, from the `Stop` hook; Undo All asks for a second click, *Confirm*), one row per file with the icon-theme icon and +added -removed, ✕ / ✓ on hover, click to open; hidden while there is nothing to review; the status bar summary hides while the list is visible | manual in Cursor 3.32 |
 | ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
 | ✅ | **Undo with feedback** (the `…` button): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
@@ -54,7 +54,8 @@ Claude Code (panel or CLI)                               Cursor / VS Code
  ├─ PreToolUse  Edit|MultiEdit|Write|NotebookEdit|Bash ─► hook saves the file as it was ("baseline")
  ├─ (tool writes the file)                                       │
  ├─ PostToolUse ──────────────────────────────────────► marks it landed; Bash: git before/after
- └─ UserPromptSubmit ─────────────────────────────────► new "step"; delivers reject feedback
+ ├─ UserPromptSubmit ─────────────────────────────────► new "step"; delivers reject feedback
+ └─ Stop ─────────────────────────────────────────────► turn over: Undo All / Keep All come back
                                                                  ▼
                                    extension diffs baseline ↔ file and draws the review inline
 ```

@@ -47,7 +47,10 @@ describe('install', () => {
     expect(s.model).toBe('opus');
     expect(s.env).toEqual({ SECRET: 'x' });
     expect(s.hooks.PreToolUse[0].hooks[0].command).toBe('my-linter.sh');
-    expect(s.hooks.Stop).toEqual(FOREIGN.hooks.Stop);
+    // The user's Stop hook stays first and untouched; ours is added after it.
+    expect(s.hooks.Stop[0]).toEqual(FOREIGN.hooks.Stop[0]);
+    expect(s.hooks.Stop).toHaveLength(2);
+    expect(s.hooks.Stop[1].hooks[0].command).toContain('claude-inline-diff-hook.js');
     expect(s.hooks.PreToolUse).toHaveLength(2);
     const backup = done.find((d) => d.startsWith('backup'))!.split('→ ')[1];
     expect(JSON.parse(fs.readFileSync(backup, 'utf8'))).toEqual(FOREIGN);

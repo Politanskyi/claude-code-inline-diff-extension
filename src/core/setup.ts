@@ -14,7 +14,7 @@ import { claudeDir, globalDir, HOOK_FILE, HOOK_MARKER, readJson, writeJsonAtomic
 
 export const TOOL_MATCHER = 'Edit|MultiEdit|Write|NotebookEdit|Bash';
 export const TOOL_EVENTS = ['PreToolUse', 'PostToolUse'] as const;
-export const PROMPT_EVENTS = ['UserPromptSubmit'] as const;
+export const PROMPT_EVENTS = ['UserPromptSubmit', 'Stop'] as const;
 export const ALL_EVENTS = [...TOOL_EVENTS, ...PROMPT_EVENTS];
 
 export const hookPath = (dir = claudeDir()) => path.join(dir, 'hooks', HOOK_FILE);
