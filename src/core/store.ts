@@ -157,16 +157,27 @@ export function safeId(s: string | undefined): string {
   return (s || 'unknown').replace(/[^\w-]/g, '_').slice(0, 80) || 'unknown';
 }
 
+/**
+ * Canonical path: symlinks and Windows 8.3 names resolved. For a path that does
+ * not exist yet (Claude writing src/new/file.ts), the nearest existing ancestor
+ * is resolved and the missing segments are appended.
+ */
 export function realPath(p: string): string {
-  try {
-    return fs.realpathSync.native(p);
-  } catch {
+  const abs = path.resolve(p);
+  const missing: string[] = [];
+  let cur = abs;
+  for (let i = 0; i < 256; i++) {
     try {
-      return path.join(fs.realpathSync.native(path.dirname(p)), path.basename(p));
+      const real = fs.realpathSync.native(cur);
+      return missing.length ? path.join(real, ...missing.reverse()) : real;
     } catch {
-      return p;
+      const up = path.dirname(cur);
+      if (up === cur) return abs;
+      missing.push(path.basename(cur));
+      cur = up;
     }
   }
+  return abs;
 }
 
 export function keyOf(p: string): string {

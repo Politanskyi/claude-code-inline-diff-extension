@@ -51,6 +51,13 @@ describe('store', () => {
     expect(S.readConfig(sb.env)).toEqual({ storage: 'home', dirName: '.claude-review', trackBash: false });
   });
 
+  it('realPath resolves the existing part of a not-yet-created path', () => {
+    if (process.platform === 'win32') return;
+    const link = path.join(sb.root, 'lnk');
+    fs.symlinkSync(sb.project, link);
+    expect(S.realPath(path.join(link, 'new', 'deep', 'f.ts'))).toBe(path.join(sb.project, 'new', 'deep', 'f.ts'));
+  });
+
   it('long paths get hashed file names', () => {
     expect(S.fileNameFor('/' + 'x'.repeat(400))).toMatch(/^h-[0-9a-f]{64}$/);
   });

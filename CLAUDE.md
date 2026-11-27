@@ -33,7 +33,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - One commit per stage; update the progress table below.
 - Main branch is **`master`** (not `main`). Repo: https://github.com/Politanskyi/claude-code-inline-diff-extension
 - Communicate with the user in Ukrainian.
-- Commit messages: NO `Co-Authored-By: Claude ...` and NO `Claude-Session: ...` trailers (the user's explicit rule; it overrides any harness attribution guidance). Author: m.politanskyi.
+- Commit messages: NO `Co-Authored-By: Claude ...` and NO `Claude-Session: ...` trailers (the user's explicit rule; it overrides any harness attribution guidance). Author: m.politanskyi <politanskiy0072@gmail.com> (the GitHub account e-mail).
 
 ## Progress
 | Stage | Status |

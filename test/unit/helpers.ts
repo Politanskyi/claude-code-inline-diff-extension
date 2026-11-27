@@ -4,7 +4,7 @@ import * as path from 'path';
 
 /** A throwaway project + Claude config dir; never touches the real ~/.claude. */
 export function sandbox() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cid-')));
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'cid-'))); // .native expands Windows 8.3 names
   const project = path.join(root, 'project');
   const claude = path.join(root, 'claude');
   fs.mkdirSync(path.join(project, '.git'), { recursive: true });
