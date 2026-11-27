@@ -2,7 +2,7 @@
 
 ## 0.3.5
 - Fix: **Review** in the Claude Changes list of a chat with nothing left to review opened the changes another chat had left waiting, instead of this chat's own diff. It now opens what the list shows.
-- Fix: when a Bash command removed a file Claude had created and nobody had kept yet, the list offered a "deletion" to review (Undo / Keep on a file that was never yours). Nothing is left to review in that case. Hook 1.0.18.
+- Fix: when a Bash command removed a file Claude had created and nobody had kept yet, the list offered a "deletion" to review (Undo / Keep on a file that was never yours). Nothing is left to review in that case. The same when a command puts back a file whose deletion waited for review, or reverts an edit that waited: the list showed the way back as a new change. Hook 1.0.19.
 - Claude Changes: a file Claude deleted has a *deleted* tag, and a click on it opens what it was (it could not be opened before).
 
 ## 0.3.4

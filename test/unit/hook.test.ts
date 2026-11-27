@@ -351,6 +351,28 @@ describe.skipIf(!hasGit)('hook: Bash edits via git', () => {
     expect(S.loadEntries(sb.store).map((e) => path.basename(e.path))).toEqual([]);
   });
 
+  it('offers nothing when a command restores a file whose deletion waits for review', () => {
+    sb.write('old.txt', 'was here\n');
+    const old = path.join(sb.project, 'old.txt');
+    bash(() => fs.rmSync(old));
+    expect(S.loadEntries(sb.store).map((e) => path.basename(e.path))).toEqual(['old.txt']);
+    bash(() => {
+      sb.write('old.txt', 'was here\n');
+      // The window drops the review once the file is back to what it was.
+      for (const e of S.loadEntries(sb.store)) fs.rmSync(e.jsonPath);
+    });
+    expect(S.loadEntries(sb.store)).toEqual([]);
+  });
+
+  it('offers nothing when a command reverts an edit that waits for review', () => {
+    claudeEdit('tracked.txt', 'by claude\n');
+    bash(() => {
+      sb.write('tracked.txt', 'clean\n');
+      for (const e of S.loadEntries(sb.store)) fs.rmSync(e.jsonPath);
+    });
+    expect(S.loadEntries(sb.store)).toEqual([]);
+  });
+
   it('detects tracked, dirty, new and deleted files changed by a command', () => {
     expect(dirtyFiles(sb.project)).toEqual(['dirty.txt']);
     bash(() => {

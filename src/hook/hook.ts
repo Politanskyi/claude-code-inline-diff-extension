@@ -17,7 +17,7 @@ import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 import { commandDirs } from '../core/bashDirs';
 
-export const HOOK_VERSION = '1.0.18';
+export const HOOK_VERSION = '1.0.19';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -150,9 +150,11 @@ function recordRegions(store: string, abs: string): void {
 
 // ---------- Bash: compare git's view of dirty files before and after ----------
 
+type FileState = { existed: boolean; content: string };
 interface RepoSnapshot {
   root: string;
-  files: Record<string, { existed: boolean; content: string | null }>;
+  /** `base`: what the file was before Claude, when it waited for review as the command started. */
+  files: Record<string, { existed: boolean; content: string | null; base?: FileState }>;
 }
 interface DirtySnapshot extends RepoSnapshot {
   sessionId?: string;
@@ -226,32 +228,41 @@ export function otherRepos(data: HookInput, root: string, ctx: HookContext): str
   return out;
 }
 
-function snapRepo(root: string, cfg: S.SharedConfig, createdByClaude: (abs: string) => boolean): RepoSnapshot | null {
+function snapRepo(root: string, cfg: S.SharedConfig, pending: Map<string, FileState>): RepoSnapshot | null {
   const files = dirtyFiles(root, cfg.dirName);
   if (!files) return null;
   const snap: RepoSnapshot = { root, files: {} };
   let total = 0;
   for (const rel of files.slice(0, BASH_MAX_FILES)) {
-    // A file Claude created that still waits for review did not exist "before Claude": if the command deletes
-    // it (and the window drops its review meanwhile), that is no deletion to review; nothing is left of it.
-    if (createdByClaude(S.realPath(path.join(root, rel)))) {
-      snap.files[rel] = { existed: false, content: '' };
-      continue;
-    }
     const r = S.readTextForBaseline(path.join(root, rel));
     if (r && total + r.content.length <= BASH_MAX_TOTAL) {
       total += r.content.length;
       snap.files[rel] = r;
     } else snap.files[rel] = { existed: true, content: null }; // too big/binary: can't review it
   }
+  // Files that wait for review as the command starts. If the command puts one back to what it was before Claude
+  // (deletes a file Claude created, restores one Claude deleted, reverts an edit), the window drops its review
+  // while the command still runs; without this note the change back would then look like a new change.
+  const top = S.realPath(root);
+  for (const [abs, base] of pending) {
+    const rel = path.relative(top, abs);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue;
+    const key = rel.replace(/\\/g, '/');
+    const cur = snap.files[key] ?? (fs.existsSync(abs) ? null : { existed: false, content: '' });
+    if (cur) snap.files[key] = { ...cur, base };
+  }
   return snap;
 }
 
 function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
   const others = otherRepos(data, root, ctx);
-  const createdByClaude = (abs: string) =>
-    S.readJson<{ existed?: boolean }>(S.baselinePath(S.storeDirFor(abs, root, cfg, ctx.env), abs))?.existed === false;
-  const own = snapRepo(root, cfg, createdByClaude);
+  const pendingOf = (repo: string) => {
+    const out = new Map<string, FileState>();
+    for (const e of S.loadEntries(S.storeDirFor(path.join(repo, 'x'), root, cfg, ctx.env)))
+      out.set(S.realPath(e.path), { existed: e.existed, content: e.content });
+    return out;
+  };
+  const own = snapRepo(root, cfg, pendingOf(root));
   if (!own && !others.length) return;
   const snap: DirtySnapshot = { ...(own ?? { root, files: {} }), sessionId: data.session_id, ts: ctx.now() };
   const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
@@ -260,7 +271,7 @@ function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hoo
   // The project's snapshot is on disk before the other repositories are looked at: a slow one must not cost it.
   if (own) S.writeJsonAtomic(file, snap);
   if (!others.length) return;
-  snap.more = others.map((r) => snapRepo(r, cfg, createdByClaude)).filter((r): r is RepoSnapshot => !!r);
+  snap.more = others.map((r) => snapRepo(r, cfg, pendingOf(r))).filter((r): r is RepoSnapshot => !!r);
   if (own || snap.more.length) S.writeJsonAtomic(file, snap);
 }
 
@@ -332,6 +343,8 @@ function bashRepoAfter(
     const after = S.readTextForBaseline(abs);
     if (!after) continue;
     if (after.existed === before.existed && after.content === before.content) continue;
+    // Back to what it was before Claude (its review is gone meanwhile): nothing is left to review.
+    if (pre?.base && after.existed === pre.base.existed && (!after.existed || after.content === pre.base.content)) continue;
     S.recordStepFile(fileStore, data.session_id || 'unknown', abs, before, ctx.now());
     S.createBaseline(fileStore, {
       version: 3,
