@@ -362,7 +362,7 @@ export class ReviewManager implements vscode.Disposable {
 
   /** Steps of this window's own chats that changed a file (the Claude Steps list). */
   ownSteps(): S.Step[] {
-    return this.steps.filter((s) => this.own.has(s.sessionId) && s.files.length > 0);
+    return M.mergeSteps(this.steps.filter((s) => this.own.has(s.sessionId) && s.files.length > 0));
   }
 
   /**

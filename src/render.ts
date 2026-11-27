@@ -241,16 +241,17 @@ export class Renderer implements vscode.Disposable {
         return;
       }
       if (!h.aLines.length || heavy) return;
+      // The hover sits on the whole-line rule only: it covers the hint too, and a second copy showed it twice.
       {
         const hover = this.hoverFor(h, doc.languageId, ref);
         const n = h.aLines.length;
         const hintText = `−${n} line${n === 1 ? '' : 's'} removed (hover to see)`;
         if (h.bStart <= last) {
           above.push({ range: new vscode.Range(h.bStart, 0, h.bStart, 0), hoverMessage: hover });
-          hints.push({ range: lineEnd(doc, h.bStart), hoverMessage: hover, renderOptions: { after: { contentText: hintText } } });
+          hints.push({ range: lineEnd(doc, h.bStart), renderOptions: { after: { contentText: hintText } } });
         } else {
           below.push({ range: new vscode.Range(last, 0, last, 0), hoverMessage: hover });
-          hints.push({ range: lineEnd(doc, last), hoverMessage: hover, renderOptions: { after: { contentText: hintText } } });
+          hints.push({ range: lineEnd(doc, last), renderOptions: { after: { contentText: hintText } } });
         }
       }
     });

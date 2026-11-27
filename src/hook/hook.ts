@@ -17,7 +17,7 @@ import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 import { commandDirs } from '../core/bashDirs';
 
-export const HOOK_VERSION = '1.0.10';
+export const HOOK_VERSION = '1.0.12';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -72,7 +72,11 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
   if (event === 'UserPromptSubmit') {
     const store = projectStore();
     S.markTurn(store, session, ctx.now());
-    S.beginStep(store, session, typeof data.prompt === 'string' ? data.prompt : '', ctx.now());
+    const prompt = typeof data.prompt === 'string' ? data.prompt : '';
+    const turnId = S.beginStep(store, session, prompt, ctx.now());
+    // Files outside the project (global store) belong to the same step.
+    const global = S.globalStoreDir(ctx.env);
+    if (path.resolve(global) !== path.resolve(store)) S.shareStep(global, session, turnId, prompt);
     housekeeping(store, ctx.now(), cfg, ctx.env);
     return feedbackOutput('UserPromptSubmit', data, root, cfg, ctx);
   }
@@ -256,7 +260,10 @@ function latestSnapshotOfSession(store: string, sessionId: string | undefined): 
 function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
   const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
   let snapFile = bashSnapPath(store, data);
-  if (!fs.existsSync(snapFile)) snapFile = latestSnapshotOfSession(store, data.session_id) || snapFile; // ids should match; be lenient
+  // Without a tool_use_id (old payloads) the Pre/Post pair is matched by the session's newest snapshot. With an id, a
+  // missing snapshot means none was taken (Bash tracking was off, or the Pre hook failed): comparing with another
+  // command's old snapshot would credit Claude with everything changed since then.
+  if (!fs.existsSync(snapFile) && !data.tool_use_id) snapFile = latestSnapshotOfSession(store, data.session_id) || snapFile;
   const snap = S.readJson<DirtySnapshot>(snapFile);
   try {
     fs.unlinkSync(snapFile);

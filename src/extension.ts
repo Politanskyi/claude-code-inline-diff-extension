@@ -330,8 +330,9 @@ function followClaude(): void {
     const prev = knownHunks.get(key);
     const now = new Set(hunks.map(sig));
     knownHunks.set(key, now);
-    if (!prev || !cfg('followClaude', false) || !review.claudeJustWrote(key)) continue;
-    const fresh = hunks.filter((h) => !prev.has(sig(h)));
+    // A file that was not under review yet (Claude's first edit to it) counts too: every change in it is new.
+    if (!cfg('followClaude', false) || !review.claudeJustWrote(key)) continue;
+    const fresh = hunks.filter((h) => !prev?.has(sig(h)));
     if (!fresh.length) continue;
     const ed = editorFor(key);
     if (!ed) continue;
@@ -1012,16 +1013,23 @@ function registerCommands(context: vscode.ExtensionContext): void {
       `${path.basename(e.path)} (before Claude ↔ now)`
     );
   });
-  // Text-only twins used by the editor title bar and the floating bar.
+  // Text-only twins used by the editor title bar and the floating bar. A click there takes the focus out of the
+  // text, so Cmd/Ctrl+Z right after it would be the editor's own undo (Claude's text back, unsaved and unreviewed)
+  // instead of Revert Last Keep/Undo: the focus goes back to the editor once the action is done.
   const forward =
     (id: string) =>
-    (...a: any[]) =>
-      vscode.commands.executeCommand('claudeInlineDiff.' + id, ...a.filter((x) => x instanceof vscode.Uri));
+    async (...a: any[]) => {
+      await vscode.commands.executeCommand('claudeInlineDiff.' + id, ...a.filter((x) => x instanceof vscode.Uri));
+      if (vscode.window.activeTextEditor) await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+    };
   reg('keepFileText', forward('acceptFile'));
   reg('keepFileTextMac', forward('acceptFile'));
   reg('keepFileTextCtrl', forward('acceptFile'));
   reg('undoFileText', forward('rejectFile'));
-  reg('keepAllChangesText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
+  reg('keepAllChangesText', async () => {
+    await vscode.commands.executeCommand('claudeInlineDiff.acceptAll');
+    if (vscode.window.activeTextEditor) await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+  });
   reg('nextFileText', () => navigateFile(1));
   reg('placeChangesView', () => placeChangesView(true));
   reg('showChangesList', () => changesPanel?.show());

@@ -192,6 +192,20 @@ export function ownSessions(steps: { sessionId: string; storeDir: string }[], gl
   return new Set(steps.filter((s) => s.storeDir !== globalStore).map((s) => s.sessionId));
 }
 
+/**
+ * One row per prompt: a prompt that changed files in the project and outside it has a step in each store (same
+ * session and turn id); the list shows them as one. Order is kept.
+ */
+export function mergeSteps<T extends { sessionId: string; turnId: string; files: unknown[] }>(steps: T[]): T[] {
+  const out = new Map<string, T>();
+  for (const s of steps) {
+    const k = s.sessionId + '\u0000' + s.turnId;
+    const prev = out.get(k);
+    out.set(k, prev ? { ...prev, files: [...prev.files, ...s.files] } : s);
+  }
+  return [...out.values()];
+}
+
 /** The own chat that got the most recent prompt (`steps` newest first); a new chat starts a new history. */
 export function currentSession(steps: { sessionId: string; storeDir: string }[], globalStore: string): string | undefined {
   return steps.find((s) => s.storeDir !== globalStore)?.sessionId;

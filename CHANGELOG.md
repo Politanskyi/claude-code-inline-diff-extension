@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+Found while going through the manual checklist live in Cursor 3.32.4:
+- Fix: after a click on the floating **Undo File / Keep File** (or Keep all changes), Cmd/Ctrl+Z was the editor's own undo — Claude's text came back unsaved and no longer under review — because the click had taken the focus out of the text. The focus now goes back to the editor, so Cmd/Ctrl+Z takes the action back as after the keys.
+- Fix: with red blocks off (`deletedLines.renderer: decoration`), hovering a change showed the removed code twice.
+- Fix: `followClaude` did nothing for Claude's first edit to a file that was not under review yet.
+- Claude Steps: a step is named by what you typed, without the IDE context Claude Code adds in front of it (`<ide_opened_file>…`). Files outside the project join the step of their prompt (same name, reverted with it) instead of one "(prompt not recorded)" step — one row in the list for both — and so do edits Claude makes after you reverted the step.
+- Fix: when Bash tracking was switched on while a command ran (or the hook before a command failed), the command was compared with an older command's snapshot, so anything changed in between (for example by Cursor's agent) was shown as Claude's. Hook 1.0.12.
+
 ## 0.3.2
 - Wording: the last places that still said Accept / Reject now say Keep / Undo, like the rest of the interface (the "Undid: …" status message after *Revert Last Keep/Undo*, setting descriptions).
 - The description of `confirmRejectAll` says what it does: it covers the Undo All command and shortcut; the list's Undo All always asks with its own Confirm click.

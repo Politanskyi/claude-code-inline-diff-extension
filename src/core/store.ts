@@ -561,20 +561,58 @@ export function loadActivity(storeDir: string, maxAgeMs = ACTIVITY_STALE_MS, now
 
 const statePath = (storeDir: string, sessionId: string) => path.join(storeDir, 'steps', safeId(sessionId), 'current.json');
 
+const NO_PROMPT = '(prompt not recorded)';
+
+/**
+ * The prompt as the user typed it: Claude Code's IDE integration prepends context in tags
+ * (`<ide_opened_file>…</ide_opened_file>`, `<ide_selection>…`), which is not what the step should be called.
+ */
+export function cleanPrompt(prompt: string): string {
+  const text = prompt.replace(/<(ide_[a-z_]+|system-reminder)>[\s\S]*?<\/\1>/g, '').trim();
+  return (text || prompt.trim()).slice(0, 300);
+}
+
+const turnIdOf = (now: number) => 't' + now.toString().padStart(14, '0');
+const tsOfTurn = (turnId: string) => {
+  const n = Number(turnId.slice(1));
+  return Number.isFinite(n) ? n : Date.now();
+};
+
+function writeStepMeta(storeDir: string, sessionId: string, turnId: string, prompt: string): void {
+  const dir = path.join(storeDir, 'steps', safeId(sessionId), turnId);
+  writeJsonAtomic(path.join(dir, 'meta.json'), { sessionId, turnId, ts: tsOfTurn(turnId), prompt } satisfies StepMeta);
+}
+
 /** UserPromptSubmit: open a new step for the session. */
 export function beginStep(storeDir: string, sessionId: string, prompt: string, now = Date.now()): string {
   ensureStore(storeDir);
-  const turnId = 't' + now.toString().padStart(14, '0');
-  const dir = path.join(storeDir, 'steps', safeId(sessionId), turnId);
-  writeJsonAtomic(path.join(dir, 'meta.json'), { sessionId, turnId, ts: now, prompt: prompt.slice(0, 300) } satisfies StepMeta);
-  writeJsonAtomic(statePath(storeDir, sessionId), { turnId });
+  const turnId = turnIdOf(now);
+  const text = cleanPrompt(prompt) || NO_PROMPT;
+  writeStepMeta(storeDir, sessionId, turnId, text);
+  writeJsonAtomic(statePath(storeDir, sessionId), { turnId, prompt: text });
   return turnId;
 }
 
+/**
+ * Makes `turnId` (begun in the project's store) the current step of this session in another store too, without
+ * creating it there: files outside the project then join the same step (same prompt and time, reverted together)
+ * instead of one unnamed step. Only the small state file is written.
+ */
+export function shareStep(storeDir: string, sessionId: string, turnId: string, prompt: string): void {
+  ensureStore(storeDir);
+  writeJsonAtomic(statePath(storeDir, sessionId), { turnId, prompt: cleanPrompt(prompt) || NO_PROMPT });
+}
+
 export function currentStep(storeDir: string, sessionId: string): string {
-  const st = readJson<{ turnId: string }>(statePath(storeDir, sessionId));
-  if (st && typeof st.turnId === 'string' && fs.existsSync(path.join(storeDir, 'steps', safeId(sessionId), st.turnId))) return st.turnId;
-  return beginStep(storeDir, sessionId, '(prompt not recorded)');
+  const st = readJson<{ turnId?: string; prompt?: string }>(statePath(storeDir, sessionId));
+  if (st && typeof st.turnId === 'string' && /^t\d+$/.test(st.turnId)) {
+    // Not created yet (shared from the project's store), or removed by a step revert while the prompt goes on:
+    // (re)create it under the same prompt.
+    if (!fs.existsSync(path.join(storeDir, 'steps', safeId(sessionId), st.turnId, 'meta.json')))
+      writeStepMeta(storeDir, sessionId, st.turnId, typeof st.prompt === 'string' && st.prompt ? st.prompt : NO_PROMPT);
+    return st.turnId;
+  }
+  return beginStep(storeDir, sessionId, NO_PROMPT);
 }
 
 /** Records the file's content before this step first touched it (first writer wins). */
@@ -656,6 +694,24 @@ export function removeStep(step: Step): void {
 /** Drops steps older than `maxAgeMs` (housekeeping). */
 export function pruneSteps(storeDir: string, maxAgeMs: number, now = Date.now()): void {
   for (const s of loadSteps(storeDir)) if (now - s.ts > maxAgeMs) removeStep(s);
+  // A chat's folder with only its state file left (every prompt writes one, also in the global store for chats
+  // that never touch a file outside their project): without this they would pile up for good.
+  const root = path.join(storeDir, 'steps');
+  let sessions: string[] = [];
+  try {
+    sessions = fs.readdirSync(root);
+  } catch {
+    return;
+  }
+  for (const s of sessions) {
+    try {
+      const dir = path.join(root, s);
+      if (fs.readdirSync(dir).some((t) => t.startsWith('t'))) continue;
+      if (now - fs.statSync(dir).mtimeMs > maxAgeMs) rm(dir);
+    } catch {
+      /* not a folder, or gone meanwhile */
+    }
+  }
 }
 
 // ---------- feedback ----------

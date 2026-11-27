@@ -68,6 +68,17 @@ describe('store', () => {
     expect(S.loadSteps(sb.store)).toHaveLength(0);
   });
 
+  it('drops a chat folder that only has its state file left, once it is old', () => {
+    S.shareStep(sb.store, 'idle', 't00000000001000', 'p');
+    S.beginStep(sb.store, 'busy', 'p', Date.now());
+    S.recordStepFile(sb.store, 'busy', '/a', { existed: true, content: 'c' });
+    const dirs = () => fs.readdirSync(path.join(sb.store, 'steps')).sort();
+    S.pruneSteps(sb.store, 3600_000);
+    expect(dirs()).toEqual(['busy', 'idle']); // fresh: the prompt may still be running
+    S.pruneSteps(sb.store, 3600_000, Date.now() + 2 * 3600_000);
+    expect(dirs()).toEqual([]);
+  });
+
   it('config defaults and validation', () => {
     expect(S.readConfig(sb.env)).toEqual(S.DEFAULT_CONFIG);
     fs.mkdirSync(S.globalDir(sb.env), { recursive: true });

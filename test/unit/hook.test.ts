@@ -154,6 +154,39 @@ describe('hook: Edit / MultiEdit / Write', () => {
 });
 
 describe('hook: steps (UserPromptSubmit)', () => {
+  const prompt = (text: string) =>
+    handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'UserPromptSubmit', prompt: text }, ctx());
+
+  it('names a step by what the user typed, without the IDE context Claude Code adds', () => {
+    prompt('<ide_opened_file>The user opened the file /x/a.ts in the IDE.</ide_opened_file>fix the bug');
+    claudeEdit('a.ts', 'v2');
+    expect(S.loadSteps(sb.store)[0].prompt).toBe('fix the bug');
+  });
+
+  it('puts files outside the project into the same step as the prompt (same name and time)', () => {
+    prompt('change both');
+    claudeEdit('a.ts', 'v2');
+    const outside = path.join(sb.root, 'elsewhere.txt');
+    fs.writeFileSync(outside, 'old\n');
+    const p = payload('PreToolUse', 'Edit', { file_path: outside });
+    handle(p, ctx());
+    fs.writeFileSync(outside, 'new\n');
+    handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
+    const [inside] = S.loadSteps(sb.store);
+    const [out] = S.loadSteps(S.globalStoreDir(sb.env));
+    expect(out.prompt).toBe('change both');
+    expect(out.turnId).toBe(inside.turnId);
+    expect(out.ts).toBe(inside.ts);
+  });
+
+  it('keeps the prompt when Claude goes on after the step was reverted', () => {
+    prompt('first try');
+    claudeEdit('a.ts', 'v2');
+    S.removeStep(S.loadSteps(sb.store)[0]); // Revert to Before This Step
+    claudeEdit('a.ts', 'v3');
+    expect(S.loadSteps(sb.store).map((s) => s.prompt)).toEqual(['first try']);
+  });
+
   it('groups edits by prompt and keeps the before-state per step', () => {
     sb.write('a.ts', 'v1');
     handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'UserPromptSubmit', prompt: 'first' }, ctx());
@@ -327,6 +360,18 @@ describe.skipIf(!hasGit)('hook: Bash edits via git', () => {
   it('can be switched off', () => {
     S.writeConfig({ ...S.DEFAULT_CONFIG, trackBash: false }, sb.env);
     bash(() => sb.write('tracked.txt', 'x\n'));
+    expect(S.loadEntries(sb.store)).toHaveLength(0);
+  });
+
+  it("never compares with another command's snapshot (tracking switched on while a command ran)", () => {
+    // A command whose Post hook never came leaves its snapshot behind.
+    handle(payload('PreToolUse', 'Bash', { command: 'interrupted' }), ctx());
+    sb.write('tracked.txt', 'changed by someone else\n');
+    S.writeConfig({ ...S.DEFAULT_CONFIG, trackBash: false }, sb.env);
+    const p = payload('PreToolUse', 'Bash', { command: 'ls' });
+    handle(p, ctx()); // no snapshot: tracking is off
+    S.writeConfig(S.DEFAULT_CONFIG, sb.env);
+    handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
     expect(S.loadEntries(sb.store)).toHaveLength(0);
   });
 });

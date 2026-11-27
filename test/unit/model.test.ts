@@ -153,6 +153,22 @@ describe('chats of this window', () => {
     const own = M.ownSessions([step('mine', G), step('mine', '/p/store'), step('other', G)], G);
     expect([...own]).toEqual(['mine']);
   });
+
+  it('lists a prompt that changed files in the project and outside it as one step', () => {
+    const st = (sessionId: string, turnId: string, storeDir: string, files: string[]) => ({ sessionId, turnId, storeDir, files });
+    const merged = M.mergeSteps([
+      st('a', 't2', '/p/store', ['x']),
+      st('a', 't2', G, ['out']),
+      st('b', 't2', G, ['y']),
+      st('a', 't1', '/p/store', ['z']),
+    ]);
+    expect(merged.map((s) => [s.sessionId, s.turnId, s.files])).toEqual([
+      ['a', 't2', ['x', 'out']],
+      ['b', 't2', ['y']],
+      ['a', 't1', ['z']],
+    ]);
+    expect(merged[0].storeDir).toBe('/p/store');
+  });
 });
 
 describe('first-run setup', () => {
