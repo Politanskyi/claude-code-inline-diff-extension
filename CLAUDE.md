@@ -32,9 +32,6 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Code derived from claude-code-inline-review keeps its MIT header. Do NOT copy code from ahmerds/hunker (UNLICENSED).
 - One commit per stage; update the progress table below.
 
-## Git
-- Repository: https://github.com/Politanskyi/claude-code-inline-diff-extension, branch `master`.
-
 ## Progress
 | Stage | Status |
 |---|---|
