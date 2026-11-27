@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+- Like Cursor, a change belongs to the chat that made it. A file outside the chat's project now shows in **that** window's Claude Changes (Undo / Keep, then the chat's history) and status bar; the window of the project the file lives in no longer lists it, but still highlights the change inline (with Undo / Keep) when you open the file there.
+- Fix: such a file used to appear in the chat's window only by accident (while Claude Code kept the document loaded in the background) and vanish a few minutes later.
+
 ## 0.2.1
 - A missing Claude Code hook is always visible now: a "Hook not installed … Set Up" row above the Claude Changes list even when it still lists files (chat history), and a **Claude Inline Diff: Set Up** item in the status bar (the list is collapsed by default). Before, only an empty list said so, so after a reinstall the extension looked broken.
 - The Set Up list opens by itself once per extension version while the hook is missing (the editor keeps the old "already shown" flag across a reinstall), and never after *Uninstall Claude Code Hook*.

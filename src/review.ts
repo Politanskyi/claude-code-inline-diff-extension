@@ -50,6 +50,8 @@ export class ReviewManager implements vscode.Disposable {
   entries = new Map<string, S.Entry>();
   activity: S.Activity[] = [];
   steps: S.Step[] = [];
+  /** Sessions of this window's own chats (see M.ownSessions), refreshed with the steps. */
+  private own = new Set<string>();
   history: HistoryItem[] = [];
   private memo = new Map<string, { baseline: string; text: string; hunks: Hunk[]; regions?: S.Region[] }>();
   private diskCache = new Map<string, { mtimeMs: number; size: number; text: string }>();
@@ -234,12 +236,13 @@ export class ReviewManager implements vscode.Disposable {
     const steps: S.Step[] = [];
     for (const s of this.stores) steps.push(...S.loadSteps(s));
     this.steps = steps.sort((a, b) => b.ts - a.ts);
+    this.own = M.ownSessions(this.steps, S.globalStoreDir());
 
     for (const e of this.entries.values()) {
       this.rememberDoc(this.openDoc(e.key));
       if (!this.seen.has(e.key)) {
         this.seen.add(e.key);
-        if (this.inScope(e.key) && this.hunks(e.key).length) this._onNewFile.fire(e);
+        if (this.inList(e.key) && this.hunks(e.key).length) this._onNewFile.fire(e);
         else this.seen.delete(e.key); // announce once it has a visible diff
       }
     }
@@ -339,17 +342,19 @@ export class ReviewManager implements vscode.Disposable {
     return eolOf(this.currentText(key) || e?.content || '');
   }
 
-  inScope(key: string): boolean {
-    if (this.openDoc(key)) return true;
-    return (vscode.workspace.workspaceFolders || []).some((f) => {
-      const root = S.keyOf(f.uri.fsPath);
-      return key === root || key.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
-    });
+  /**
+   * The change belongs to this window's lists (Claude Changes, status bar, file navigation): like in Cursor,
+   * a change belongs to the chat that made it, wherever the file is. A file of this project changed by a
+   * chat of another project is not listed here; it is still highlighted when you open it (see M.ownsEntry).
+   */
+  inList(key: string): boolean {
+    const e = this.entries.get(key);
+    return !!e && M.ownsEntry(e, S.globalStoreDir(), this.own);
   }
 
   /** Files with something to review in this window, sorted by path. */
   pendingKeys(): string[] {
-    return [...this.entries.keys()].filter((k) => this.inScope(k) && this.hunks(k).length > 0).sort((a, b) => a.localeCompare(b));
+    return [...this.entries.keys()].filter((k) => this.inList(k) && this.hunks(k).length > 0).sort((a, b) => a.localeCompare(b));
   }
 
   // ---------- chat history (Claude Changes once everything is reviewed, like Cursor's chat file list) ----------
@@ -359,14 +364,13 @@ export class ReviewManager implements vscode.Disposable {
     return M.currentSession(this.steps, S.globalStoreDir()); // steps are sorted newest first
   }
 
-  /** Steps of this window's own chats that touched a file in this window (the Claude Steps list). */
+  /** Steps of this window's own chats that changed a file (the Claude Steps list). */
   ownSteps(): S.Step[] {
-    const own = M.ownSessions(this.steps, S.globalStoreDir());
-    return this.steps.filter((s) => own.has(s.sessionId) && s.files.some((f) => this.inScope(S.keyOf(f.path))));
+    return this.steps.filter((s) => this.own.has(s.sessionId) && s.files.length > 0);
   }
 
   /**
-   * Every file in this window the current chat changed, with its text from before the chat first
+   * Every file the current chat changed, in this project or outside it, with its text from before the chat first
    * touched it (null: the chat created it). Files whose changes were undone stay, like in Cursor.
    */
   sessionFiles(): { key: string; path: string; before: string | null }[] {
@@ -378,7 +382,7 @@ export class ReviewManager implements vscode.Disposable {
       if (s.sessionId !== session) continue;
       for (const f of s.files) {
         const key = S.keyOf(f.path);
-        if (!first.has(key) && this.inScope(key)) first.set(key, { key, path: f.path, before: f.existed ? f.content : null });
+        if (!first.has(key)) first.set(key, { key, path: f.path, before: f.existed ? f.content : null });
       }
     }
     return [...first.values()].sort((a, b) => a.key.localeCompare(b.key));

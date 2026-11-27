@@ -169,3 +169,19 @@ describe('first-run setup', () => {
     expect(M.shouldAutoSetUp({ ...base, removedByUser: true })).toBe(false);
   });
 });
+
+describe('whose change it is', () => {
+  const G = '/home/store';
+  const own = new Set(['mine']);
+
+  it('lists every change kept in the project store', () => {
+    expect(M.ownsEntry({ storeDir: '/p/store', sessionId: 'anyone' }, G, own)).toBe(true);
+    expect(M.ownsEntry({ storeDir: '/p/store' }, G, own)).toBe(true);
+  });
+
+  it('lists a file outside the project only in the window of the chat that changed it', () => {
+    expect(M.ownsEntry({ storeDir: G, sessionId: 'mine' }, G, own)).toBe(true);
+    expect(M.ownsEntry({ storeDir: G, sessionId: 'other' }, G, own)).toBe(false);
+    expect(M.ownsEntry({ storeDir: G }, G, own)).toBe(false);
+  });
+});
