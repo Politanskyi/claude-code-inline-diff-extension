@@ -9,16 +9,19 @@
 // It never blocks a tool call: every error is swallowed and it always exits 0.
 // No network access, no telemetry.
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import * as S from '../core/store';
 import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
+import { commandDirs } from '../core/bashDirs';
 
-export const HOOK_VERSION = '1.0.8';
+export const HOOK_VERSION = '1.0.9';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
+const BASH_MAX_OTHER_REPOS = 3;
 
 export interface HookInput {
   session_id?: string;
@@ -133,11 +136,15 @@ function recordRegions(store: string, abs: string): void {
 
 // ---------- Bash: compare git's view of dirty files before and after ----------
 
-interface DirtySnapshot {
+interface RepoSnapshot {
   root: string;
+  files: Record<string, { existed: boolean; content: string | null }>;
+}
+interface DirtySnapshot extends RepoSnapshot {
   sessionId?: string;
   ts: number;
-  files: Record<string, { existed: boolean; content: string | null }>;
+  /** Other repositories the command may change (see otherRepos). */
+  more?: RepoSnapshot[];
 }
 
 function git(root: string, args: string[]): string | null {
@@ -171,10 +178,44 @@ export function dirtyFiles(root: string, storeDirName = S.STORE_DIR_NAME_DEFAULT
 
 const bashSnapPath = (store: string, data: HookInput) => path.join(store, 'bash', S.safeId(data.tool_use_id || data.session_id) + '.json');
 
-function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
+/** The git repository a folder belongs to, or null. */
+function repoOf(dir: string): string | null {
+  try {
+    if (!fs.statSync(dir).isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  const top = S.projectRootFor(dir);
+  return fs.existsSync(path.join(top, '.git')) ? S.realPath(top) : null;
+}
+
+/**
+ * Repositories besides the chat's project that a Bash command may change: the folder the command names
+ * (`cd <dir> && …`, `git -C <dir>`), the shell's current folder, and repositories where this chat already
+ * changed files. A command that edits some other place without naming it is not seen.
+ */
+export function otherRepos(data: HookInput, root: string, ctx: HookContext): string[] {
+  const cwd = data.cwd || process.cwd();
+  const home = ctx.env.HOME || ctx.env.USERPROFILE || os.homedir();
+  const command = typeof data.tool_input?.command === 'string' ? data.tool_input.command : '';
+  const dirs = [...commandDirs(command, cwd, home), cwd];
+  for (const p of S.sessionStepPaths(S.globalStoreDir(ctx.env), data.session_id || 'unknown')) dirs.push(path.dirname(p));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const d of dirs) {
+    if (out.length >= BASH_MAX_OTHER_REPOS) break;
+    if (seen.has(d)) continue;
+    seen.add(d);
+    const r = repoOf(d);
+    if (r && S.keyOf(r) !== S.keyOf(root) && !out.some((o) => S.keyOf(o) === S.keyOf(r))) out.push(r);
+  }
+  return out;
+}
+
+function snapRepo(root: string, cfg: S.SharedConfig): RepoSnapshot | null {
   const files = dirtyFiles(root, cfg.dirName);
-  if (!files) return;
-  const snap: DirtySnapshot = { root, sessionId: data.session_id, ts: ctx.now(), files: {} };
+  if (!files) return null;
+  const snap: RepoSnapshot = { root, files: {} };
   let total = 0;
   for (const rel of files.slice(0, BASH_MAX_FILES)) {
     const r = S.readTextForBaseline(path.join(root, rel));
@@ -183,9 +224,22 @@ function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hoo
       snap.files[rel] = r;
     } else snap.files[rel] = { existed: true, content: null }; // too big/binary: can't review it
   }
+  return snap;
+}
+
+function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
+  const others = otherRepos(data, root, ctx);
+  const own = snapRepo(root, cfg);
+  if (!own && !others.length) return;
+  const snap: DirtySnapshot = { ...(own ?? { root, files: {} }), sessionId: data.session_id, ts: ctx.now() };
   const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
   S.ensureStore(store);
-  S.writeJsonAtomic(bashSnapPath(store, data), snap);
+  const file = bashSnapPath(store, data);
+  // The project's snapshot is on disk before the other repositories are looked at: a slow one must not cost it.
+  if (own) S.writeJsonAtomic(file, snap);
+  if (!others.length) return;
+  snap.more = others.map((r) => snapRepo(r, cfg)).filter((r): r is RepoSnapshot => !!r);
+  if (own || snap.more.length) S.writeJsonAtomic(file, snap);
 }
 
 function latestSnapshotOfSession(store: string, sessionId: string | undefined): string | null {
@@ -210,24 +264,43 @@ function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hook
     /* none */
   }
   if (!snap) return;
-  const now = dirtyFiles(snap.root, cfg.dirName);
+  bashRepoAfter(snap, snap, false, data, root, cfg, ctx);
+  for (const repo of snap.more ?? []) bashRepoAfter(repo, snap, true, data, root, cfg, ctx);
+}
+
+/** A file of another repository that the chat of that repository (its own project store) already has under review. */
+function reviewedInItsProject(abs: string, repoRoot: string, cfg: S.SharedConfig, env: NodeJS.ProcessEnv): boolean {
+  return [S.homeProjectStoreDir(repoRoot, env), path.join(repoRoot, cfg.dirName)].some((d) => S.hasBaseline(d, abs));
+}
+
+function bashRepoAfter(
+  repo: RepoSnapshot,
+  snap: DirtySnapshot,
+  other: boolean,
+  data: HookInput,
+  root: string,
+  cfg: S.SharedConfig,
+  ctx: HookContext
+): void {
+  const now = dirtyFiles(repo.root, cfg.dirName);
   if (!now) return;
-  const candidates = new Set([...now, ...Object.keys(snap.files)]);
+  const candidates = new Set([...now, ...Object.keys(repo.files)]);
   for (const rel of candidates) {
-    const abs = S.realPath(path.join(snap.root, rel));
+    const abs = S.realPath(path.join(repo.root, rel));
     if (S.isClaudeInternal(abs, root, ctx.env)) continue;
     const fileStore = S.storeDirFor(abs, root, cfg, ctx.env);
     if (S.hasBaseline(fileStore, abs)) continue; // already under review: the old baseline stays the "before"
+    if (other && reviewedInItsProject(abs, repo.root, cfg, ctx.env)) continue;
     // Saved in the editor while the command ran (the user's edit, or Undo/Keep): not Claude's change.
     if (S.isEditorWrite(abs, snap.ts, ctx.env)) continue;
     let before: { existed: boolean; content: string } | null;
-    const pre = snap.files[rel];
+    const pre = repo.files[rel];
     if (pre) {
       if (pre.content === null) continue;
       before = { existed: pre.existed, content: pre.content };
     } else {
       // Clean before the command: the index holds the old content (or the file did not exist).
-      const shown = git(snap.root, ['show', ':' + rel.replace(/\\/g, '/')]);
+      const shown = git(repo.root, ['show', ':' + rel.replace(/\\/g, '/')]);
       before = shown === null ? { existed: false, content: '' } : { existed: true, content: shown.replace(/^\uFEFF/, '') };
       if (before.content.includes('\0')) continue;
     }

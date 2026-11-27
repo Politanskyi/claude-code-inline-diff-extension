@@ -590,6 +590,30 @@ export function recordStepFile(
   writeJsonExclusive(file, { path: abs, existed: before.existed, content: before.content, ts: now } satisfies StepFile);
 }
 
+/** Paths of the files a session's steps recorded in this store (cheap: only that session's folder is read). */
+export function sessionStepPaths(storeDir: string, sessionId: string): string[] {
+  const root = path.join(storeDir, 'steps', safeId(sessionId));
+  const out = new Set<string>();
+  try {
+    for (const t of fs.readdirSync(root)) {
+      if (!t.startsWith('t')) continue;
+      let files: string[] = [];
+      try {
+        files = fs.readdirSync(path.join(root, t, 'files'));
+      } catch {
+        continue;
+      }
+      for (const f of files) {
+        const sf = readJson<StepFile>(path.join(root, t, 'files', f));
+        if (sf && typeof sf.path === 'string') out.add(sf.path);
+      }
+    }
+  } catch {
+    /* no steps */
+  }
+  return [...out];
+}
+
 export function loadSteps(storeDir: string): Step[] {
   const root = path.join(storeDir, 'steps');
   const out: Step[] = [];

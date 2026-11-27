@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {

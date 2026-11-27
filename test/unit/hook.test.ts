@@ -387,3 +387,116 @@ describe('hook: Claude turn (UserPromptSubmit … Stop)', () => {
     expect(S.lastTurnActivity(store)).toBe(0);
   });
 });
+
+describe.skipIf(!hasGit)('hook: Bash edits in another repository', () => {
+  let other: string;
+  const gitIn = (dir: string, ...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' });
+  const repo = (dir: string) => {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.rmSync(path.join(dir, '.git'), { recursive: true, force: true });
+    gitIn(dir, 'init', '-q');
+    gitIn(dir, 'config', 'user.email', 't@t');
+    gitIn(dir, 'config', 'user.name', 't');
+    gitIn(dir, 'config', 'core.autocrlf', 'false');
+    fs.writeFileSync(path.join(dir, 'lib.txt'), 'clean\n');
+    gitIn(dir, 'add', '.');
+    gitIn(dir, 'commit', '-qm', 'init');
+  };
+  const global = () => S.globalStoreDir(sb.env);
+  const names = (store: string) =>
+    S.loadEntries(store)
+      .map((e) => path.basename(e.path))
+      .sort();
+  function bash(command: string, run: () => void, extra: Partial<HookInput> = {}) {
+    const p = payload('PreToolUse', 'Bash', { command }, extra);
+    handle(p, ctx());
+    run();
+    handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
+  }
+  beforeEach(() => {
+    repo(sb.project);
+    other = path.join(sb.root, 'other repo');
+    repo(other);
+  });
+
+  it("sees files changed in the repository the command cd-s into, as the chat's own outside changes", () => {
+    bash(`cd "${other}" && sed -i s/a/b/ lib.txt`, () => {
+      fs.writeFileSync(path.join(other, 'lib.txt'), 'by bash\n');
+      fs.writeFileSync(path.join(other, 'new.txt'), 'fresh\n');
+    });
+    const entries = S.loadEntries(global());
+    expect(entries.map((e) => path.basename(e.path)).sort()).toEqual(['lib.txt', 'new.txt']);
+    const lib = entries.find((e) => e.path.endsWith('lib.txt'))!;
+    expect(lib).toMatchObject({ content: 'clean\n', source: 'bash', sessionId: 'sess-1' });
+    expect(S.loadEntries(sb.store)).toHaveLength(0);
+    expect(
+      S.sessionStepPaths(global(), 'sess-1')
+        .map((p) => path.basename(p))
+        .sort()
+    ).toEqual(['lib.txt', 'new.txt']);
+  });
+
+  it('keeps the uncommitted text of the other repository as the "before"', () => {
+    fs.writeFileSync(path.join(other, 'lib.txt'), 'their edit\n');
+    bash(`git -C '${other}' apply x.patch`, () => fs.writeFileSync(path.join(other, 'lib.txt'), 'their edit\nbash\n'));
+    expect(S.loadEntries(global())[0].content).toBe('their edit\n');
+  });
+
+  it('still sees the project when the command also names another repository', () => {
+    bash(`cd "${other}" && ./gen.sh`, () => {
+      sb.write('lib.txt', 'project by bash\n');
+      fs.writeFileSync(path.join(other, 'lib.txt'), 'by bash\n');
+    });
+    expect(names(sb.store)).toEqual(['lib.txt']);
+    expect(names(global())).toEqual(['lib.txt']);
+  });
+
+  it('watches a repository where the chat already changed a file, without cd in the command', () => {
+    const abs = path.join(other, 'lib.txt');
+    const p = payload('PreToolUse', 'Edit', { file_path: abs });
+    handle(p, ctx());
+    fs.writeFileSync(abs, 'edited\n');
+    handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
+    bash('node /somewhere/codemod.js', () => fs.writeFileSync(path.join(other, 'second.txt'), 'x\n'));
+    expect(names(global())).toEqual(['lib.txt', 'second.txt']);
+  });
+
+  it('does not look at a repository nothing points to', () => {
+    bash('node /somewhere/codemod.js', () => fs.writeFileSync(path.join(other, 'lib.txt'), 'x\n'));
+    expect(S.loadEntries(global())).toHaveLength(0);
+  });
+
+  it('leaves alone a file the chat of that repository already has under review', () => {
+    const abs = S.realPath(path.join(other, 'lib.txt'));
+    const theirs = S.homeProjectStoreDir(S.realPath(other), sb.env);
+    S.ensureStore(theirs);
+    S.createBaseline(theirs, {
+      version: 3,
+      path: abs,
+      existed: true,
+      content: 'clean\n',
+      createdAt: 1,
+      sessionId: 'theirs',
+      tool: 'Edit',
+      source: 'edit',
+    });
+    bash(`cd "${other}" && fmt`, () => fs.writeFileSync(abs, 'changed\n'));
+    expect(S.loadEntries(global())).toHaveLength(0);
+  });
+
+  it('works when the project itself is not a git repository', () => {
+    fs.rmSync(path.join(sb.project, '.git'), { recursive: true });
+    fs.mkdirSync(path.join(sb.project, '.git')); // the sandbox marker only: git does not accept it
+    bash(`cd "${other}" && fmt`, () => fs.writeFileSync(path.join(other, 'lib.txt'), 'by bash\n'));
+    expect(names(global())).toEqual(['lib.txt']);
+  });
+
+  it('skips editor saves in the other repository', () => {
+    const abs = S.realPath(path.join(other, 'lib.txt'));
+    bash(`cd "${other}" && fmt`, () => {
+      fs.writeFileSync(abs, 'saved by its user\n');
+      S.recordEditorWrite(abs, clock++, sb.env);
+    });
+    expect(S.loadEntries(global())).toHaveLength(0);
+  });
+});

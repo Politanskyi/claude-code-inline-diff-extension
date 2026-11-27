@@ -372,11 +372,14 @@ export class ReviewManager implements vscode.Disposable {
   sessionFiles(): { key: string; path: string; before: string | null }[] {
     const session = this.currentSession();
     if (!session) return [];
+    const global = S.globalStoreDir();
     const first = new Map<string, { key: string; path: string; before: string | null }>();
     for (let i = this.steps.length - 1; i >= 0; i--) {
       const s = this.steps[i];
       if (s.sessionId !== session) continue;
       for (const f of s.files) {
+        // Claude Code's own working files (memory, plans) recorded by hooks before 1.0.7 are not the chat's changes.
+        if (s.storeDir === global && S.isClaudeInternal(f.path, undefined)) continue;
         const key = S.keyOf(f.path);
         if (!first.has(key)) first.set(key, { key, path: f.path, before: f.existed ? f.content : null });
       }

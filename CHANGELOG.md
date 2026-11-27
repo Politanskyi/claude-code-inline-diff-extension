@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5
+- Bash edits in **another repository** are now seen. Until now a command was compared with `git status` only in the chat's own project, so `cd ../other-repo && sed -i …` (or a script run there) changed files that showed up nowhere. The hook now also looks at the repository the command names (`cd <dir>`, `pushd <dir>`, `git -C <dir>`), at the shell's current folder, and at repositories where this chat already changed a file. Such files appear in the chat's window with the Bash tag, like other changes outside the project. A command that edits some other place without naming it is still not seen. Hook 1.0.9.
+- The chat's file history no longer lists Claude Code's own working files (memory, plans) recorded by old hook versions.
+
 ## 0.2.4
 - New command **Remove Completely (hook, settings, snapshots, backups)…**: one confirmation removes everything the extension ever wrote — the hook and "Edit automatically", our `argv.json` line, the shortcuts added by *Fix Shortcuts*, all snapshots and history, the stored state and the backup files — then offers *Uninstall Extension*. One backup of `settings.json` from before the removal is kept.
 - Only the last backup of `settings.json` is kept (`settings.json.bak-claude-inline-diff-<time>`); every change used to leave another one behind for good. Older ones are removed on the next write.

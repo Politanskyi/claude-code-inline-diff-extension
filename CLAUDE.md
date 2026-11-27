@@ -20,7 +20,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
   (accept/reject/absorb math, key labels), `regions.ts` (per-edit grouping), `store.ts` (on-disk format
   shared by hook and extension), `setup.ts` (settings.json install/uninstall), `iconTheme.ts` (file icons
   for the Changes list), `keybindings.ts` (conflicts with other extensions), `layout.ts` (where the Claude
-  chat lives), `argv.ts` (argv.json `enable-proposed-api`)
+  chat lives), `argv.ts` (argv.json `enable-proposed-api`), `bashDirs.ts` (folders a shell command names)
 - `src/hook/hook.ts` — Claude Code hook (PreToolUse/PostToolUse/UserPromptSubmit/Stop), bundled standalone; `turns/` markers = Claude is working (Stop does not fire on user interrupt, so a quiet turn expires after 3 min)
 - `src/review.ts` — ReviewManager (state, actions, undo, absorbing user edits)
 - `src/render.ts`, `src/insets.ts` — decorations (+ hover fallback), editorInsets webviews (removed blocks, pill)
@@ -65,7 +65,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
 - `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating per-file Undo File / Keep File bar).
 - Cursor keeps the Claude Code chat in a generated auxiliary-bar container; `src/core/layout.ts` finds it in `state.vscdb` and `vscode.moveViews` puts Claude Changes under it once.
-- Bash tracking skips files the editor saved during the command (`editor-writes/` in the global store).
+- Bash tracking skips files the editor saved during the command (`editor-writes/` in the global store). It compares `git status` before/after in the project and in up to three other repositories (`otherRepos` in hook.ts: named by `cd` / `pushd` / `git -C` in the command, the payload's cwd, repositories of files the session already changed outside the project); their files go to the global store with the chat's session id, except files the other project's own store already has under review.
 - Stores: default `storage: home` = `~/.claude/inline-diff/projects/<name>-<sha256(path)[:12]>/` per project (`homeProjectStoreDir`, derived from the real project root by both hook and extension); `project` = `<root>/.claude-review/`; files outside a project → `~/.claude/inline-diff/store/`, where unreviewed baselines expire after `stepRetentionDays`; Claude Code's working folders outside the project (`projects/`, `plans/`, `todos/` under `claudeDir`) are never snapshotted (`isClaudeInternal`); the rest of `~/.claude` is reviewed. Chat history and Claude Steps use only this window's own chats (`M.ownSessions`: a step outside the global store); a window loads only the changes it owns (`M.ownsEntry` in `refresh`: project-store entries, plus global-store entries made by its own chats — Cursor's model, where its agent asks “This edits a file outside your workspace” in its own chat), so another project's chat shows nothing here: no list row, inline diff, badge or activity; `storage.location` counts only when set explicitly (`explicitStorage`). The extension reads both project locations and `moveStore`s to the configured one (only folders with our .gitignore marker).
 
 ## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
