@@ -1,7 +1,11 @@
 # Changelog
 
 ## 0.1.26
-- Removed the *List Files to Review* quick pick (use *Show Claude Changes*) and a dead `HOOK_BANNER` export (hook v1.0.5, no behaviour change).
+- Fix: a file Claude created without a trailing newline showed a phantom "-1" and an empty removed block; created files now count as one added change, and Keep makes the whole text the baseline.
+- Fix: `stepRetentionDays` above 7 was ignored (the hook pruned steps after a week); the hook now reads it from the shared config (hook v1.0.5).
+- Removed the *List Files to Review* quick pick (use *Show Claude Changes*), a dead `HOOK_BANNER` export, the unused `hookReady` context key and an always-true `runHunk` argument.
+- Consistency: one `ACTIVITY_STALE_MS` for "Claude editing" (was 60 s in one place, 120 s in another); list labels built in one place; both Review modes share one multi-diff opener; the hook honours `storage.projectDirName` when filtering `git status`; stale comments removed.
+- Docs: README key table lists Alt+J/K/L/H; INSTALL notes what `vscode:uninstall` cannot restore; the `pollIntervalMs` description no longer claims file watchers.
 
 ## 0.1.25
 - Status bar: no ▲ ▼ arrows (the pill arrows and Alt+J / Alt+K do the same).

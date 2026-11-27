@@ -47,8 +47,10 @@ describe('store', () => {
   it('config defaults and validation', () => {
     expect(S.readConfig(sb.env)).toEqual(S.DEFAULT_CONFIG);
     fs.mkdirSync(S.globalDir(sb.env), { recursive: true });
-    fs.writeFileSync(S.configPath(sb.env), JSON.stringify({ storage: 'home', dirName: '../evil', trackBash: false }));
-    expect(S.readConfig(sb.env)).toEqual({ storage: 'home', dirName: '.claude-review', trackBash: false });
+    fs.writeFileSync(S.configPath(sb.env), JSON.stringify({ storage: 'home', dirName: '../evil', trackBash: false, stepRetentionDays: 0 }));
+    expect(S.readConfig(sb.env)).toEqual({ storage: 'home', dirName: '.claude-review', trackBash: false, stepRetentionDays: 7 });
+    fs.writeFileSync(S.configPath(sb.env), JSON.stringify({ stepRetentionDays: 30 }));
+    expect(S.readConfig(sb.env).stepRetentionDays).toBe(30);
   });
 
   it('realPath resolves the existing part of a not-yet-created path', () => {

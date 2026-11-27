@@ -29,8 +29,10 @@ export interface SharedConfig {
   storage: StorageMode;
   dirName: string;
   trackBash: boolean;
+  /** Days to keep per-step snapshots (the hook prunes older ones). */
+  stepRetentionDays: number;
 }
-export const DEFAULT_CONFIG: SharedConfig = { storage: 'project', dirName: STORE_DIR_NAME_DEFAULT, trackBash: true };
+export const DEFAULT_CONFIG: SharedConfig = { storage: 'project', dirName: STORE_DIR_NAME_DEFAULT, trackBash: true, stepRetentionDays: 7 };
 
 export interface BaselineFile {
   version: 3;
@@ -108,6 +110,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): SharedConfig {
       storage: raw.storage === 'home' ? 'home' : 'project',
       dirName: typeof raw.dirName === 'string' && /^[\w.-]+$/.test(raw.dirName) ? raw.dirName : STORE_DIR_NAME_DEFAULT,
       trackBash: raw.trackBash !== false,
+      stepRetentionDays: typeof raw.stepRetentionDays === 'number' && raw.stepRetentionDays >= 1 ? raw.stepRetentionDays : 7,
     };
   } catch {
     return { ...DEFAULT_CONFIG };
@@ -461,7 +464,9 @@ export function updateRegions(storeDir: string, abs: string, fn: (r: Region[]) =
 export function endActivity(storeDir: string, abs: string): void {
   rm(activityPath(storeDir, abs));
 }
-export function loadActivity(storeDir: string, maxAgeMs = 120_000, now = Date.now()): Activity[] {
+/** How long a "Claude is editing <file>" marker counts after its last write (PostToolUse normally ends it sooner). */
+export const ACTIVITY_STALE_MS = 60_000;
+export function loadActivity(storeDir: string, maxAgeMs = ACTIVITY_STALE_MS, now = Date.now()): Activity[] {
   const dir = path.join(storeDir, 'activity');
   let names: string[] = [];
   try {

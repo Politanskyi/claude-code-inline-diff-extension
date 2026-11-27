@@ -4,11 +4,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import * as S from './core/store';
 import { IconThemeDoc, iconIdFor, parseJsonc } from './core/iconTheme';
 import { hunkStat, summaryText, hunkAnchorLine, plural, keyLabels, totals } from './core/model';
 import { ReviewManager, cfg } from './review';
-import { diffTexts } from './core/diff';
 
 /** Shortcut labels under the current key scheme (read on use, so a settings change applies at once). */
 const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybindingScheme', 'both'));
@@ -22,19 +22,18 @@ export class StatusBar implements vscode.Disposable {
 
   constructor(
     private readonly review: ReviewManager,
-    private readonly list?: ChangesPanel
+    private readonly list: ChangesPanel
   ) {
     this.main.name = 'Claude Inline Diff: changes to review';
     this.editing.name = 'Claude Inline Diff: Claude is editing';
-    // Opens the Claude Changes list (nicer than a quick pick); the editor keeps focus for Cmd+Y / Cmd+N.
-    this.main.command = 'claudeInlineDiff.showChangesList';
+    this.main.command = 'claudeInlineDiff.showChangesList'; // the editor keeps focus for Cmd+Y / Cmd+N
     this.disposables = [
       this.main,
       this.editing,
       review.onDidChange(() => this.update()),
       review.onActivity(() => this.update()),
       vscode.window.onDidChangeActiveTextEditor(() => this.update()),
-      ...(list ? [list.onDidChangeVisibility(() => this.update())] : []),
+      list.onDidChangeVisibility(() => this.update()),
     ];
     this.update();
   }
@@ -42,7 +41,7 @@ export class StatusBar implements vscode.Disposable {
   update(): void {
     const { files, changes } = this.review.totals();
     // The Claude Changes list already shows this; the summary is for when the list is closed.
-    if (files && !this.list?.visible) {
+    if (files && !this.list.visible) {
       this.main.text = `$(sparkle) ${summaryText(files, changes)}`;
       const fb = this.review.pendingFeedbackCount();
       const md = new vscode.MarkdownString(
@@ -56,7 +55,7 @@ export class StatusBar implements vscode.Disposable {
     } else {
       this.main.hide();
     }
-    const act = this.review.activity.find((a) => Date.now() - a.ts < 60_000);
+    const act = this.review.activity.find((a) => Date.now() - a.ts < S.ACTIVITY_STALE_MS);
     if (act) {
       this.editing.text = `$(loading~spin) Claude editing ${path.basename(act.path)}`;
       this.editing.tooltip = act.path;
@@ -259,25 +258,27 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     else if (m.a === 'install') run('installHooks');
   }
 
+  /** Everything the webview draws; all labels are built here so the page script holds no wording. */
   private state() {
     const pending = this.review.pendingKeys();
-    if (!pending.length) return { files: this.historyRows(), history: true, hookReady: this.hookReady, working: this.review.working };
-    const files = pending.map((key) => {
-      const e = this.review.entries.get(key)!;
-      const hunks = this.review.hunks(key);
-      const rel = vscode.workspace.asRelativePath(e.path);
-      return {
-        key,
-        name: path.basename(e.path),
-        dir: path.dirname(rel) === '.' ? '' : path.dirname(rel),
-        ...totals(hunks),
-        changes: hunks.length,
-        isNew: !e.existed,
-        bash: e.source === 'bash',
-        icon: this.iconFor(path.basename(e.path)),
-      };
-    });
-    return { files, history: false, hookReady: this.hookReady, working: this.review.working };
+    const history = !pending.length;
+    const files = history
+      ? this.historyRows()
+      : pending.map((key) => {
+          const e = this.review.entries.get(key)!;
+          const hunks = this.review.hunks(key);
+          const rel = vscode.workspace.asRelativePath(e.path);
+          return {
+            key,
+            name: path.basename(e.path),
+            title: `${rel} · ${plural(hunks.length, 'change')}`,
+            ...totals(hunks),
+            isNew: !e.existed,
+            bash: e.source === 'bash',
+            icon: this.iconFor(path.basename(e.path)),
+          };
+        });
+    return { files, header: plural(files.length, 'File'), history, hookReady: this.hookReady, working: this.review.working };
   }
 
   /** The current chat's files with +/- against the text from before the chat (cached per text). */
@@ -288,14 +289,13 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
       const now = this.review.textNow(f.key, f.path);
       let st = this.historyStats.get(f.key);
       if (!st || st.before !== f.before || st.now !== now) {
-        st = { before: f.before, now, ...totals(diffTexts(f.before ?? '', now ?? '')) };
+        st = { before: f.before, now, ...totals(this.review.sessionDiff(f.before, now)) };
         this.historyStats.set(f.key, st);
       }
-      const rel = vscode.workspace.asRelativePath(f.path);
       return {
         key: f.key,
         name: path.basename(f.path),
-        dir: path.dirname(rel) === '.' ? '' : path.dirname(rel),
+        title: vscode.workspace.asRelativePath(f.path),
         added: st.added,
         removed: st.removed,
         icon: this.iconFor(path.basename(f.path)),
@@ -373,7 +373,6 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   private update(): void {
     if (!this.view) return;
-    // No count on the chat tab: Cursor's file list under its chat has none either (the header says "N Files").
     void this.view.webview.postMessage({ a: 'state', ...this.state() });
   }
 
@@ -386,7 +385,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
         return `@font-face{font-family:"cid-${f.id}";src:${src};font-weight:${f.weight || 'normal'};font-style:${f.style || 'normal'}}.f-${f.id}{font-family:"cid-${f.id}";font-size:${f.size || '100%'}}`;
       })
       .join('\n');
-    const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const nonce = crypto.randomBytes(12).toString('base64');
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <style>
@@ -428,7 +427,7 @@ html,body,#root{height:100%}
 </style></head><body><div id="root"></div>
 <script nonce="${nonce}">
 const vs=acquireVsCodeApi();
-let confirmUndo=false;let confirmTimer=0;let data={files:[],hookReady:true};
+let confirmUndo=false;let confirmTimer=0;let data={files:[],header:'',hookReady:true};
 const X='<svg viewBox="0 0 16 16"><path d="M8 8.7l3.6 3.6.7-.7L8.7 8l3.6-3.6-.7-.7L8 7.3 4.4 3.7l-.7.7L7.3 8l-3.6 3.6.7.7z"/></svg>';
 const V='<svg viewBox="0 0 16 16"><path d="M6.3 11.3 2.7 7.7l-.7.7 4.3 4.3 7.7-7.7-.7-.7z"/></svg>';
 const OK='<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm2.9 3.6L7 9.5 5.1 7.6l-.7.7L7 10.9l4.6-4.6z"/></svg>';
@@ -444,12 +443,11 @@ function render(){
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;
   if(data.working)confirmUndo=false;
-  // No collapse toggle of its own: the view section above already collapses.
-  r.innerHTML='<div class="hd"><div class="tw">'+f.length+' '+(f.length===1?'File':'Files')+'</div>'+
+  r.innerHTML='<div class="hd"><div class="tw">'+esc(data.header)+'</div>'+
     (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
     '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+
-    '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc((x.dir?x.dir+'/':'')+x.name)+(data.history?'':' · '+x.changes+' change'+(x.changes===1?'':'s'))+'">'+
+    '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc(x.title)+'">'+
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
       // Like Cursor: "+41", "+7 -1", "-3" (no zero parts).
       '<span class="st">'+(x.added?'<span class="ad">+'+x.added+'</span>':'')+(x.added&&x.removed?' ':'')+(x.removed?'<span class="rm">-'+x.removed+'</span>':'')+'</span>'+

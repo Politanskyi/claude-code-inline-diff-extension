@@ -8,7 +8,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { CharRange } from './core/diff';
-import { HunkRef } from './review';
+import { HunkRef, cfg } from './review';
 import { keyLabels } from './core/model';
 
 /** Our own declaration of the proposed API surface we use. */
@@ -74,10 +74,7 @@ export function editorMetrics(doc?: vscode.TextDocument) {
   let lh = c.get<number>('lineHeight', 0) || 0;
   if (lh > 0 && lh < 8) lh = Math.round(lh * fontSize); // multiplier form
   if (lh === 0) lh = Math.round(fontSize * (process.platform === 'darwin' ? 1.5 : 1.35));
-  const k = keyLabels(
-    process.platform === 'darwin',
-    vscode.workspace.getConfiguration('claudeInlineDiff').get<string>('keybindingScheme', 'both')
-  );
+  const k = keyLabels(process.platform === 'darwin', cfg<string>('keybindingScheme', 'both'));
   return {
     // Shortcut labels on the pill (part of the signature: a key-scheme change redraws it).
     keep: k.keep,

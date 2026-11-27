@@ -46,8 +46,8 @@ export function activate(context: vscode.ExtensionContext): Api {
   review = new ReviewManager(log);
   const insets = new InsetManager(
     {
-      accept: (ref) => void runHunk('accept', ref, true),
-      reject: (ref) => void runHunk('reject', ref, true),
+      accept: (ref) => void runHunk('accept', ref),
+      reject: (ref) => void runHunk('reject', ref),
       navigate: (ref, dir) => {
         const hunks = review.hunks(ref.key);
         if (!hunks.length) return;
@@ -222,7 +222,7 @@ async function advance(key: string, line: number, action: 'accept' | 'reject' | 
   await openAt(next, review.hunks(next)[0]);
 }
 
-async function runHunk(kind: 'accept' | 'reject', arg: unknown, fromEditor: boolean): Promise<void> {
+async function runHunk(kind: 'accept' | 'reject', arg: unknown): Promise<void> {
   const ref = refFromArg(arg);
   if (!ref) {
     vscode.window.setStatusBarMessage('No Claude change at the cursor', 2500);
@@ -235,21 +235,32 @@ async function runHunk(kind: 'accept' | 'reject', arg: unknown, fromEditor: bool
   const ok = kind === 'accept' ? await review.acceptHunk(ref) : await review.rejectHunk(ref);
   if (!ok) return;
   updateContexts();
-  const active = activeKey() === ref.key;
-  if (fromEditor || active) await advance(ref.key, line, kind);
+  await advance(ref.key, line, kind);
+}
+
+/** `vscode.changes` resource: [label uri, original, modified]. */
+type DiffResource = [vscode.Uri, vscode.Uri, vscode.Uri];
+
+/** The multi-file diff editor; one plain diff of the active file if the editor has no multi-diff. */
+async function openMultiDiff(title: string, resources: DiffResource[]): Promise<void> {
+  try {
+    await vscode.commands.executeCommand('vscode.changes', title /* the editor appends "(N files)" */, resources);
+  } catch {
+    await vscode.commands.executeCommand('claudeInlineDiff.showDiff');
+  }
 }
 
 /** Review with nothing pending: everything the current chat changed, from before the chat to now (like Cursor). */
 async function reviewChat(): Promise<void> {
   const files = review.sessionFiles();
   if (!files.length) return;
-  const resources = files.map((f) => {
+  const resources = files.map((f): DiffResource => {
     const p = vscode.Uri.file(f.path).path;
     const before = vscode.Uri.from({ scheme: BASE_SCHEME, path: p, query: 'h=' + encodeURIComponent(f.key) });
     const now = fs.existsSync(f.path) ? vscode.Uri.file(f.path) : vscode.Uri.from({ scheme: BASE_SCHEME, path: p, query: 'gone=1' });
     return [now, before, now];
   });
-  await vscode.commands.executeCommand('vscode.changes', 'Claude chat changes' /* the editor adds "(N files)" itself */, resources);
+  await openMultiDiff('Claude chat changes', resources);
 }
 
 /** The document behind the "before Claude" side of a diff. */
@@ -282,7 +293,7 @@ async function rejectWithFeedback(arg: unknown): Promise<void> {
   if (text === undefined) return;
   const excerpt = [...h.aLines.map((l) => '- ' + l), ...h.bLines.map((l) => '+ ' + l)].slice(0, 60).join('\n');
   if (text.trim()) review.queueFeedback(ref.key, text.trim(), excerpt);
-  await runHunk('reject', ref, true);
+  await runHunk('reject', ref);
   if (text.trim()) vscode.window.setStatusBarMessage('$(comment) Feedback queued for Claude', 4000);
 }
 
@@ -378,10 +389,9 @@ function nodeOnPath(): boolean {
 
 const bundledHook = () => path.join(ctx.extensionPath, 'dist', 'hook.js');
 
-/** The Claude Changes list stays visible while the hook is missing, to offer installing it. */
+/** The Claude Changes list offers installing the hook while it is missing. */
 function updateHookContext(): void {
   const st = setup.status(bundledHook());
-  setContext('claudeInlineDiff.hookReady', st.configured && st.scriptInstalled);
   changesPanel?.setHookReady(st.configured && st.scriptInstalled);
 }
 
@@ -689,8 +699,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
       })
     );
 
-  reg('acceptHunk', (arg) => runHunk('accept', arg, true));
-  reg('rejectHunk', (arg) => runHunk('reject', arg, true));
+  reg('acceptHunk', (arg) => runHunk('accept', arg));
+  reg('rejectHunk', (arg) => runHunk('reject', arg));
   reg('rejectHunkWithFeedback', rejectWithFeedback);
   reg('acceptFile', async (arg) => {
     const keys = [keyFromArg(arg)].filter((k): k is string => !!k);
@@ -788,20 +798,12 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('reviewAll', async () => {
     const keys = review.pendingKeys();
     if (!keys.length) return reviewChat();
-    const resources = keys.map((k) => {
+    const resources = keys.map((k): DiffResource => {
       const e = review.entries.get(k)!;
       const file = vscode.Uri.file(e.path);
       return [file, baseUri(e), file];
     });
-    try {
-      await vscode.commands.executeCommand(
-        'vscode.changes',
-        `Claude changes · ${M.plural(review.totals().changes, 'change')}` /* the editor adds "(N files)" */,
-        resources
-      );
-    } catch {
-      await vscode.commands.executeCommand('claudeInlineDiff.showDiff');
-    }
+    await openMultiDiff(`Claude changes · ${M.plural(review.totals().changes, 'change')}`, resources);
   });
   reg('installHooks', installHooks);
   reg('fixKeybindings', () => fixKeybindings());

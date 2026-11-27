@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
-import { handle, HookInput, dirtyFiles } from '../../src/hook/hook';
+import { handle, HookInput, dirtyFiles, housekeeping } from '../../src/hook/hook';
 import * as S from '../../src/core/store';
 import { sandbox } from './helpers';
 
@@ -70,7 +70,7 @@ describe('hook: Edit / MultiEdit / Write', () => {
   });
 
   it('honours storage=home', () => {
-    S.writeConfig({ storage: 'home', dirName: '.claude-review', trackBash: true }, sb.env);
+    S.writeConfig({ ...S.DEFAULT_CONFIG, storage: 'home' }, sb.env);
     sb.write('a.ts', 'v1');
     claudeEdit('a.ts', 'v2');
     expect(fs.existsSync(sb.store)).toBe(false);
@@ -155,6 +155,16 @@ describe('hook: steps (UserPromptSubmit)', () => {
     expect(steps.map((s) => s.prompt)).toEqual(['second', 'first']);
     expect(steps[0].files[0].content).toBe('v2');
     expect(steps[1].files[0].content).toBe('v1');
+  });
+
+  it('keeps steps for stepRetentionDays from the shared config', () => {
+    const day = 24 * 3600_000;
+    S.beginStep(sb.store, 's', 'p', 0);
+    S.recordStepFile(sb.store, 's', path.join(sb.project, 'a.ts'), { existed: true, content: 'c' }, 0);
+    housekeeping(sb.store, 10 * day, { ...S.DEFAULT_CONFIG, stepRetentionDays: 30 }, sb.env);
+    expect(S.loadSteps(sb.store)).toHaveLength(1); // 10 days old, kept for 30
+    housekeeping(sb.store, 10 * day, S.DEFAULT_CONFIG, sb.env);
+    expect(S.loadSteps(sb.store)).toHaveLength(0); // default 7 days
   });
 
   it('creates an implicit step when no prompt was recorded', () => {
@@ -262,7 +272,7 @@ describe.skipIf(!hasGit)('hook: Bash edits via git', () => {
   });
 
   it('can be switched off', () => {
-    S.writeConfig({ storage: 'project', dirName: '.claude-review', trackBash: false }, sb.env);
+    S.writeConfig({ ...S.DEFAULT_CONFIG, trackBash: false }, sb.env);
     bash(() => sb.write('tracked.txt', 'x\n'));
     expect(S.loadEntries(sb.store)).toHaveLength(0);
   });

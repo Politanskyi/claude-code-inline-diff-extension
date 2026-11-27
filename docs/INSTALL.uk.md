@@ -128,7 +128,7 @@ cursor --install-extension claude-inline-diff.vsix --force
    ```bash
    cursor --uninstall-extension inlinediff.claude-inline-diff
    ```
-   Страховка: VS Code при повному видаленні розширення й наступному перезапуску запускає скрипт `vscode:uninstall`. Наш скрипт робить те саме, що й крок 1 (окрім знімків). ✅ за документацією VS Code і тестом скрипта; 🔶 чи виконує його Cursor, не перевірено. Тому крок 1 надійніший.
+   Страховка: VS Code при повному видаленні розширення й наступному перезапуску запускає скрипт `vscode:uninstall`. Наш скрипт робить те саме, що й крок 1, окрім знімків і `claudeCode.initialPermissionMode` (його повертає лише команда Uninstall). ✅ за документацією VS Code і тестом скрипта; 🔶 чи виконує його Cursor, не перевірено. Тому крок 1 надійніший.
 3. Приберіть рядок `"enable-proposed-api": ["inlinediff.claude-inline-diff"]` з `~/.cursor/argv.json`.
 4. Якщо лишились знімки в проєктах:
    ```bash

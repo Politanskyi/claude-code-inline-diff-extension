@@ -95,6 +95,7 @@ export class ReviewManager implements vscode.Disposable {
       storage: cfg<string>('storage.location', 'project') === 'home' ? 'home' : 'project',
       dirName: cfg('storage.projectDirName', S.STORE_DIR_NAME_DEFAULT),
       trackBash: cfg('trackBashEdits', true),
+      stepRetentionDays: Math.max(1, cfg('stepRetentionDays', 7)),
     };
   }
 
@@ -152,7 +153,7 @@ export class ReviewManager implements vscode.Disposable {
     const st = this.stamp();
     if (st !== this.storeStamp) this.refresh(false);
     // Stale activity expires on its own.
-    if (this.activity.some((a) => Date.now() - a.ts > 120_000)) this.refresh(false);
+    if (this.activity.some((a) => Date.now() - a.ts > S.ACTIVITY_STALE_MS)) this.refresh(false);
     if (this.working !== this.computeWorking()) this.refresh(false);
   }
 
@@ -278,6 +279,8 @@ export class ReviewManager implements vscode.Disposable {
     if (!e.existed && !this.fileExists(key))
       hunks = []; // created then deleted: nothing to show
     else if (e.existed && !this.fileExists(key)) hunks = [{ aStart: 0, aLines: splitLines(e.content), bStart: 0, bLines: [] }];
+    else if (!e.existed)
+      hunks = diffLines([], splitLines(text)); // created by Claude: all of it is one added change (no "before" lines)
     else {
       const a = splitLines(e.content);
       const b = splitLines(text);
@@ -339,6 +342,11 @@ export class ReviewManager implements vscode.Disposable {
     return this.openDoc(key)?.getText() ?? this.readDisk(key, p);
   }
 
+  /** +added/-removed of a history file: from before the chat (none when the chat created it) to now. */
+  sessionDiff(before: string | null, now: string | null): Hunk[] {
+    return diffLines(before === null ? [] : splitLines(before), now === null ? [] : splitLines(now));
+  }
+
   /** The current chat's text of a file from before the chat touched it ('' when the chat created it). */
   sessionBefore(key: string): string {
     return this.sessionFiles().find((f) => f.key === key)?.before ?? '';
@@ -356,7 +364,7 @@ export class ReviewManager implements vscode.Disposable {
   }
 
   isClaudeEditing(key: string): boolean {
-    return this.activity.some((a) => S.keyOf(a.path) === key && Date.now() - a.ts < 60_000);
+    return this.activity.some((a) => S.keyOf(a.path) === key && Date.now() - a.ts < S.ACTIVITY_STALE_MS);
   }
 
   // ---------- user edits ----------
@@ -560,7 +568,8 @@ export class ReviewManager implements vscode.Disposable {
     const h = this.resolveHunk(ref);
     if (!e || !h) return false;
     const before = this.snapshot(ref.key);
-    e.content = M.acceptHunkInBaseline(e.content, h, this.eolFor(ref.key));
+    // A created file is one change: keeping it makes the whole text the baseline (line maths would add an EOL).
+    e.content = e.existed ? M.acceptHunkInBaseline(e.content, h, this.eolFor(ref.key)) : (this.currentText(ref.key) ?? '');
     if (e.regions) e.regions = acceptInRegions(e.regions, h);
     this.safeWrite(e);
     this.pushHistory({

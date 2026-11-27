@@ -1,6 +1,6 @@
 // claude-inline-diff hook — Claude Code hook script.
 //
-// Installed by the "Claude Inline Diff: Install Claude Code Hooks" command as
+// Installed by the "Claude Inline Diff: Install Claude Code Hook" command as
 // ~/.claude/hooks/claude-inline-diff-hook.js and wired for:
 //   PreToolUse  (Edit|MultiEdit|Write|NotebookEdit|Bash) — snapshot files before Claude changes them
 //   PostToolUse (same)   — mark the write as landed, detect Bash edits, deliver feedback
@@ -70,7 +70,7 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
     const store = projectStore();
     S.markTurn(store, session, ctx.now());
     S.beginStep(store, session, typeof data.prompt === 'string' ? data.prompt : '', ctx.now());
-    housekeeping(store, ctx.now(), ctx.env);
+    housekeeping(store, ctx.now(), cfg, ctx.env);
     return feedbackOutput('UserPromptSubmit', data, root, cfg, ctx);
   }
 
@@ -156,14 +156,14 @@ function git(root: string, args: string[]): string | null {
 }
 
 /** Relative paths git reports as changed (modified, added, deleted, untracked), or null outside a repo. */
-export function dirtyFiles(root: string): string[] | null {
+export function dirtyFiles(root: string, storeDirName = S.STORE_DIR_NAME_DEFAULT): string[] | null {
   const out = git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--no-renames']);
   if (out === null) return null;
   const files: string[] = [];
   for (const rec of out.split('\0')) {
     if (rec.length < 4) continue;
     const p = rec.slice(3);
-    if (p.split('/')[0] === '.claude-review' || p.includes('/.claude-review/')) continue;
+    if (p.split('/')[0] === storeDirName || p.includes('/' + storeDirName + '/')) continue;
     files.push(p);
   }
   return files;
@@ -172,7 +172,7 @@ export function dirtyFiles(root: string): string[] | null {
 const bashSnapPath = (store: string, data: HookInput) => path.join(store, 'bash', S.safeId(data.tool_use_id || data.session_id) + '.json');
 
 function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
-  const files = dirtyFiles(root);
+  const files = dirtyFiles(root, cfg.dirName);
   if (!files) return;
   const snap: DirtySnapshot = { root, sessionId: data.session_id, ts: ctx.now(), files: {} };
   let total = 0;
@@ -210,7 +210,7 @@ function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hook
     /* none */
   }
   if (!snap) return;
-  const now = dirtyFiles(snap.root);
+  const now = dirtyFiles(snap.root, cfg.dirName);
   if (!now) return;
   const candidates = new Set([...now, ...Object.keys(snap.files)]);
   for (const rel of candidates) {
@@ -266,10 +266,10 @@ function feedbackOutput(
   return JSON.stringify({ hookSpecificOutput: { hookEventName: event, additionalContext: S.formatFeedback(items) } });
 }
 
-/** Drops step snapshots older than a week and Bash snapshots of commands that never reported back. */
-export function housekeeping(store: string, now: number, env: NodeJS.ProcessEnv = process.env): void {
+/** Drops step snapshots older than `stepRetentionDays` and Bash snapshots of commands that never reported back. */
+export function housekeeping(store: string, now: number, cfg: S.SharedConfig, env: NodeJS.ProcessEnv = process.env): void {
   try {
-    S.pruneSteps(store, 7 * 24 * 3600_000, now);
+    S.pruneSteps(store, cfg.stepRetentionDays * 24 * 3600_000, now);
     S.pruneEditorWrites(24 * 3600_000, now, env);
     const dir = path.join(store, 'bash');
     for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {

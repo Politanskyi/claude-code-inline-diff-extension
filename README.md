@@ -109,8 +109,8 @@ cursor --install-extension claude-inline-diff.vsix
 | Undo change | Cmd/Ctrl+N | Cmd/Ctrl+Alt+Backspace |
 | Keep file | **Cmd/Ctrl+Enter** or Cmd/Ctrl+Shift+Y | Cmd/Ctrl+Shift+Alt+Enter |
 | Undo file | **Cmd/Ctrl+Shift+Backspace** or Cmd/Ctrl+Shift+N | Cmd/Ctrl+Shift+Alt+Backspace |
-| Next / previous change | Alt+F5 / Shift+Alt+F5 | same |
-| Next / previous file | Ctrl+Alt+PageDown / PageUp (Cmd+Alt on macOS) | same |
+| Next / previous change | Alt+J / Alt+K (also Alt+F5 / Shift+Alt+F5) | same |
+| Next / previous file | Alt+L / Alt+H (also Ctrl+Alt+PageDown / PageUp, Cmd+Alt on macOS) | same |
 | Revert the last Keep / Undo | Cmd/Ctrl+Z (right after it) | same |
 
 These keys apply only while the text cursor is inside a Claude change (file keys: while the file has changes).

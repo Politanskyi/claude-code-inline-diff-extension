@@ -29,7 +29,9 @@ describe('diffLines', () => {
   });
 
   it('handles new file (empty baseline) and emptied file', () => {
+    // An empty text is one empty line; a file Claude created has no "before" lines at all (review passes []).
     expect(diffTexts('', 'x\ny')).toEqual([{ aStart: 0, aLines: [''], bStart: 0, bLines: ['x', 'y'] }]);
+    expect(diffLines([], ['x', 'y'])).toEqual([{ aStart: 0, aLines: [], bStart: 0, bLines: ['x', 'y'] }]);
     expect(diffTexts('x\ny', '')).toEqual([{ aStart: 0, aLines: ['x', 'y'], bStart: 0, bLines: [''] }]);
   });
 

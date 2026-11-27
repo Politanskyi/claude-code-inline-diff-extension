@@ -1,4 +1,4 @@
-// One-off generator for package.json contributions (kept for maintainability: edit and re-run).
+// Generates the contributions in package.json: edit this file and run `node scripts/gen-package.js`.
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const C = (command, title, icon, extra = {}) => ({
@@ -153,12 +153,9 @@ const configuration = {
     'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
     'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before moving a file Claude created to the trash on Reject.'),
     'claudeInlineDiff.stepRetentionDays': P('number', 7, 'Keep per-step snapshots (for step revert) this many days.', { minimum: 1 }),
-    'claudeInlineDiff.pollIntervalMs': P(
-      'number',
-      700,
-      'How often to look for new snapshots (ms). File watchers are used too. Applies after reloading the window.',
-      { minimum: 200 }
-    ),
+    'claudeInlineDiff.pollIntervalMs': P('number', 700, 'How often to look for new snapshots (ms). Applies after reloading the window.', {
+      minimum: 200,
+    }),
   },
 };
 const cursorKeys = "config.claudeInlineDiff.keybindingScheme != 'alt'";
@@ -325,7 +322,4 @@ Object.assign(pkg, {
     'vscode:uninstall': 'node ./dist/uninstall.js',
   },
 });
-delete pkg.main_;
-delete pkg.author;
-delete pkg.directories;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
