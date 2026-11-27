@@ -20,8 +20,18 @@ export function chatContainerFromState(text: string): string | null {
   return found;
 }
 
-/** Reads `state.vscdb` (+ `-wal`) and returns the chat's container, or the default one. */
+/** The chat's container from the editor's global `state.vscdb`, or the default one. */
 export function chatContainer(stateDb: string): string {
+  // The stored value itself where the runtime can read the database; the raw text below can miss it (a long
+  // value is split over pages) or find an outdated copy.
+  try {
+    const custom = storedValues(stateDb, ['views.customizations'])?.['views.customizations'];
+    const to = custom && JSON.parse(custom).viewLocations?.[CLAUDE_CHAT_VIEW];
+    if (typeof to === 'string' && to) return to;
+    if (custom) return CLAUDE_CHAT_CONTAINER;
+  } catch {
+    /* fall back to the raw text */
+  }
   let text = '';
   for (const f of [stateDb, stateDb + '-wal']) {
     try {
@@ -86,6 +96,9 @@ export function visibleChat(stateDb: string): string | null | undefined {
 // section of a tab that holds more than one collapsed, so with our list under the chat the chat itself is closed.
 
 /** Values of a workspace's `state.vscdb`, read with the runtime's own SQLite; null where that is missing or fails. */
+/** Why the last storedValues call returned null. */
+export let storedValuesError = '';
+
 export function storedValues(stateDb: string, keys: string[]): Record<string, string> | null {
   let db: any;
   try {
@@ -99,7 +112,8 @@ export function storedValues(stateDb: string, keys: string[]): Record<string, st
       if (row && typeof row.value === 'string') out[k] = row.value;
     }
     return out;
-  } catch {
+  } catch (e: any) {
+    storedValuesError = String(e?.message || e);
     return null;
   } finally {
     try {

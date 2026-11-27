@@ -9,7 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
-import { chatContainer, chatSection, visibleChat, ChatLogReader, NEW_CHAT, CLAUDE_CHAT_VIEW } from './core/layout';
+import { chatContainer, chatSection, storedValuesError, visibleChat, ChatLogReader, NEW_CHAT, CLAUDE_CHAT_VIEW } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -923,6 +923,7 @@ function expandChatOnce(): void {
   const db = path.join(path.dirname(ctx.storageUri.fsPath), 'state.vscdb');
   const container = chatContainer(path.join(path.dirname(ctx.globalStorageUri.fsPath), 'state.vscdb'));
   let stamp = '';
+  let said = '';
   const stop = () => clearInterval(timer);
   const tick = () => {
     let now = '';
@@ -937,6 +938,8 @@ function expandChatOnce(): void {
     if (now === stamp) return;
     stamp = now;
     const what = chatSection(db, container);
+    if (what !== said) log.info('chat section: ' + what + (what === 'wait' && storedValuesError ? ' (' + storedValuesError + ')' : ''));
+    said = what;
     if (what === 'wait') return;
     stop();
     void ctx.workspaceState.update('chatOpenedOnce', true);
