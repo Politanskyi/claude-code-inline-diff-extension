@@ -389,6 +389,11 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   private update(): void {
     if (!this.view) return;
+    // In the section title, so a collapsed list still says that something waits for Keep / Undo. (The editor
+    // hides a view's `description` while the section is collapsed, so it has to be the title itself.)
+    const n = this.review.pendingKeys().length;
+    const title = n ? `Claude Changes (${plural(n, 'file')} to review)` : 'Claude Changes';
+    if (this.view.title !== title) this.view.title = title;
     void this.view.webview.postMessage({ a: 'state', ...this.state() });
   }
 

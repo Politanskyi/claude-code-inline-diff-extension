@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.4
+- Claude Changes: the section title shows how many files wait for Keep / Undo (`CLAUDE CHANGES (3 FILES TO REVIEW)`), also while the list is collapsed. Nothing is added when all is decided. The editor only lets a section change its title once it has been opened in the window, so a list that was never expanded since the window loaded has no count yet (the status bar shows it then).
+
 ## 0.3.3
 Found while going through the manual checklist live in Cursor 3.32.4:
 - Fix: after a click on the floating **Undo File / Keep File** (or Keep all changes), Cmd/Ctrl+Z was the editor's own undo — Claude's text came back unsaved and no longer under review — because the click had taken the focus out of the text. The focus now goes back to the editor, so Cmd/Ctrl+Z takes the action back as after the keys.
