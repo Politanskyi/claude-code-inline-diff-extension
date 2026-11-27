@@ -2,8 +2,8 @@
 
 VS Code / Cursor extension (TypeScript) that shows Claude Code's edits (made through the official
 Claude Code extension panel or the CLI) inline in the working file, Cursor-agent style: red removed
-blocks between lines, green added lines, word highlights, Accept/Reject per change/file/all,
-Cmd+Y / Cmd+N, auto-advance, status bar, badges, undo.
+blocks between lines, green added lines, word highlights, Keep/Undo per change/file/all,
+Cursor's keys, auto-advance, status bar, badges, undo.
 
 Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.json` → `enable-proposed-api`).
 
@@ -54,14 +54,14 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `TextDocument.isDirty` is not reliable inside onDidChangeTextDocument; Claude's disk write is detected by
   "document text == file on disk" instead (review.ts `matchesDisk`).
 - Never `await` a non-modal notification inside a command (it blocks until dismissed; hung the e2e).
-- Insets do not scroll horizontally with the editor; buttons are anchored right after the first removed line.
+- Insets do not scroll horizontally with the editor; the pill is right-aligned, or anchored to the code indentation when the editor overflows horizontally.
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
 
 ## Verified in Cursor
 - Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 16/16.
   Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, all tests pass.
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
-- `contribEditorContentMenu` / `editor/content` exist in Cursor's build (candidate for a floating review bar).
+- `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating Undo All / Keep All bar).
 
 ## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
@@ -74,4 +74,4 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 
 ## Next ideas (not started)
 - Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.
-- Optional Stop-hook delivery of feedback; per-session filter in the Changes view; light-theme screenshot.
+- Optional Stop-hook delivery of feedback; per-session filter in the Changes view.
