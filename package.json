@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -488,7 +488,7 @@
         "claudeInlineDiff.confirmRejectAll": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Ask again before Undo All undoes the changes in every file."
+          "markdownDescription": "Ask before the **Undo All** command or shortcut undoes every file. The Claude Changes list always asks with its own second click (Confirm)."
         },
         "claudeInlineDiff.confirmDeleteCreatedFile": {
           "type": "boolean",

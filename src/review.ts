@@ -624,7 +624,7 @@ export class ReviewManager implements vscode.Disposable {
     this.safeWrite(e);
     this.pushHistory({
       kind: 'accept',
-      label: 'Accept change',
+      label: 'Keep change',
       files: [{ key: e.key, path: e.path, entryBefore: before, textBefore: null, textAfter: null }],
     });
     this.finish(e.key);
@@ -654,7 +654,7 @@ export class ReviewManager implements vscode.Disposable {
     await this.setText(e.key, e.path, next, cfg('saveAfterReject', true));
     this.pushHistory({
       kind: 'reject',
-      label: 'Reject change',
+      label: 'Undo change',
       files: [{ key: e.key, path: e.path, entryBefore: before, textBefore: exists ? cur : DELETED, textAfter: next }],
     });
     this.memo.delete(e.key);
@@ -674,7 +674,7 @@ export class ReviewManager implements vscode.Disposable {
     return wholeFile || this.hunks(key).length === 1;
   }
 
-  async acceptFiles(keys: string[], label = 'Accept file'): Promise<number> {
+  async acceptFiles(keys: string[], label = 'Keep file'): Promise<number> {
     const files: FileUndo[] = [];
     for (const key of keys) {
       const e = this.entries.get(key);
@@ -687,7 +687,7 @@ export class ReviewManager implements vscode.Disposable {
     return files.length;
   }
 
-  async rejectFiles(keys: string[], label = 'Reject file'): Promise<number> {
+  async rejectFiles(keys: string[], label = 'Undo file'): Promise<number> {
     const files: FileUndo[] = [];
     for (const key of keys) {
       const e = this.entries.get(key);

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+- Wording: the last places that still said Accept / Reject now say Keep / Undo, like the rest of the interface (the "Undid: …" status message after *Revert Last Keep/Undo*, setting descriptions).
+- The description of `confirmRejectAll` says what it does: it covers the Undo All command and shortcut; the list's Undo All always asks with its own Confirm click.
+- Documentation brought in line with 0.3.x (settings table, update and network notes).
+
 ## 0.3.1
 - The **Claude Changes** header (N Files, Undo All / Keep All / Review) stays on top while a long list scrolls.
 - Self-update with several windows open: one window downloads and installs a release (they used to race and each do it), and every window offers **Reload Window**.

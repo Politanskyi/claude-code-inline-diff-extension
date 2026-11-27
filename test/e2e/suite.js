@@ -242,7 +242,7 @@ test('user edits outside Claude hunks are absorbed, not shown as Claude changes'
   await ed.document.save();
 });
 
-test('a new file created by Claude: Reject file moves it away', async () => {
+test('a new file created by Claude: Undo File moves it away', async () => {
   const abs = claudeWrite('src/new-util.ts', 'export const answer = 42;\n', 'Write');
   await until(() => api.review.pendingKeys().length === 2, 'second file pending');
   const key = api.review.pendingKeys().find((k) => k.endsWith('new-util.ts'));

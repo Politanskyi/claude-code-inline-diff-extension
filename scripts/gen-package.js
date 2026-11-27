@@ -157,7 +157,7 @@ const configuration = {
       true,
       "Your own edits outside Claude's changes are folded into the baseline (never shown as Claude's). Edits inside a change become part of it."
     ),
-    'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask again before Undo All undoes the changes in every file.'),
+    'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before the **Undo All** command or shortcut undoes every file. The Claude Changes list always asks with its own second click (Confirm).'),
     'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before Undo moves a file Claude created to the trash.'),
     'claudeInlineDiff.stepRetentionDays': P(
       'number',
@@ -289,7 +289,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.3.1',
+  version: '0.3.2',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
