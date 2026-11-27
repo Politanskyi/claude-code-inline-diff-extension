@@ -291,7 +291,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   /** Everything the webview draws; all labels are built here so the page script holds no wording. */
   private state() {
     // Like the list under each Cursor chat: the files of the chat on screen. What other chats left for review
-    // stays theirs (shown when their chat is opened); a line under the header says it is there.
+    // stays theirs, shown when their chat is opened (the editor and the status bar still show every change).
     const all = this.review.pendingKeys();
     const chat = this.review.currentSession();
     const pending = all.filter((k) => {
@@ -299,7 +299,6 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
       return !chat || !s || s === chat;
     });
     this.listed = pending;
-    const other = all.length - pending.length;
     const history = !pending.length;
     const files = history
       ? this.historyRows()
@@ -323,7 +322,6 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
       history,
       hookReady: this.hookReady,
       working: this.review.working,
-      other: other ? `${plural(other, 'file')} to review in other chats` : '',
     };
   }
 
@@ -421,9 +419,9 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     if (!this.view) return;
     // In the section title, so a collapsed list still says that something waits for Keep / Undo. (The editor
     // hides a view's `description` while the section is collapsed, so it has to be the title itself.)
-    // Every file that waits, also those other chats left (the list itself shows the chat on screen).
+    // The count is of the chat on screen, like the list.
     const state = this.state();
-    const n = this.review.pendingKeys().length;
+    const n = this.listed.length;
     const title = n ? `Claude Changes (${plural(n, 'file')} to review)` : 'Claude Changes';
     if (this.view.title !== title) this.view.title = title;
     void this.view.webview.postMessage({ a: 'state', ...state });
@@ -476,8 +474,6 @@ ${fonts}
 /* #root grows with the list: a sticky header stays only inside its parent's box. */
 html,body{height:100%}
 #root{min-height:100%}
-.oth{margin:0 8px 4px 12px;font-size:11px;line-height:1.4;color:var(--vscode-descriptionForeground);cursor:pointer}
-.oth:hover{color:var(--vscode-textLink-foreground)}
 .nohook{display:flex;align-items:center;gap:6px;margin:6px 8px 2px 12px;padding:4px 6px 4px 8px;border-radius:4px;font-size:12px;line-height:1.3;color:var(--vscode-foreground);background:var(--vscode-inputValidation-warningBackground,rgba(204,167,0,.15));border:1px solid var(--vscode-inputValidation-warningBorder,rgba(204,167,0,.5))}
 .nohook svg{flex:none;width:14px;height:14px;fill:currentColor;opacity:.8}
 .nohook span{flex:1;min-width:0}
@@ -502,8 +498,7 @@ function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+e
 function render(){
   const r=document.getElementById('root');const f=data.files;
   // Empty state: the hook install when it is missing, otherwise a quiet "nothing to review".
-  const OTH=data.other?'<div class="oth" data-a="review" title="Open them in a diff">'+esc(data.other)+'</div>':'';
-  if(!f.length){r.innerHTML=data.hookReady?OTH+'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Set up once to review Claude&#39;s edits here</div><button data-a="install">Set Up</button></div>';return}
+  if(!f.length){r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Set up once to review Claude&#39;s edits here</div><button data-a="install">Set Up</button></div>';return}
   // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;
@@ -513,7 +508,7 @@ function render(){
     '<div class="hd"><div class="tw">'+esc(data.header)+'</div>'+
     (data.working||data.history?'':'<button class="btn text'+(confirmUndo?' warn':'')+'" data-a="undoAll" title="'+(confirmUndo?'Click again to confirm undo':'Undo all Claude changes')+'">'+(confirmUndo?'Confirm':(many?'Undo All':'Undo'))+'</button>'+
     '<button class="btn text" data-a="keepAll" title="Keep all Claude changes">'+(many?'Keep All':'Keep')+'</button>')+
-    '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div>'+OTH+'</div>'+
+    '<button class="btn sec" data-a="review" title="Review all changes in a diff">Review</button></div></div>'+
     '<div class="rows">'+f.map(x=>'<div class="row" data-a="open" data-key="'+esc(x.key)+'" title="'+esc(x.title)+'">'+
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
       // Like Cursor: "+41", "+7 -1", "-3" (no zero parts).
