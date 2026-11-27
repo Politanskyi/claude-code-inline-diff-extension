@@ -40,11 +40,31 @@ function claudeWrite(rel, text, tool = 'Edit') {
   hook('PostToolUse', tool, { file_path: abs });
   return abs;
 }
+function diag(obj) {
+  console.log('    diag: ' + JSON.stringify(obj));
+  if (SHOTS) {
+    fs.mkdirSync(SHOTS, { recursive: true });
+    fs.appendFileSync(path.join(SHOTS, 'diag.jsonl'), JSON.stringify(obj) + '\n');
+  }
+}
 function shot(name) {
   if (!SHOTS) return;
+  try {
+    fs.mkdirSync(SHOTS, { recursive: true });
+    fs.appendFileSync(path.join(SHOTS, 'windows.txt'), name + '\n' + execFileSync('xwininfo', ['-root', '-tree'], { encoding: 'utf8', timeout: 5000 }).split('\n').filter((l) => /"/.test(l) && !/has no name/.test(l)).join('\n') + '\n');
+  } catch {}
   fs.mkdirSync(SHOTS, { recursive: true });
   try {
-    execFileSync('import', ['-window', 'root', path.join(SHOTS, name + '.png')], { timeout: 10000 });
+    // Capture the workbench window itself (Cursor opens a separate login window that can cover it).
+    let win = 'root';
+    try {
+      const ids = execFileSync('xdotool', ['search', '--name', 'workspace'], { encoding: 'utf8', timeout: 5000 }).trim().split('\n').filter(Boolean);
+      if (ids.length) {
+        win = ids[ids.length - 1];
+        execFileSync('xdotool', ['windowraise', win], { timeout: 5000 });
+      }
+    } catch {}
+    execFileSync('import', ['-window', win, path.join(SHOTS, name + '.png')], { timeout: 10000 });
   } catch (e) {
     console.log('screenshot failed: ' + e.message);
   }
@@ -112,6 +132,7 @@ test('a Claude edit shows up inline (hunks, insets, reveal on edit)', async () =
   const hunks = api.review.hunks(key);
   assert.strictEqual(hunks.length, 4, 'four hunks, got ' + JSON.stringify(hunks));
   if (api.insetsAvailable()) await until(() => api.renderer.insets.count() >= 2, 'inset blocks drawn');
+  diag({ editor: vscode.env.appName, version: vscode.version, insetsAvailable: api.insetsAvailable(), insetCount: api.renderer.insets.count(), insetFailed: api.renderer.insets.failed });
   await vscode.commands.executeCommand('notifications.clearAll');
   await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar').then(undefined, () => {});
   await sleep(1500);

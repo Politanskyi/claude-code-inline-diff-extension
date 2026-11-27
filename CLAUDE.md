@@ -54,7 +54,14 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Insets do not scroll horizontally with the editor; buttons are anchored right after the first removed line.
 - Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.
 
+## Verified in Cursor
+- Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 14/14.
+  Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, 14/14.
+- Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
+- `contribEditorContentMenu` / `editor/content` exist in Cursor's build (candidate for a floating review bar).
+
 ## Next ideas (not started)
-- Live check in Cursor (docs/MANUAL_TESTING.uk.md) — esp. whether Cursor honours `enable-proposed-api` for editorInsets and runs `vscode:uninstall`.
+- Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.
+- Inset buttons clip in narrow editors (they sit after the first removed line's text).
 - Optional Stop-hook delivery of feedback; per-session filter in the Changes view; light-theme screenshot.
 - CI has not run yet (repo has no remote in the authoring sandbox).

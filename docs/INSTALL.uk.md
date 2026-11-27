@@ -6,7 +6,7 @@
 
 **Точний id розширення:** `inlinediff.claude-inline-diff`
 
-> Позначки в цьому документі: ✅ перевірено автотестами (unit або e2e у справжньому VS Code 1.148); 🔶 лише теоретично або за документацією, у живому Cursor ще не перевірялось (див. [MANUAL_TESTING.uk.md](MANUAL_TESTING.uk.md)).
+> Позначки в цьому документі: ✅ перевірено автотестами (unit або e2e у справжньому **Cursor 3.32.4** і VS Code 1.148, з імітованими пейлоадами хука); 🔶 лише теоретично або за документацією (див. [MANUAL_TESTING.uk.md](MANUAL_TESTING.uk.md)).
 
 ---
 
@@ -61,7 +61,7 @@ cursor --install-extension claude-inline-diff.vsix
 
 **Повністю закрийте Cursor** (macOS: Cmd+Q; Windows/Linux: File → Exit) і запустіть знову. «Developer: Reload Window» **не підходить**: `argv.json` читається тільки під час старту програми.
 
-Перевірити результат: Cmd/Ctrl+Shift+P → **Claude Inline Diff: Show Hook Status**. У виводі має бути рядок `Inline removed-code blocks (editorInsets): enabled`. 🔶 Чи підтримує Cursor це API, ще не перевірено. Якщо там `not enabled`, розширення просто працюватиме в спрощеному режимі.
+Перевірити результат: Cmd/Ctrl+Shift+P → **Claude Inline Diff: Show Hook Status**. У виводі має бути рядок `Inline removed-code blocks (editorInsets): enabled`. ✅ Перевірено в Cursor 3.32.4: з рядком у `~/.cursor/argv.json` червоні блоки малюються, без нього розширення саме переходить у спрощений режим.
 
 ## 6. Встановити хук Claude Code
 
@@ -75,7 +75,7 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 - перед зміною робить резервну копію `settings.json.bak-claude-inline-diff-<час>`, зберігає права доступу до файлу й не чіпає чужі хуки;
 - якщо `settings.json` містить невалідний JSON, нічого не змінює й показує помилку.
 
-Офіційне розширення Claude Code і CLI використовують **той самий** `~/.claude/settings.json`, тож хук працює в обох (за документацією Anthropic, 🔶 у живому Cursor ще не перевірено). Після встановлення **почніть нову розмову** в панелі Claude Code.
+Офіційне розширення Claude Code і CLI використовують **той самий** `~/.claude/settings.json`, тож хук працює в обох (за документацією Anthropic; 🔶 запуск хуків саме офіційним розширенням у пісочниці перевірити неможливо, бо потрібен вхід у Claude). Після встановлення **почніть нову розмову** в панелі Claude Code.
 
 ## 7. Автоматичне застосування правок в офіційному розширенні Claude Code
 

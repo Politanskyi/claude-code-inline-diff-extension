@@ -34,10 +34,11 @@ async function main() {
   const shots = process.env.CID_SHOTS || '';
   try {
     await runTests({
-      version: process.env.CID_VSCODE_VERSION || 'stable',
+      // CID_EDITOR=/path/to/cursor runs the suite in Cursor instead of a downloaded VS Code.
+      ...(process.env.CID_EDITOR ? { vscodeExecutablePath: process.env.CID_EDITOR } : { version: process.env.CID_VSCODE_VERSION || 'stable' }),
       extensionDevelopmentPath: root,
       extensionTestsPath: path.join(__dirname, 'suite.js'),
-      launchArgs: [workspace, '--disable-extensions', '--user-data-dir', userData, '--extensions-dir', path.join(tmp, 'ext'), '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--disable-workspace-trust', ...(process.env.CID_NO_PROPOSED ? [] : ['--enable-proposed-api', 'inlinediff.claude-inline-diff'])],
+      launchArgs: [workspace, '--disable-extensions', '--user-data-dir', userData, '--extensions-dir', path.join(tmp, 'ext'), '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--disable-workspace-trust', ...(process.env.CID_EDITOR ? ['--skip-onboarding'] : []), ...(process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : []), ...(process.env.CID_NO_PROPOSED ? [] : ['--enable-proposed-api', 'inlinediff.claude-inline-diff'])],
       extensionTestsEnv: {
         CLAUDE_CONFIG_DIR: path.join(tmp, 'claude'),
         CLAUDE_INLINE_DIFF_HOME: path.join(tmp, 'claude', 'inline-diff'),

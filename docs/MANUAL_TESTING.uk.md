@@ -1,6 +1,6 @@
 # Ручна перевірка в живому Cursor
 
-Ці пункти не можна перевірити в пісочниці. Там немає Cursor, офіційного розширення Claude Code і справжніх хуків. Логіка під ними покрита автотестами: 88 unit-тестів і 14 e2e-тестів у справжньому VS Code 1.148 з імітованими пейлоадами хука.
+Ці пункти не можна перевірити в пісочниці. Там немає Cursor, офіційного розширення Claude Code і справжніх хуків. Логіка під ними покрита автотестами: 88 unit-тестів і 14 e2e-тестів, які проходять **і в Cursor 3.32.4, і у VS Code 1.148** з імітованими пейлоадами хука. Червоні блоки (editorInsets) через `~/.cursor/argv.json` у Cursor 3.32.4 уже перевірено; лишається те, що потребує входу в Cursor і Claude.
 
 Відмічайте `[x]`. Якщо щось не так, запишіть версію Cursor, версію розширення Claude Code і вивід **Output → Claude Inline Diff**.
 
@@ -9,7 +9,7 @@
 ## A. Встановлення
 - [ ] `cursor --install-extension claude-inline-diff.vsix` встановлює без помилок.
 - [ ] Команда **Enable Inline Removed-Code Blocks** додає рядок у `~/.cursor/argv.json`, коментарі у файлі збережені.
-- [ ] Після **повного** перезапуску **Show Hook Status** показує `editorInsets: enabled`. ← ключове питання сумісності з Cursor.
+- [ ] Після **повного** перезапуску **Show Hook Status** показує `editorInsets: enabled` (у Cursor 3.32.4 автотест це підтвердив; перевірте на своїй версії).
 - [ ] **Install Claude Code Hook** додає 3 записи в `~/.claude/settings.json`. Резервна копія є, ваші інші хуки й налаштування на місці.
 - [ ] У панелі Claude Code → Customize → Hooks видно наші хуки (PreToolUse, PostToolUse, UserPromptSubmit).
 - [ ] Кнопка **Enable "Edit automatically"** змінює режим нових розмов на Edit automatically.

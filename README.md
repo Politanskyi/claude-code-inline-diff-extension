@@ -7,7 +7,9 @@ Accept or Reject each change, a whole file, or everything, with **Cmd/Ctrl+Y** a
 Works with the **official Claude Code extension** in Cursor / VS Code (its chat panel) and with the Claude Code CLI.
 It uses Claude Code hooks, so no API key is needed, there's no proxy, and it makes no network calls.
 
-![Inline diff](docs/media/inline-diff.png)
+![Inline diff in Cursor 3.32.4](docs/media/cursor-inline-diff.png)
+
+*Above: Cursor 3.32.4 (Cursor Dark). Below: the review flow in VS Code.*
 
 ![Accept → auto-advance → Reject](docs/media/review-flow.gif)
 
@@ -17,7 +19,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 
 | | Feature | Verified by |
 |---|---|---|
-| ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e (VS Code 1.148) + screenshot |
+| ✅ | Removed lines as **red blocks between editor lines** (proposed `editorInsets` API), syntax-coloured from your theme, font/line height matched, long blocks collapsed | e2e in **Cursor 3.32.4** (via `~/.cursor/argv.json`) and VS Code 1.148 + screenshots |
 | ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Accept/Reject links | e2e + screenshot |
 | ✅ | Added lines green, **changed words** highlighted on both sides | unit + e2e |
 | ✅ | Floating **Reject / Accept** buttons on each red block; CodeLens on pure additions; file-level CodeLens and editor-title buttons | e2e (rendering), clicks: manual |
@@ -105,7 +107,7 @@ They never fire while the Claude panel has focus, so they don't clash with the o
 - `editorInsets` is a **proposed API**. It needs the `argv.json` line and a full restart, it can't be published to the Marketplace, and it may change.
   - If it's unavailable, the extension falls back to decorations automatically.
   - Inset blocks don't scroll horizontally with very long lines.
-  - Cursor support for this API is **untested here** (verified in VS Code 1.148). Please check it with [docs/MANUAL_TESTING.uk.md](docs/MANUAL_TESTING.uk.md).
+  - Verified working in **Cursor 3.32.4** (VS Code 1.147 base) with the `~/.cursor/argv.json` line, and in VS Code 1.148. Without the line, the decoration fallback is used (also verified).
 - The minimap shows no markers (the stable API has no minimap colour for decorations). The scrollbar (overview ruler) does.
 - Bash edits are detected **only in git repositories**, and only for files that are text, not binary, and ≤ 8 MB.
 - Feedback reaches Claude on your **next message**, or on its next tool call. Claude Code offers no documented way to push text into an idle session.
@@ -119,6 +121,7 @@ npm run build      # esbuild → dist/extension.js, dist/hook.js, dist/uninstall
 npm test           # vitest (unit: diff, model, store, hook, setup, argv, highlight)
 npm run lint && npm run format:check && npm run typecheck
 xvfb-run -a -s "-screen 0 1600x1000x24" npm run test:e2e   # real VS Code, simulated Claude hook payloads
+CID_EDITOR=/path/to/cursor xvfb-run -a npm run test:e2e        # same suite in Cursor (unpacked .deb/AppImage)
 npm run package    # claude-inline-diff.vsix
 ```
 
