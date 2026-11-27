@@ -132,6 +132,10 @@ test('activates and exposes the API', async () => {
   api = await ext.activate();
   assert.ok(api.review);
   console.log('    editorInsets available: ' + api.insetsAvailable());
+  // The proposed function exists either way; only asking the host tells whether it may be called.
+  // Without the flag the answer depends on this machine's argv.json, so only the enabled case is asserted
+  // (the disabled one: HOME=<empty dir> CID_NO_PROPOSED=1 → false).
+  if (!process.env.CID_NO_PROPOSED) assert.strictEqual(api.insetsAvailable(), true, 'editorInsets probe');
 });
 
 test('editors already open at activation are rendered (startup restore)', async () => {

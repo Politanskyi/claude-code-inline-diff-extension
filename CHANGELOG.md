@@ -11,6 +11,7 @@ Claude Code's edits reviewed inline in Cursor / VS Code, like Cursor's own agent
 Since 0.1.31:
 - One-step setup: on the first run the **Set Up** list opens by itself with everything ticked and explained — the Claude Code hook, *Edit automatically*, red removed-code blocks (argv.json) — and Enter applies it all. The hook and *Edit automatically* work in the next Claude chat; the red blocks after a full restart (*Quit Cursor* button). Also in the Claude Changes empty state, its `…` menu and the command palette (*Set Up…*); unticked red blocks are offered again after the first change.
 - Releases: pushing a `v*` tag builds, tests and attaches `claude-inline-diff.vsix` to a GitHub release (`.github/workflows/release.yml`), so installing needs no build.
+- Fix: the check for red removed-code blocks always said "enabled" (the proposed function exists even when it may not be called), so they were never offered and *Show Hook Status* was wrong. It now asks the host.
 - README and INSTALL start with a short quick start.
 
 ## 0.1.31

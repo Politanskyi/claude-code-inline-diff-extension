@@ -21,13 +21,26 @@ type CreateInset = (editor: vscode.TextEditor, line: number, height: number, opt
 
 let probed: CreateInset | null | undefined;
 
+/**
+ * The function exists whether or not the proposal is enabled for us: the host checks on the call and throws
+ * "CANNOT use API proposal" before it looks at the arguments. So call it without an editor: that error means
+ * not enabled, any other one ("not a visible editor") means enabled. Nothing is created either way.
+ */
+function proposalEnabled(f: (...a: unknown[]) => unknown): boolean {
+  try {
+    f.call(vscode.window, undefined, 0, 0);
+  } catch (e: any) {
+    return !/API proposal/i.test(String(e?.message ?? e));
+  }
+  return true;
+}
+
 /** The inset factory, or undefined when the proposed API is not enabled for us. */
 export function insetApi(): CreateInset | undefined {
   if (probed !== undefined) return probed || undefined;
   try {
-    // Accessing a proposed API that is not enabled throws; a missing one is undefined.
     const f = (vscode.window as any).createWebviewTextEditorInset;
-    probed = typeof f === 'function' ? (f.bind(vscode.window) as CreateInset) : null;
+    probed = typeof f === 'function' && proposalEnabled(f) ? (f.bind(vscode.window) as CreateInset) : null;
   } catch {
     probed = null;
   }

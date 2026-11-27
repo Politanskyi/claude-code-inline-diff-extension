@@ -1,5 +1,5 @@
 name: Release
-# Push a tag like v0.1.32 (matching package.json): the .vsix is built, tested and attached to a GitHub release.
+# Push a tag like v0.2.0 (matching package.json): the .vsix is built, tested and attached to a GitHub release.
 on:
   push:
     tags: ['v*']
@@ -24,4 +24,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" claude-inline-diff.vsix \
             --title "Claude Inline Diff $GITHUB_REF_NAME" \
-            --notes "Install: download claude-inline-diff.vsix below, then in Cursor: Extensions → … → Install from VSIX…, and click **Set Up** when the extension asks. Changes: see CHANGELOG.md."
+            --notes "Install: download claude-inline-diff.vsix below, then in Cursor: Extensions → … → Install from VSIX…, and press Enter in the **Set Up** list that opens. Changes: see CHANGELOG.md."

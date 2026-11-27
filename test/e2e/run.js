@@ -63,6 +63,7 @@ async function main() {
         CID_WORKSPACE: workspace,
         CID_HOOK: path.join(root, 'dist', 'hook.js'),
         CID_SHOTS: shots,
+        CID_NO_PROPOSED: process.env.CID_NO_PROPOSED || '',
       },
     });
   } catch (e) {
