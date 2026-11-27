@@ -411,9 +411,9 @@ function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+e
 function render(){
   const r=document.getElementById('root');const f=data.files;
   if(!data.hookReady&&!f.length){r.innerHTML='<div class="hook">Claude Inline Diff needs a small Claude Code hook to see Claude&#39;s edits.<br><button data-a="install">Install Claude Code Hook</button></div>';return}
-  // Cursor: "Undo All / Keep All" once there is more than one change, "Undo / Keep" for a single one;
+  // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
-  const total=f.reduce((n,x)=>n+x.changes,0);const many=f.length>1||total>1;
+  const many=f.length>1;
   if(data.working)confirmUndo=false;
   r.className=collapsed?'collapsed':'';
   r.innerHTML='<div class="hd"><div class="tw" data-a="toggle" title="'+(collapsed?'Expand':'Collapse')+'">'+CH+'<span>'+f.length+' '+(f.length===1?'File':'Files')+'</span></div>'+

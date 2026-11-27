@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.14
+- Claude Changes list: "Undo / Keep" for one file, "Undo All / Keep All" for several, like Cursor.
+
 ## 0.1.13
 - No change count on the Claude Code tab, like Cursor's chat tab.
 
