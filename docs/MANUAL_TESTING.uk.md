@@ -22,7 +22,7 @@
 
 ## A. Встановлення
 - [ ] `cursor --install-extension claude-inline-diff.vsix` встановлює без помилок.
-- [ ] На чистій системі (без хука) список **Set Up** відкривається сам, усі три пункти відмічені й пояснені; Enter ставить хук, вмикає Edit automatically, додає рядок в `argv.json` і пропонує **Quit Cursor**. Esc нічого не змінює.
+- [x] На чистій системі (без хука) список **Set Up** відкривається сам (лише у вікні з фокусом, навіть коли відкрито кілька вікон), усі три пункти відмічені й пояснені; Enter ставить хук, вмикає Edit automatically, додає рядок в `argv.json` і пропонує **Quit Cursor**. Esc нічого не змінює.
 - [ ] Після **Uninstall Claude Code Hook** над списком Claude Changes (навіть із файлами історії) є рядок «Hook not installed … Set Up», а в статусбарі — **Claude Inline Diff: Set Up**; після Set Up обидва зникають, в інших вікнах — коли вони отримують фокус.
 - [ ] Без рядка в `argv.json` **Show Hook Status** показує `editorInsets: not enabled`, а Set Up пропонує червоні блоки; з рядком і після повного перезапуску — `enabled`, і пункт зникає.
 - [ ] Команда **Enable Inline Removed-Code Blocks** додає рядок у `~/.cursor/argv.json`, коментарі у файлі збережені.
@@ -89,7 +89,7 @@
 - [ ] Windows: хук спрацьовує (немає помилок у панелі Claude Code; `~/.claude/inline-diff/projects/<проєкт>-…/baselines` з'являється).
 
 ## H. Видалення
-- [ ] **Remove Completely…** → Remove Everything: хука й режимів немає, рядка в `argv.json` немає (інші id на місці), наших клавіш у `keybindings.json` немає, `~/.claude/inline-diff` видалено, з копій лишилась одна `settings.json.bak-claude-inline-diff-…`. Після Uninstall Extension, перезапуску й нової установки список Set Up відкривається сам із трьома пунктами.
+- [x] **Remove Completely…** → Remove Everything: хука й режимів немає, рядка в `argv.json` немає (інші id на місці), наших клавіш у `keybindings.json` немає, `~/.claude/inline-diff` видалено, з копій лишилась одна `settings.json.bak-claude-inline-diff-…`. Після Uninstall Extension, перезапуску й нової установки список Set Up відкривається сам із трьома пунктами.
 - [ ] Після кількох Set Up / Uninstall поруч із `~/.claude/settings.json` лежить лише одна резервна копія.
 - [ ] **Uninstall Claude Code Hook** прибирає тільки наші записи, повертає режим дозволів, видаляє скрипт.
 - [ ] Видалення розширення + повний перезапуск: якщо крок вище пропущено, перевірте, чи прибрав хуки `vscode:uninstall`. Це питання сумісності з Cursor.

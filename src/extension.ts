@@ -880,17 +880,31 @@ async function firstRunChecks(): Promise<void> {
       log.warn('hook update failed: ' + e.message);
     }
   } else {
-    const version = String(ctx.extension.packageJSON?.version ?? '');
-    const auto = M.shouldAutoSetUp({
-      hookConfigured: st.configured,
-      shownForVersion: ctx.globalState.get<string>('setUpShownFor'),
-      version,
-      removedByUser: ctx.globalState.get<boolean>('hookRemovedByUser'),
-    });
-    if (auto) {
-      await ctx.globalState.update('setUpShownFor', version);
-      await setUp(); // the list itself explains each item; Esc leaves it for later (Set Up in Claude Changes / the status bar)
+    // Installing the extension activates it in every open window at once: the list opens only in the focused one,
+    // or in the first window that gets focus (globalState is shared, so the others see it was shown).
+    if (vscode.window.state.focused) await maybeAutoSetUp();
+    else {
+      const sub = vscode.window.onDidChangeWindowState((w) => {
+        if (!w.focused) return;
+        sub.dispose();
+        void maybeAutoSetUp();
+      });
+      ctx.subscriptions.push(sub);
     }
+  }
+}
+
+async function maybeAutoSetUp(): Promise<void> {
+  const version = String(ctx.extension.packageJSON?.version ?? '');
+  const auto = M.shouldAutoSetUp({
+    hookConfigured: setup.status(bundledHook()).configured,
+    shownForVersion: ctx.globalState.get<string>('setUpShownFor'),
+    version,
+    removedByUser: ctx.globalState.get<boolean>('hookRemovedByUser'),
+  });
+  if (auto) {
+    await ctx.globalState.update('setUpShownFor', version);
+    await setUp(); // the list itself explains each item; Esc leaves it for later (Set Up in Claude Changes / the status bar)
   }
 }
 
