@@ -40,7 +40,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
 | ✅ | **Claude Changes** list under the Claude Code chat, drawn like the file list under Cursor's agent chat: "N Files" with always-visible **Undo All / Keep All / Review** (Undo / Keep for a single file; only Review while Claude is working, from the `Stop` hook; Undo All asks for a second click, *Confirm*), one row per file with the icon-theme icon and +added -removed, ✕ / ✓ on hover, click to open; hidden while there is nothing to review; the status bar summary hides while the list is visible | manual in Cursor 3.32 |
-| ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
+| ✅ | **Claude Steps** panel: one step per prompt; *Revert to Before This Step* (and later steps) from the hover button or the right-click menu | e2e (revert); live in Cursor 3.32 |
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
 | ✅ | **Undo with feedback** (editor context menu, *Undo Change with Feedback for Claude…*): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |

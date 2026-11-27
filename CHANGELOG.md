@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.16
+- Claude Steps: *Revert to Before This Step* is also in the right-click menu of a step.
+
 ## 0.1.15
 - Undo with feedback goes to the main Claude agent, not to a subagent that happens to call a tool first. (hook v1.0.4, updated automatically).
 - Undo All warns before moving files Claude created to the trash.

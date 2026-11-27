@@ -226,6 +226,7 @@ const menus = {
   ],
   'view/item/context': [
     { command: 'claudeInlineDiff.revertStep', group: 'inline@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
+    { command: 'claudeInlineDiff.revertStep', group: '0_step@1', when: 'view == claudeInlineDiff.steps && viewItem == step' },
   ],
   commandPalette: [
     'openFile',
@@ -266,7 +267,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.15',
+  version: '0.1.16',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
