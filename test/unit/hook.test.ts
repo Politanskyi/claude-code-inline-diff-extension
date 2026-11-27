@@ -41,6 +41,20 @@ beforeEach(() => {
 afterEach(() => sb.cleanup());
 
 describe('hook: Edit / MultiEdit / Write', () => {
+  it('notes the chat that was opened or written to, and prints nothing for SessionStart', () => {
+    const base = { cwd: sb.project, session_id: 'chat-a' };
+    // A startup is not a chat on screen yet: the official extension starts throwaway sessions to read its config.
+    expect(handle({ ...base, hook_event_name: 'SessionStart', source: 'startup' } as any, ctx())).toBe('');
+    expect(S.shownChat(sb.store)).toBeNull();
+    handle({ ...base, hook_event_name: 'UserPromptSubmit', prompt: 'first' } as any, ctx());
+    expect(S.shownChat(sb.store)?.sessionId).toBe('chat-a');
+    handle({ cwd: sb.project, session_id: 'chat-b', hook_event_name: 'UserPromptSubmit', prompt: 'hi' } as any, ctx());
+    expect(S.shownChat(sb.store)?.sessionId).toBe('chat-b');
+    // Back to the earlier chat from the history: no prompt, only the session start.
+    handle({ ...base, hook_event_name: 'SessionStart', source: 'resume' } as any, ctx());
+    expect(S.shownChat(sb.store)?.sessionId).toBe('chat-a');
+  });
+
   it('snapshots the file before the first edit only', () => {
     const f = sb.write('a.ts', 'v1');
     claudeEdit('a.ts', 'v2');

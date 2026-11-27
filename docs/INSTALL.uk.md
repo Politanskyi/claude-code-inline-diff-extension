@@ -92,9 +92,10 @@ cursor --install-extension claude-inline-diff.vsix
 
 Що робить команда (✅ unit-тести на тимчасовому `CLAUDE_CONFIG_DIR`):
 - копіює скрипт у `~/.claude/hooks/claude-inline-diff-hook.js`. Якщо задано `CLAUDE_CONFIG_DIR`, скрипт іде туди;
-- додає у `~/.claude/settings.json` чотири записи:
+- додає у `~/.claude/settings.json` п'ять записів:
   - `PreToolUse` і `PostToolUse` з matcher `Edit|MultiEdit|Write|NotebookEdit|Bash`;
   - `UserPromptSubmit` і `Stop` (без matcher; Stop показує, що Claude закінчив хід). Якщо хук уже встановлено, розширення саме додасть `Stop` під час оновлення;
+  - `SessionStart` (без matcher): Claude Code запускає його, коли відкриває попередній чат з історії. Так список Claude Changes знову показує файли того чату (новий чат стає поточним з першого повідомлення). Теж додається сам під час оновлення;
 - перед зміною робить резервну копію `settings.json.bak-claude-inline-diff-<час>` (зберігається лише остання, старіші прибираються; жодна програма ці копії не читає, це страховка на випадок, якщо файл доведеться повернути вручну), зберігає права доступу до файлу й не чіпає чужі хуки;
 - якщо `settings.json` містить невалідний JSON, нічого не змінює й показує помилку.
 

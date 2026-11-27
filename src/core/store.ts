@@ -559,6 +559,28 @@ export function loadActivity(storeDir: string, maxAgeMs = ACTIVITY_STALE_MS, now
 
 // ---------- steps (one per user prompt) ----------
 
+// ---------- the chat on screen ----------
+
+const chatPath = (storeDir: string) => path.join(storeDir, 'chat.json');
+
+/**
+ * SessionStart / UserPromptSubmit: the chat the user has just opened (a new one, or an earlier one picked from the
+ * history) or written to. The Claude Changes list shows that chat's files, like the list under each Cursor chat.
+ */
+export function showChat(storeDir: string, sessionId: string, now = Date.now()): void {
+  try {
+    ensureStore(storeDir);
+    writeJsonAtomic(chatPath(storeDir), { sessionId, ts: now });
+  } catch {
+    /* best effort */
+  }
+}
+
+export function shownChat(storeDir: string): { sessionId: string; ts: number } | null {
+  const c = readJson<{ sessionId?: string; ts?: number }>(chatPath(storeDir));
+  return c && typeof c.sessionId === 'string' && c.sessionId ? { sessionId: c.sessionId, ts: Number(c.ts) || 0 } : null;
+}
+
 const statePath = (storeDir: string, sessionId: string) => path.join(storeDir, 'steps', safeId(sessionId), 'current.json');
 
 const NO_PROMPT = '(prompt not recorded)';
@@ -654,7 +676,7 @@ export function sessionStepPaths(storeDir: string, sessionId: string): string[] 
 
 /**
  * The steps in a store, newest first. A prompt that changed no file leaves an empty step; it is left out unless
- * `withEmpty` (the window needs it to know which chat got the latest prompt: a new chat starts an empty list).
+ * `withEmpty` (housekeeping removes those too).
  */
 export function loadSteps(storeDir: string, withEmpty = false): Step[] {
   const root = path.join(storeDir, 'steps');
@@ -697,7 +719,8 @@ export function removeStep(step: Step): void {
 
 /** Drops steps older than `maxAgeMs` (housekeeping). */
 export function pruneSteps(storeDir: string, maxAgeMs: number, now = Date.now()): void {
-  for (const s of loadSteps(storeDir)) if (now - s.ts > maxAgeMs) removeStep(s);
+  // With the steps that changed no file: nothing else would ever remove them.
+  for (const s of loadSteps(storeDir, true)) if (now - s.ts > maxAgeMs) removeStep(s);
   // A chat's folder with only its state file left (every prompt writes one, also in the global store for chats
   // that never touch a file outside their project): without this they would pile up for good.
   const root = path.join(storeDir, 'steps');

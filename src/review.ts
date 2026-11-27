@@ -52,6 +52,7 @@ export class ReviewManager implements vscode.Disposable {
   steps: S.Step[] = [];
   /** Sessions of this window's own chats (see M.ownSessions), refreshed with the steps. */
   private own = new Set<string>();
+  private shown: string | undefined;
   history: HistoryItem[] = [];
   private memo = new Map<string, { baseline: string; text: string; hunks: Hunk[]; regions?: S.Region[] }>();
   private diskCache = new Map<string, { mtimeMs: number; size: number; text: string }>();
@@ -171,7 +172,7 @@ export class ReviewManager implements vscode.Disposable {
   private stamp(): string {
     const parts: string[] = [];
     for (const s of this.stores) {
-      for (const sub of ['baselines', 'activity', 'steps', 'feedback', 'turns']) {
+      for (const sub of ['baselines', 'activity', 'steps', 'feedback', 'turns', 'chat.json']) {
         try {
           parts.push(String(fs.statSync(path.join(s, sub)).mtimeMs));
         } catch {
@@ -212,10 +213,17 @@ export class ReviewManager implements vscode.Disposable {
     if (recomputeStores) this.stores = this.computeStores();
     const global = S.globalStoreDir();
     const steps: S.Step[] = [];
-    // With the prompts that changed nothing yet: a new chat's first prompt makes it the current one (empty list).
-    for (const s of this.stores) steps.push(...S.loadSteps(s, true));
+    for (const s of this.stores) steps.push(...S.loadSteps(s));
     this.steps = steps.sort((a, b) => b.ts - a.ts);
+    // The chat opened or written to last in this project (from the hook), also before it changed any file.
+    this.shown = undefined;
+    let shownTs = -1;
+    for (const s of this.stores) {
+      const c = s === global ? null : S.shownChat(s);
+      if (c && c.ts > shownTs) [this.shown, shownTs] = [c.sessionId, c.ts];
+    }
     this.own = M.ownSessions(this.steps, global);
+    if (this.shown) this.own.add(this.shown);
     const next = new Map<string, S.Entry>();
     for (const s of this.stores) {
       for (const e of S.loadEntries(s)) {
@@ -356,9 +364,12 @@ export class ReviewManager implements vscode.Disposable {
 
   // ---------- chat history (Claude Changes once everything is reviewed, like Cursor's chat file list) ----------
 
-  /** The chat of this window's project that got the most recent prompt (see M.currentSession). */
+  /**
+   * The chat whose files the list shows: the one opened or written to last (each chat has its own history, like
+   * Cursor's); without that note (an older hook), the chat that changed a file last.
+   */
   currentSession(): string | undefined {
-    return M.currentSession(this.steps, S.globalStoreDir()); // steps are sorted newest first
+    return this.shown ?? M.currentSession(this.steps, S.globalStoreDir()); // steps are sorted newest first
   }
 
   /** Steps of this window's own chats that changed a file (the Claude Steps list). */
