@@ -37,7 +37,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
 | ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
-| ✅ | **Claude Changes** list under the Claude Code chat (like the file list under Cursor's agent chat): **Undo All / Keep All / Review**, one row per file with +added −removed, ✕ / ✓ on hover, click to open | manual in Cursor 3.32 |
+| ✅ | **Claude Changes** list under the Claude Code chat (like the file list under Cursor's agent chat): **Undo All / Keep All / Review**, one row per file with +added −removed, ✕ / ✓ on hover, click to open; hidden while there is nothing to review | manual in Cursor 3.32 |
 | ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
 | ✅ | **Undo with feedback** (the `…` button): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |

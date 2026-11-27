@@ -761,7 +761,8 @@
           "id": "claudeInlineDiff.changes",
           "name": "Claude Changes",
           "icon": "$(sparkle)",
-          "contextualTitle": "Claude Changes"
+          "contextualTitle": "Claude Changes",
+          "when": "claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady"
         }
       ],
       "scm": [
@@ -777,7 +778,8 @@
     "viewsWelcome": [
       {
         "view": "claudeInlineDiff.changes",
-        "contents": "No Claude changes waiting for review.\nWhen Claude Code edits a file, the change appears inline in the editor and here.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)"
+        "when": "!claudeInlineDiff.hookReady",
+        "contents": "Claude Inline Diff needs a small Claude Code hook to see Claude's edits.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)"
       },
       {
         "view": "claudeInlineDiff.steps",

@@ -176,14 +176,15 @@ Object.assign(pkg, {
       // Under the Claude Code chat (its secondary-sidebar container), like the file list under Cursor's agent chat.
       // VS Code moves it to the Explorer if Claude Code is not installed.
       'claude-sidebar-secondary': [
-        { id: 'claudeInlineDiff.changes', name: 'Claude Changes', icon: '$(sparkle)', contextualTitle: 'Claude Changes' },
+        // Like Cursor's file list under the chat: shown only while there is something to review (or the hook is missing).
+        { id: 'claudeInlineDiff.changes', name: 'Claude Changes', icon: '$(sparkle)', contextualTitle: 'Claude Changes', when: 'claudeInlineDiff.hasChanges || !claudeInlineDiff.hookReady' },
       ],
       scm: [
         { id: 'claudeInlineDiff.steps', name: 'Claude Steps', icon: '$(history)', contextualTitle: 'Claude Steps', visibility: 'collapsed' },
       ],
     },
     viewsWelcome: [
-      { view: 'claudeInlineDiff.changes', contents: 'No Claude changes waiting for review.\nWhen Claude Code edits a file, the change appears inline in the editor and here.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)' },
+      { view: 'claudeInlineDiff.changes', when: '!claudeInlineDiff.hookReady', contents: 'Claude Inline Diff needs a small Claude Code hook to see Claude\'s edits.\n[Install Claude Code Hook](command:claudeInlineDiff.installHooks)' },
       { view: 'claudeInlineDiff.steps', contents: 'Claude steps (one per prompt) appear here; revert any step and everything after it.' },
     ],
   },

@@ -339,6 +339,12 @@ function nodeOnPath(): boolean {
 
 const bundledHook = () => path.join(ctx.extensionPath, 'dist', 'hook.js');
 
+/** The Claude Changes list stays visible while the hook is missing, to offer installing it. */
+function updateHookContext(): void {
+  const st = setup.status(bundledHook());
+  setContext('claudeInlineDiff.hookReady', st.configured && st.scriptInstalled);
+}
+
 async function installHooks(): Promise<void> {
   review.syncSharedConfig();
   let done: string[];
@@ -349,6 +355,7 @@ async function installHooks(): Promise<void> {
     return;
   }
   done.forEach((d) => log.info('install: ' + d));
+  updateHookContext();
   await ctx.globalState.update('hookPrompted', true);
   const st = setup.status(bundledHook());
   const vsMode = vscode.workspace.getConfiguration('claudeCode').inspect<string>('initialPermissionMode')?.globalValue;
@@ -402,6 +409,7 @@ async function uninstallHooks(): Promise<void> {
     void vscode.window.showErrorMessage('Claude Inline Diff: ' + e.message);
     return;
   }
+  updateHookContext();
   const vs = ctx.globalState.get<{ previous: string | null }>('vsModeSetByUs');
   if (vs) {
     const c = vscode.workspace.getConfiguration('claudeCode');
@@ -589,6 +597,7 @@ async function checkShortcutConflicts(): Promise<void> {
 }
 
 async function firstRunChecks(): Promise<void> {
+  updateHookContext();
   if (process.env.CLAUDE_INLINE_DIFF_TEST) return;
   void checkShortcutConflicts();
   void placeChangesView(false);
