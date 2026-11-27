@@ -18,12 +18,15 @@ function firstWord(s: string, home: string): string | null {
       out += s.slice(i + 1, end);
       i = end + 1;
     } else if (c === '"') {
-      const end = s.indexOf('"', i + 1);
-      if (end < 0) return null;
-      const inner = s.slice(i + 1, end);
-      if (/[`\\]/.test(inner)) return null;
-      out += inner;
-      i = end + 1;
+      // Like bash: inside double quotes a backslash escapes only $ ` " \ (Windows paths keep theirs).
+      let j = i + 1;
+      for (; j < s.length && s[j] !== '"'; j++) {
+        if (s[j] === '`') return null;
+        if (s[j] === '\\' && j + 1 < s.length && '$`"\\'.includes(s[j + 1])) j++;
+        out += s[j];
+      }
+      if (j >= s.length) return null;
+      i = j + 1;
     } else if (c === '\\' && i + 1 < s.length) {
       out += s[i + 1];
       i += 2;
@@ -41,11 +44,18 @@ function firstWord(s: string, home: string): string | null {
   return out;
 }
 
+/** Git Bash on Windows writes drives as /c/Users/...: the same folder as C:/Users/... */
+function nativePath(p: string, win: boolean): string {
+  const m = win ? /^\/([a-zA-Z])(\/.*)?$/.exec(p) : null;
+  return m ? m[1].toUpperCase() + ':' + (m[2] || '/') : p;
+}
+
 /**
  * Absolute folders named by `cd` / `pushd` at the start of a command part and by `git -C`, in order.
  * A relative `cd` continues from the previous one, as in the shell.
  */
-export function commandDirs(command: string, cwd: string, home: string): string[] {
+export function commandDirs(command: string, cwd: string, home: string, win = process.platform === 'win32'): string[] {
+  const P = win ? path.win32 : path.posix;
   const dirs: string[] = [];
   const add = (d: string) => {
     if (!dirs.includes(d) && dirs.length < MAX_DIRS) dirs.push(d);
@@ -57,7 +67,7 @@ export function commandDirs(command: string, cwd: string, home: string): string[
     if (m) {
       const w = firstWord(seg.slice(m[0].length), home);
       if (w) {
-        here = path.resolve(here, w);
+        here = P.resolve(here, nativePath(w, win));
         add(here);
       }
       continue;
@@ -65,7 +75,7 @@ export function commandDirs(command: string, cwd: string, home: string): string[
     m = /^git\s+-C\s+/.exec(seg);
     if (m) {
       const w = firstWord(seg.slice(m[0].length), home);
-      if (w) add(path.resolve(here, w));
+      if (w) add(P.resolve(here, nativePath(w, win)));
     }
   }
   return dirs;

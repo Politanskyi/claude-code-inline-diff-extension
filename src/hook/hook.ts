@@ -17,7 +17,7 @@ import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 import { commandDirs } from '../core/bashDirs';
 
-export const HOOK_VERSION = '1.0.9';
+export const HOOK_VERSION = '1.0.10';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;

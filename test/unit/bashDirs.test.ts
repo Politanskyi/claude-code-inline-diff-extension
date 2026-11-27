@@ -33,6 +33,21 @@ describe('folders a shell command names', () => {
     expect(dirs('cd /srv && git -C lib apply p.patch')).toEqual([r('/srv'), r('/srv/lib')]);
   });
 
+  it('keeps backslashes of Windows paths inside double quotes, like bash', () => {
+    expect(commandDirs('cd "C:\\Users\\me\\other repo" && fmt', 'C:\\work\\app', 'C:\\Users\\me', true)).toEqual([
+      'C:\\Users\\me\\other repo',
+    ]);
+    expect(dirs('cd "/srv/a\\"b" && ls')).toEqual([r('/srv/a"b')]);
+  });
+
+  it('reads Git Bash drive paths on Windows', () => {
+    const win = (c: string) => commandDirs(c, 'C:\\work\\app', 'C:\\Users\\me', true);
+    expect(win('cd /c/Users/me/x && ls')).toEqual(['C:\\Users\\me\\x']);
+    expect(win('cd /d && ls')).toEqual(['D:\\']);
+    expect(win('cd ~/x && ls')).toEqual(['C:\\Users\\me\\x']);
+    expect(dirs('cd /c/Users/me/x && ls')).toEqual([r('/c/Users/me/x')]); // elsewhere it is a plain folder
+  });
+
   it('gives up on what only the shell can work out', () => {
     expect(dirs('cd "$TARGET" && make')).toEqual([]);
     expect(dirs('cd $(mktemp -d) && make')).toEqual([]);
