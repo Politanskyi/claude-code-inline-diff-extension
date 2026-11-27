@@ -354,14 +354,15 @@ export class ReviewManager implements vscode.Disposable {
 
   // ---------- chat history (Claude Changes once everything is reviewed, like Cursor's chat file list) ----------
 
-  /**
-   * The Claude chat (session) of this window's project that got the most recent prompt; a new chat starts
-   * a new history. Steps in the global store come from chats of other projects that edited files here:
-   * those files show while their changes wait for review, not as this window's chat history.
-   */
+  /** The chat of this window's project that got the most recent prompt (see M.currentSession). */
   currentSession(): string | undefined {
-    const global = path.resolve(S.globalStoreDir());
-    return this.steps.find((s) => path.resolve(s.storeDir) !== global)?.sessionId; // steps are sorted newest first
+    return M.currentSession(this.steps, S.globalStoreDir()); // steps are sorted newest first
+  }
+
+  /** Steps of this window's own chats that touched a file in this window (the Claude Steps list). */
+  ownSteps(): S.Step[] {
+    const own = M.ownSessions(this.steps, S.globalStoreDir());
+    return this.steps.filter((s) => own.has(s.sessionId) && s.files.some((f) => this.inScope(S.keyOf(f.path))));
   }
 
   /**

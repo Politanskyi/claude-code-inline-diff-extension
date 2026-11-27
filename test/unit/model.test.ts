@@ -134,3 +134,23 @@ describe('keyLabels', () => {
     expect(M.keyLabels(false, 'cursor')).toMatchObject({ keep: 'Ctrl+Y', fileUndo: 'Ctrl+Shift+Backspace' });
   });
 });
+
+describe('chats of this window', () => {
+  const G = '/home/store';
+  const step = (sessionId: string, storeDir: string) => ({ sessionId, storeDir });
+
+  it('takes the newest chat that has a step in a project store', () => {
+    const steps = [step('other', G), step('mine', '/p/store'), step('older', '/p/store')];
+    expect(M.currentSession(steps, G)).toBe('mine');
+  });
+
+  it('has no current chat when only chats of other projects edited files here', () => {
+    expect(M.currentSession([step('other', G)], G)).toBeUndefined();
+    expect(M.currentSession([], G)).toBeUndefined();
+  });
+
+  it('counts a chat as own even for its steps in the global store', () => {
+    const own = M.ownSessions([step('mine', G), step('mine', '/p/store'), step('other', G)], G);
+    expect([...own]).toEqual(['mine']);
+  });
+});

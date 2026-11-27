@@ -15,7 +15,7 @@ import * as S from '../core/store';
 import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 
-export const HOOK_VERSION = '1.0.7';
+export const HOOK_VERSION = '1.0.8';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -270,7 +270,7 @@ function feedbackOutput(
 /**
  * Drops step snapshots older than `stepRetentionDays` and Bash snapshots of commands that never reported
  * back. In the global store (files outside any project) unreviewed baselines expire after the same time,
- * and Claude Code's own files (from hooks before 1.0.7) go at once.
+ * and Claude Code's own working files (from hooks before 1.0.7) go at once.
  */
 export function housekeeping(store: string, now: number, cfg: S.SharedConfig, env: NodeJS.ProcessEnv = process.env): void {
   try {

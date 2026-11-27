@@ -488,7 +488,7 @@ export class StepsTree implements vscode.TreeDataProvider<S.Step>, vscode.Dispos
 
   getChildren(node?: S.Step): S.Step[] {
     if (node) return [];
-    return this.review.steps.filter((s) => s.files.some((f) => this.review.inScope(S.keyOf(f.path))));
+    return this.review.ownSteps();
   }
 
   getTreeItem(s: S.Step): vscode.TreeItem {

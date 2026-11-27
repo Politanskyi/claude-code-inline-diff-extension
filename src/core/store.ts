@@ -172,14 +172,18 @@ export function storeDirFor(
   return cfg.storage === 'project' ? path.join(projectRoot, cfg.dirName) : homeProjectStoreDir(projectRoot, env);
 }
 
+/** Folders under ~/.claude that Claude Code writes for itself: memory and transcripts, plans, todo lists. */
+const CLAUDE_INTERNAL_DIRS = ['projects', 'plans', 'todos'];
+
 /**
- * Claude Code's own files outside the project (memory, plans, settings under ~/.claude or
- * CLAUDE_CONFIG_DIR): Claude keeps them for itself, they are not changes to review.
+ * Claude Code's own working files outside the project (see CLAUDE_INTERNAL_DIRS, under ~/.claude or
+ * CLAUDE_CONFIG_DIR): not changes to review. What you write there yourself (settings.json, CLAUDE.md,
+ * skills, agents, hooks, commands) is reviewed like any other file.
  */
 export function isClaudeInternal(absFile: string, projectRoot: string | undefined, env: NodeJS.ProcessEnv = process.env): boolean {
   if (projectRoot && isInside(absFile, projectRoot)) return false;
   const dir = claudeDir(env);
-  return isInside(absFile, dir) || isInside(absFile, realPath(dir));
+  return [dir, realPath(dir)].some((d) => CLAUDE_INTERNAL_DIRS.some((n) => isInside(absFile, path.join(d, n))));
 }
 
 /** Our own store (it carries our self-ignoring .gitignore), not some unrelated folder of the same name. */

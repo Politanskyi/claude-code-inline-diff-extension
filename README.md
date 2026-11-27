@@ -46,6 +46,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
 | ✅ | Safe hook install/uninstall: backup, permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup | unit (temp `CLAUDE_CONFIG_DIR`) |
 | ✅ | Snapshots outside the project, one folder per project under `~/.claude/inline-diff/projects/` (or, by setting, in the project's `.claude-review/`, which ignores itself in git); switching moves them | unit |
+| ✅ | Files outside the project are reviewed too (snapshots in `~/.claude/inline-diff/store/`; unreviewed ones expire after `stepRetentionDays`), except Claude Code's own working folders `projects/`, `plans/`, `todos/` under `~/.claude`; a chat of another project never shows as this window's history or steps | unit |
 
 ## How it works
 

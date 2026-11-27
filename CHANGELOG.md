@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.31
+- Only Claude Code's working folders under `~/.claude` are skipped now: `projects/` (memory, transcripts), `plans/`, `todos/`. What you keep there yourself (`settings.json`, `CLAUDE.md`, skills, agents, hooks, commands) is reviewed again like any other file (hook v1.0.8).
+- Claude Steps no longer lists steps of another project's chat that edited files here (the same rule Claude Changes got in 0.1.29).
+- Unit tests for choosing the window's chat; README, INSTALL and the manual checklist describe files outside the project.
+
 ## 0.1.30
 - Fix: a window that started while Cursor still held an older manifest read `storage.location` as `project` (the old default) and rewrote the shared config, so snapshots went back into `.claude-review/`. Only a value you set yourself counts now; otherwise snapshots stay outside the project.
 

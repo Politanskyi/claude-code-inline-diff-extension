@@ -180,3 +180,19 @@ export function keyLabels(isMac: boolean, scheme: string) {
     ? { keep: '⌘Y', undo: '⌘N', fileKeep: '⌘↵', fileUndo: '⇧⌘⌫' }
     : { keep: 'Ctrl+Y', undo: 'Ctrl+N', fileKeep: 'Ctrl+Enter', fileUndo: 'Ctrl+Shift+Backspace' };
 }
+
+// ---------- chats of this window ----------
+
+/**
+ * The chats (sessions) of this window's project: those with a step outside the global store. A chat of
+ * another project that edited files here leaves its steps only in the global store; its changes show
+ * while they wait for review, but it is not this window's chat history and its steps are not listed.
+ */
+export function ownSessions(steps: { sessionId: string; storeDir: string }[], globalStore: string): Set<string> {
+  return new Set(steps.filter((s) => s.storeDir !== globalStore).map((s) => s.sessionId));
+}
+
+/** The own chat that got the most recent prompt (`steps` newest first); a new chat starts a new history. */
+export function currentSession(steps: { sessionId: string; storeDir: string }[], globalStore: string): string | undefined {
+  return steps.find((s) => s.storeDir !== globalStore)?.sessionId;
+}

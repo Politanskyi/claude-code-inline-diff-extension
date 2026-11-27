@@ -176,7 +176,20 @@ describe('hook: steps (UserPromptSubmit)', () => {
     expect(S.loadSteps(sb.store)).toHaveLength(0); // default 7 days
   });
 
-  it('skips Claude Code files outside the project (memory, plans, settings)', () => {
+  it('reviews what the user keeps under ~/.claude (settings, CLAUDE.md, skills)', () => {
+    for (const rel of ['settings.json', 'CLAUDE.md', 'skills/x/SKILL.md', 'projects.md']) {
+      expect(S.isClaudeInternal(path.join(sb.claude, rel), sb.project, sb.env)).toBe(false);
+    }
+    for (const rel of ['projects/p/memory/n.md', 'plans/a.md', 'todos/t.json']) {
+      expect(S.isClaudeInternal(path.join(sb.claude, rel), sb.project, sb.env)).toBe(true);
+    }
+    const file = path.join(sb.claude, 'CLAUDE.md');
+    fs.writeFileSync(file, 'old');
+    handle(payload('PreToolUse', 'Write', { file_path: file, content: 'new' }), ctx());
+    expect(S.loadEntries(S.globalStoreDir(sb.env)).map((e) => e.content)).toEqual(['old']);
+  });
+
+  it('skips Claude Code working files outside the project (memory, plans, todos)', () => {
     const mem = path.join(sb.claude, 'projects', 'p', 'memory', 'note.md');
     fs.mkdirSync(path.dirname(mem), { recursive: true });
     fs.writeFileSync(mem, 'old');
@@ -196,7 +209,11 @@ describe('hook: steps (UserPromptSubmit)', () => {
     const base = { version: 3 as const, existed: true, content: 'c', createdAt: now - 10 * day };
     S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: outside });
     S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: path.join(sb.root, 'fresh.txt'), createdAt: now });
-    S.createBaseline(S.globalStoreDir(sb.env), { ...base, path: path.join(sb.claude, 'old-memory.md'), createdAt: now });
+    S.createBaseline(S.globalStoreDir(sb.env), {
+      ...base,
+      path: path.join(sb.claude, 'projects', 'p', 'memory', 'old.md'),
+      createdAt: now,
+    });
     S.createBaseline(sb.store, { ...base, path: path.join(sb.project, 'a.ts') });
     housekeeping(sb.store, now, S.DEFAULT_CONFIG, sb.env);
     expect(S.loadEntries(S.globalStoreDir(sb.env)).map((e) => path.basename(e.path))).toEqual(['fresh.txt']);
