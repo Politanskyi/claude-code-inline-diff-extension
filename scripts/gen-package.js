@@ -267,7 +267,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.17',
+  version: '0.1.18',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,
@@ -295,7 +295,6 @@ Object.assign(pkg, {
           id: 'claudeInlineDiff.changes',
           name: 'Claude Changes',
           icon: '$(sparkle)',
-          contextualTitle: 'Claude Changes',
         },
       ],
       scm: [
@@ -303,7 +302,6 @@ Object.assign(pkg, {
           id: 'claudeInlineDiff.steps',
           name: 'Claude Steps',
           icon: '$(history)',
-          contextualTitle: 'Claude Steps',
           visibility: 'collapsed',
         },
       ],

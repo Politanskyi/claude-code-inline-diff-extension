@@ -389,16 +389,20 @@ ${fonts}
 .ic{border:0;background:transparent;color:var(--vscode-foreground);width:22px;height:20px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .ic:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .ic svg{width:14px;height:14px;fill:currentColor}
-.empty{padding:8px 12px;color:var(--vscode-descriptionForeground);line-height:1.4}
-.empty .sub{font-size:12px;opacity:.8}
-.hook{padding:8px 12px;color:var(--vscode-descriptionForeground);line-height:1.4}
-.hook button{margin-top:8px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:0;border-radius:4px;padding:4px 10px;cursor:pointer;font:inherit}
+html,body,#root{height:100%}
+.empty{height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 16px;text-align:center;color:var(--vscode-descriptionForeground);font-size:12px;line-height:1.4}
+.empty svg{width:20px;height:20px;fill:currentColor;opacity:.7}
+.empty .t{color:var(--vscode-foreground);opacity:.75}
+.empty button{margin-top:4px;font:inherit;font-size:12px;height:24px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+.empty button:hover{background:var(--vscode-button-hoverBackground)}
 </style></head><body><div id="root"></div>
 <script nonce="${nonce}">
 const vs=acquireVsCodeApi();
 const st=vs.getState()||{};let collapsed=!!st.collapsed;let confirmUndo=false;let confirmTimer=0;let data={files:[],hookReady:true};
 const X='<svg viewBox="0 0 16 16"><path d="M8 8.7l3.6 3.6.7-.7L8.7 8l3.6-3.6-.7-.7L8 7.3 4.4 3.7l-.7.7L7.3 8l-3.6 3.6.7.7z"/></svg>';
 const V='<svg viewBox="0 0 16 16"><path d="M6.3 11.3 2.7 7.7l-.7.7 4.3 4.3 7.7-7.7-.7-.7z"/></svg>';
+const OK='<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm2.9 3.6L7 9.5 5.1 7.6l-.7.7L7 10.9l4.6-4.6z"/></svg>';
+const PLUG='<svg viewBox="0 0 16 16"><path d="M6 1v3h4V1h1v3h1.5v3A4.5 4.5 0 0 1 8.5 11.5V15h-1v-3.5A4.5 4.5 0 0 1 3.5 7V4H5V1zm-1.5 4v2a3.5 3.5 0 0 0 7 0V5z"/></svg>';
 const CH='<svg viewBox="0 0 16 16"><path d="M8 10.7 3.6 6.3l.7-.7L8 9.3l3.7-3.7.7.7z"/></svg>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function send(a,key){vs.postMessage({a,key})}
@@ -406,7 +410,7 @@ function icon(i){if(!i)return '';if(i.img)return '<span class="fi"><img src="'+e
 function render(){
   const r=document.getElementById('root');const f=data.files;
   // Empty state: the hook install when it is missing, otherwise a quiet "nothing to review".
-  if(!f.length){r.className='';r.innerHTML=data.hookReady?'<div class="empty"><div>No changes to review</div><div class="sub">Claude&#39;s edits will appear here.</div></div>':'<div class="hook">Claude Inline Diff needs a small Claude Code hook to see Claude&#39;s edits.<br><button data-a="install">Install Claude Code Hook</button></div>';return}
+  if(!f.length){r.className='';r.innerHTML=data.hookReady?'<div class="empty">'+OK+'<div class="t">No changes to review</div></div>':'<div class="empty">'+PLUG+'<div class="t">Install the Claude Code hook to review Claude&#39;s edits here</div><button data-a="install">Install Hook</button></div>';return}
   // Cursor: "Undo All / Keep All" for several files, "Undo / Keep" for one;
   // hidden while the agent works (the changes are still coming).
   const many=f.length>1;

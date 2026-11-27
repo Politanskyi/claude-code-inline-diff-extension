@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.18
+- Views no longer titled "Claude Changes: Claude Changes" after moving under the chat (no `contextualTitle`).
+- Cleaner empty state: centred icon and "No changes to review", or an Install Hook button.
+
 ## 0.1.17
 - Claude Changes is always shown: an empty state when there is nothing to review, the hook install button when the hook is missing.
 
