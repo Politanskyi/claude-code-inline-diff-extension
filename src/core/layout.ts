@@ -88,7 +88,8 @@ export function visibleChat(stateDb: string): string | null | undefined {
 
 export class ChatLogReader {
   private readonly channels = new Map<string, string>();
-  private pending: string | null = null;
+  private lastLaunch: string | null = null;
+  private lastResume: string | null = null;
   private rest = '';
 
   /** Feeds new log text; returns the session the panel was attached to last in it (if that is known). */
@@ -99,18 +100,24 @@ export class ChatLogReader {
     for (const line of lines) {
       let m = /"type":"launch_claude","channelId":"([\w-]+)"/.exec(line);
       if (m) {
-        // Only a launch that resumes a chat is followed by that chat's session id.
-        this.pending = line.includes('"resume":') ? m[1] : null;
+        this.lastLaunch = m[1];
+        this.lastResume = null;
         continue;
       }
+      // A resumed chat names its session, and the panel attaches to its channel right after.
       m = /resuming with same session id: ([0-9a-fA-F-]{8,64})/.exec(line);
       if (m) {
-        if (this.pending) this.channels.set(this.pending, m[1]);
-        this.pending = null;
+        this.lastResume = m[1];
         continue;
       }
       m = /session\.attach: vscode-([\w-]+) on/.exec(line);
-      if (m) shown = this.channels.get(m[1]);
+      if (!m) continue;
+      // The launch line may be missing (the log rolls over to a new file): then the attach alone ties them.
+      if (!this.channels.has(m[1]) && this.lastResume && (this.lastLaunch === null || this.lastLaunch === m[1])) {
+        this.channels.set(m[1], this.lastResume);
+        this.lastResume = null;
+      }
+      shown = this.channels.get(m[1]);
     }
     return shown;
   }

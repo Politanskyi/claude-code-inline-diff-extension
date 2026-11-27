@@ -78,6 +78,12 @@ describe("official extension's log", () => {
     expect(r.feed('unrelated line\n')).toBeUndefined();
   });
 
+  it('ties a chat to its channel when the launch line was left in the previous log file', () => {
+    const r = new ChatLogReader();
+    expect(r.feed(resumed(A) + attach('a1'))).toBe(A);
+    expect(r.feed(launch('b2') + resumed(B) + attach('b2') + attach('a1'))).toBe(A);
+  });
+
   it('does not take a new chat for the next resumed one, and waits for whole lines', () => {
     const r = new ChatLogReader();
     expect(r.feed(launch('n1', false) + attach('n1'))).toBeUndefined();
