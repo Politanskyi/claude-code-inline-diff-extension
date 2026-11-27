@@ -613,6 +613,12 @@ export function newChat(
   return { sessionId: c.sessionId, ts: c.ts };
 }
 
+/** The session of the last `startup` note, whether it is a chat on screen or not. */
+export function notedNewChat(storeDir: string): string | undefined {
+  const c = readJson<{ sessionId?: string }>(newChatPath(storeDir));
+  return c && typeof c.sessionId === 'string' ? c.sessionId : undefined;
+}
+
 function pidAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 1) return false;
   try {

@@ -32,3 +32,50 @@ export function chatContainer(stateDb: string): string {
   }
   return chatContainerFromState(text) || CLAUDE_CHAT_CONTAINER;
 }
+
+// ---------- the chat shown in the Claude Code panel ----------
+//
+// The official extension keeps the session its sidebar shows only in the webview's own state, which the editor
+// writes to the workspace's `state.vscdb` (key `memento/webviewView.<view id>`) when it flushes its state: up to
+// a minute after a switch. Switching back to a chat that is still loaded fires no hook, so this is the only sign.
+
+const CHAT_STATE_RE = /memento\/webviewView\.claudeVSCodeSidebar(?:Secondary)?\{"webviewState":"\{((?:[^"\\]|\\.)*)\}"/g;
+
+/** The session id in the last state record of `text`: a string, null (a record without a session), undefined (no record). */
+export function visibleChatFromText(text: string): string | null | undefined {
+  let found: string | null | undefined;
+  CHAT_STATE_RE.lastIndex = 0;
+  for (let m = CHAT_STATE_RE.exec(text); m; m = CHAT_STATE_RE.exec(text)) {
+    const id = /\\"sessionID\\":\\"([0-9a-fA-F-]{8,64})\\"/.exec(m[1]);
+    found = id ? id[1] : null;
+  }
+  return found;
+}
+
+/**
+ * The frames of a write-ahead log that are current: after a checkpoint the log is rewritten from its start and
+ * older frames stay behind them in the file, told apart by the salt in the header.
+ */
+export function liveWalText(wal: Buffer): string {
+  if (wal.length < 32) return '';
+  const pageSize = wal.readUInt32BE(8) || 65536;
+  const salt = wal.subarray(16, 24);
+  let end = 32;
+  while (end + 24 + pageSize <= wal.length && wal.subarray(end + 8, end + 16).equals(salt)) end += 24 + pageSize;
+  return wal.subarray(32, end).toString('latin1');
+}
+
+/** The chat the Claude Code sidebar shows, as last written to this workspace's state; undefined when unknown. */
+export function visibleChat(stateDb: string): string | null | undefined {
+  try {
+    const fromWal = visibleChatFromText(liveWalText(fs.readFileSync(stateDb + '-wal')));
+    if (fromWal !== undefined) return fromWal;
+  } catch {
+    /* no log */
+  }
+  try {
+    return visibleChatFromText(fs.readFileSync(stateDb).toString('latin1'));
+  } catch {
+    return undefined;
+  }
+}

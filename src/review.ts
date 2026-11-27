@@ -220,6 +220,20 @@ export class ReviewManager implements vscode.Disposable {
     return best?.sessionId;
   }
 
+  /**
+   * The editor's saved state says the Claude Code panel now shows this chat (see layout.visibleChat): switching
+   * back to a chat that is still loaded fires no hook. Noted like the hook does, in this window's project stores.
+   */
+  noteShownChat(sessionId: string): void {
+    const global = S.globalStoreDir();
+    for (const s of this.stores) {
+      // A new chat is tracked by its process; noting it here would keep it "shown" after it is closed.
+      if (s === global || S.notedNewChat(s) === sessionId || !fs.existsSync(s)) continue;
+      S.showChat(s, sessionId);
+    }
+    if (this.shown !== this.computeShown()) this.refresh(false);
+  }
+
   private computeWorking(): boolean {
     const last = Math.max(0, ...this.stores.map((s) => S.lastTurnActivity(s)));
     return last > 0 && Date.now() - last < S.TURN_STALE_MS;

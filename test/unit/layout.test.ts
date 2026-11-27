@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { chatContainer, chatContainerFromState, CLAUDE_CHAT_CONTAINER } from '../../src/core/layout';
+import { visibleChatFromText, liveWalText } from '../../src/core/layout';
 
 const custom = (id: string) =>
   `views.customizations{"viewContainerLocations":{"${id}":2},"viewLocations":{"claudeVSCodeSidebarSecondary":"${id}"}}`;
@@ -24,5 +25,39 @@ describe('Claude Code chat location', () => {
     fs.writeFileSync(db + '-wal', custom('workbench.views.service.auxiliarybar.new'));
     expect(chatContainer(db)).toBe('workbench.views.service.auxiliarybar.new');
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('chat shown in the Claude Code panel', () => {
+  const rec = (id?: string) =>
+    'memento/webviewView.claudeVSCodeSidebarSecondary{"webviewState":"{\\"isFullEditor\\":false' +
+    (id ? `,\\"sessionID\\":\\"${id}\\",\\"sessionUpdatedAt\\":17958` : '') +
+    '}"}';
+  const A = '04e02a8b-2927-45ea-bb46-9d7be0e6645e';
+  const B = '9c90cdda-4cb7-47e1-9309-c2b7b564b47d';
+
+  it('reads the session of the last state record', () => {
+    expect(visibleChatFromText('xx' + rec(A) + 'yy' + rec(B) + 'zz')).toBe(B);
+    expect(visibleChatFromText(rec(A) + rec())).toBeNull(); // a new chat without a session yet
+    expect(visibleChatFromText('nothing here')).toBeUndefined();
+  });
+
+  it('takes only the current frames of the write-ahead log', () => {
+    const page = 512;
+    const frame = (salt: number, text: string) => {
+      const b = Buffer.alloc(24 + page);
+      b.writeUInt32BE(salt, 8);
+      b.writeUInt32BE(7, 12);
+      b.write(text, 24, 'latin1');
+      return b;
+    };
+    const header = Buffer.alloc(32);
+    header.writeUInt32BE(page, 8);
+    header.writeUInt32BE(2, 16);
+    header.writeUInt32BE(7, 20);
+    // After a checkpoint the log restarts: the frame with the old salt behind the new ones is stale.
+    const wal = Buffer.concat([header, frame(2, rec(A)), frame(1, rec(B))]);
+    expect(visibleChatFromText(liveWalText(wal))).toBe(A);
+    expect(liveWalText(Buffer.alloc(10))).toBe('');
   });
 });

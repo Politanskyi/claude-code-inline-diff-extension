@@ -9,7 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
-import { chatContainer } from './core/layout';
+import { chatContainer, visibleChat } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -871,11 +871,53 @@ async function checkShortcutConflicts(): Promise<void> {
   if (pick === 'Fix Shortcuts') await fixKeybindings(conflicts);
 }
 
+/**
+ * Follows the chat shown in the Claude Code panel through the editor's saved workspace state: the only sign of a
+ * switch back to a chat that is still loaded. Only a change counts (the first value read may be old).
+ */
+function watchVisibleChat(): void {
+  if (!ctx.storageUri) return;
+  // <user data>/User/workspaceStorage/<workspace id>/<ext id> → …/<workspace id>/state.vscdb
+  const db = path.join(path.dirname(ctx.storageUri.fsPath), 'state.vscdb');
+  let stamp = '';
+  let last: string | null | undefined;
+  let first = true;
+  const tick = () => {
+    let now = '';
+    for (const f of [db, db + '-wal']) {
+      try {
+        const st = fs.statSync(f);
+        now += st.mtimeMs + ':' + st.size + '|';
+      } catch {
+        now += '-|';
+      }
+    }
+    if (now === stamp) return;
+    stamp = now;
+    const id = visibleChat(db);
+    if (id === undefined || id === last) return;
+    last = id;
+    if (first) {
+      first = false;
+      return;
+    }
+    if (id) {
+      log.info('Claude Code panel shows chat ' + id.slice(0, 8));
+      review.noteShownChat(id);
+    }
+  };
+  tick();
+  first = false;
+  const timer = setInterval(tick, 2000);
+  ctx.subscriptions.push({ dispose: () => clearInterval(timer) });
+}
+
 async function firstRunChecks(): Promise<void> {
   updateHookContext();
   if (process.env.CLAUDE_INLINE_DIFF_TEST) return;
   void checkShortcutConflicts();
   void placeChangesView(false);
+  watchVisibleChat();
   const st = setup.status(bundledHook());
   // Our own script is outdated, or a newer version wires an extra event (e.g. Stop): update silently.
   if (st.scriptInstalled && (st.configured || st.partial) && (st.installedVersion !== st.bundledVersion || !st.configured)) {
