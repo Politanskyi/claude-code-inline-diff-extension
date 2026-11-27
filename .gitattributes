@@ -1,0 +1,5 @@
+# Keep LF everywhere (prettier checks it; Windows checkouts would otherwise get CRLF)
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.vsix binary
