@@ -45,7 +45,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 4 Hook install/uninstall | done (temp CLAUDE_CONFIG_DIR tests; acceptEdits offer + rollback; vscode:uninstall cleanup) |
 | 5 Rendering (insets + fallback) | done — verified in real VS Code 1.148 via e2e (insets drawn, decoration fallback, screenshots in docs/media) |
 | 6 Controls, navigation, status bar, undo | done — e2e: accept/reject/undo/auto-advance/absorb/new-file trash/Bash/feedback/steps |
-| 7 vsix + docs | done — `npm run package` → claude-inline-diff.vsix (11 files, ~50 KB; installs via code CLI); README, docs/INSTALL.uk.md, docs/MANUAL_TESTING.uk.md |
+| 7 vsix + docs | done — `npm run package` → claude-inline-diff.vsix (11 files, ~67 KB; installs via code CLI); README, docs/INSTALL.uk.md, docs/MANUAL_TESTING.uk.md |
 | 8 Panel, Bash, steps, feedback | done — Claude Changes (files, under the Claude Code chat) + Claude Steps views, Bash via git, step revert, `Claude editing <file>`, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
 
 ## Known issues / lessons
@@ -76,11 +76,11 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - The floating Keep all changes / Review Next File bar hides when the file has Cursor's own diffs (`inlineDiffs.activeEditorWithDiffs`).
 - Pill (inset row, 26px = Cursor's 24px pill + 2px gap, fractional heightInLines): `⌃ i of n ⌄ | Undo | Keep` (feedback only via the editor context menu), one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned.
 - Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
-- Claude Changes (Cursor's composer file list, from its source): pending files only while any are pending; afterwards every file the current chat touched (steps of the newest session), undone ones too; collapsed by default and never auto-expanded (Cursor's `isFileListExpanded` changes only on user click); the status bar opens it via `<view>.focus` (checked live) and hands focus back to the editor.
+- Claude Changes (Cursor's composer file list, from its source): pending files only while any are pending; afterwards every file the current chat touched (steps of the newest own session, `M.currentSession`), undone ones too; collapsed by default and never auto-expanded (Cursor's `isFileListExpanded` changes only on user click); the status bar opens it via `<view>.focus` (checked live) and hands focus back to the editor.
 - Floating Undo File / Keep File ⌘⏎ via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu), only in the active editor (`claudeInlineDiff.activeFiles`); Cursor's own file bar sits in the breadcrumb row, which extensions cannot use; Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
 - e2e: 17 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
 ## Next ideas (not started)
-- Live check with a logged-in Cursor + official Claude Code extension (docs/MANUAL_TESTING.uk.md); whether Cursor runs `vscode:uninstall`.
-- Optional Stop-hook delivery of feedback; per-session filter in the Changes view.
+- Whether Cursor runs `vscode:uninstall`; the rest of docs/MANUAL_TESTING.uk.md not yet ticked.
+- Optional Stop-hook delivery of feedback.
