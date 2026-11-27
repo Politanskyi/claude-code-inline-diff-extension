@@ -98,6 +98,25 @@ export function minimalEdit(before: string, after: string): { start: number; end
   return { start: p, end: before.length - s, text: after.slice(p, after.length - s) };
 }
 
+/**
+ * The hunk nearest to `line` (0-based): Cursor shows its one Keep/Undo pill there, measuring the
+ * distance to the first and the last line of each change (a pure deletion sits at one line).
+ */
+export function nearestHunk(hunks: Hunk[], line: number): Hunk | undefined {
+  let best: Hunk | undefined;
+  let bestDist = Infinity;
+  for (const h of hunks) {
+    const start = h.bStart;
+    const end = h.bLines.length ? h.bStart + h.bLines.length - 1 : h.bStart;
+    const d = line >= start && line <= end ? 0 : Math.min(Math.abs(line - start), Math.abs(line - end));
+    if (d < bestDist) {
+      best = h;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
 /** The hunk under a cursor line: containing it, or a pure deletion right at/above it. */
 export function hunkAtLine(hunks: Hunk[], line: number): Hunk | undefined {
   return (

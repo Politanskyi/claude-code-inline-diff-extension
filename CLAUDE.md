@@ -66,7 +66,8 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
   `editor.action.inlineDiffs.*` registrations.
 - Colours: theme diffEditor.inserted/removedLineBackground; words rgba(12,233,27,.15) / rgba(242,13,59,.25); no gutter bar.
-- Pill under each change (inset row): `⌃ i of n ⌄ | Undo | Keep | …`, right-aligned unless the editor overflows horizontally.
+- Pill (inset row): `⌃ i of n ⌄ | Undo | Keep | …`, one per file under the change nearest the last cursor/mouse position (mouse via a no-op HoverProvider), right-aligned unless the editor overflows horizontally.
+- Cursor parity (from its source): Keep → next change in the same file only; Undo / file actions do not move; Alt+J/K/L/H; word marks only in removed lines; no auto-open/scroll; >100 changes → no removed blocks or pills.
 - Floating Undo File / Keep File via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu); Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
 - e2e: 16 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.

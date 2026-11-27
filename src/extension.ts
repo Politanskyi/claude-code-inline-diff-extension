@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext): Api {
         if (!hunks.length) return;
         const cur = review.resolveHunk(ref);
         const i = cur ? hunks.indexOf(cur) : 0;
-        void openAt(ref.key, hunks[(i + dir + hunks.length) % hunks.length]);
+        void openAt(ref.key, hunks[(i + dir + hunks.length) % hunks.length], { center: true });
       },
     },
     log
@@ -172,7 +172,7 @@ function editorFor(key: string): vscode.TextEditor | undefined {
 async function openAt(
   key: string,
   h: Hunk | undefined,
-  opts: { preserveFocus?: boolean; preview?: boolean } = {}
+  opts: { preserveFocus?: boolean; preview?: boolean; center?: boolean } = {}
 ): Promise<vscode.TextEditor | undefined> {
   const e = review.entries.get(key);
   if (!e) return undefined;
@@ -185,17 +185,31 @@ async function openAt(
     const line = Math.min(M.hunkAnchorLine(h), ed.document.lineCount - 1);
     const pos = new vscode.Position(line, 0);
     ed.selection = new vscode.Selection(pos, pos);
-    ed.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    ed.revealRange(
+      new vscode.Range(pos, pos),
+      opts.center ? vscode.TextEditorRevealType.InCenter : vscode.TextEditorRevealType.InCenterIfOutsideViewport
+    );
   }
   updateContexts();
   return ed;
 }
 
-/** After resolving a change at `line` of `key`: go to the next change, then the next file. */
-async function advance(key: string, line: number): Promise<void> {
-  const mode = cfg<string>('autoAdvance', 'hunkThenFile');
+/**
+ * After resolving a change at `line` of `key`. `cursor` (default, like Cursor's jumpOnDiffAccept):
+ * only Keep of a single change moves on, to the next change in the same file, never to another file.
+ * `hunkThenFile` / `hunk`: every action moves on (then to the next file / within the file).
+ */
+async function advance(key: string, line: number, action: 'accept' | 'reject' | 'file'): Promise<void> {
+  const mode = cfg<string>('autoAdvance', 'cursor');
   if (mode === 'off') return;
   const hunks = review.hunks(key);
+  if (mode === 'cursor') {
+    if (action !== 'accept') return;
+    const h = M.hunkAfterResolve(hunks, line) || hunks[0];
+    if (h) await openAt(key, h, { center: true });
+    else if (!review.pendingKeys().length) vscode.window.setStatusBarMessage('$(check-all) All Claude changes reviewed', 4000);
+    return;
+  }
   const h = M.hunkAfterResolve(hunks, line) || (hunks.length ? hunks[0] : undefined);
   if (h) {
     await openAt(key, h);
@@ -225,7 +239,7 @@ async function runHunk(kind: 'accept' | 'reject', arg: unknown, fromEditor: bool
   if (!ok) return;
   updateContexts();
   const active = activeKey() === ref.key;
-  if (fromEditor || active) await advance(ref.key, line);
+  if (fromEditor || active) await advance(ref.key, line, kind);
 }
 
 async function confirmTrash(key: string): Promise<boolean> {
@@ -297,6 +311,16 @@ function followClaude(): void {
     }
   }
   for (const k of [...knownHunks.keys()]) if (!review.entries.has(k)) knownHunks.delete(k);
+}
+
+function navigateHunkInFile(dir: 1 | -1): void {
+  const key = activeKey();
+  const ed = vscode.window.activeTextEditor;
+  const hunks = key ? review.hunks(key) : [];
+  if (!key || !ed || !hunks.length) return;
+  const line = ed.selection.active.line;
+  const h = dir > 0 ? M.nextHunk(hunks, line, true) : M.prevHunk(hunks, line, true);
+  if (h) void openAt(key, h, { center: true });
 }
 
 function navigateHunk(dir: 1 | -1): void {
@@ -569,26 +593,29 @@ async function fixKeybindings(conflicts = shortcutConflicts()): Promise<void> {
 }
 
 async function checkShortcutConflicts(): Promise<void> {
-  const conflicts = shortcutConflicts();
+  // Only conflicts not already settled in the user's keybindings.json (earlier "Fix Shortcuts" runs).
+  const entryOf = (c: Conflict) => ({ key: keyFor(c.ours, process.platform)!, command: c.ours.command, when: c.ours.when });
+  const file = userKeybindingsPath();
+  let text = '';
+  try {
+    text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  } catch {
+    /* unreadable: treat as empty */
+  }
+  const settled = (c: Conflict) => {
+    try {
+      return addUserKeybindings(text, [entryOf(c)]) === null;
+    } catch {
+      return false; // keybindings.json we cannot read: still offer
+    }
+  };
+  const conflicts = shortcutConflicts().filter((c) => !settled(c));
   const sig = conflicts.map((c) => c.key + '>' + c.ours.command).join(',');
   if (!conflicts.length || ctx.globalState.get('shortcutConflictsSeen') === sig) return;
-  const file = userKeybindingsPath();
-  try {
-    if (
-      fs.existsSync(file) &&
-      addUserKeybindings(
-        fs.readFileSync(file, 'utf8'),
-        conflicts.map((c) => ({ key: keyFor(c.ours, process.platform)!, command: c.ours.command, when: c.ours.when }))
-      ) === null
-    )
-      return;
-  } catch {
-    /* unreadable: still offer */
-  }
   const exts = [...new Set(conflicts.flatMap((c) => c.theirs.map((t) => t.extension)))].join(', ');
   const keys = [...new Set(conflicts.map((c) => c.key))].slice(0, 5).join(', ');
   const pick = await vscode.window.showWarningMessage(
-    `${exts} also use ${keys}, so Keep/Undo shortcuts may not work. Give Claude Inline Diff priority inside Claude changes (adds entries to your keybindings.json)?`,
+    `${exts} also use ${keys}, so these Claude Inline Diff shortcuts may not work. Give Claude Inline Diff priority inside Claude changes (adds entries to your keybindings.json)?`,
     'Fix Shortcuts',
     'Not Now'
   );
@@ -652,7 +679,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     const cur = activeKey();
     await review.acceptFiles(keys);
     updateContexts();
-    if (cur && keys.includes(cur)) await advance(cur, Number.MAX_SAFE_INTEGER);
+    if (cur && keys.includes(cur)) await advance(cur, Number.MAX_SAFE_INTEGER, 'file');
   });
   reg('rejectFile', async (arg) => {
     const keys = keysFromNode(arg) || [keyFromArg(arg)].filter((k): k is string => !!k);
@@ -660,7 +687,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     const cur = activeKey();
     await review.rejectFiles(keys);
     updateContexts();
-    if (cur && keys.includes(cur)) await advance(cur, Number.MAX_SAFE_INTEGER);
+    if (cur && keys.includes(cur)) await advance(cur, Number.MAX_SAFE_INTEGER, 'file');
   });
   reg('acceptAll', async () => {
     const n = await review.acceptFiles(review.pendingKeys(), 'Keep all');
@@ -698,6 +725,9 @@ function registerCommands(context: vscode.ExtensionContext): void {
     updateContexts();
   });
   reg('nextHunk', () => navigateHunk(1));
+  // Cursor's Alt+J / Alt+K: within the file, wrapping around, centred.
+  reg('nextHunkInFile', () => navigateHunkInFile(1));
+  reg('prevHunkInFile', () => navigateHunkInFile(-1));
   reg('prevHunk', () => navigateHunk(-1));
   reg('nextFile', () => navigateFile(1));
   reg('prevFile', () => navigateFile(-1));

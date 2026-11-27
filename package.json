@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -134,7 +134,12 @@
       },
       {
         "command": "claudeInlineDiff.nextFileText",
-        "title": "Next File ›",
+        "title": "Review Next File",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.keepAllChangesText",
+        "title": "Keep all changes",
         "category": "Claude Inline Diff"
       },
       {
@@ -165,6 +170,16 @@
         "title": "Next Change",
         "category": "Claude Inline Diff",
         "icon": "$(arrow-down)"
+      },
+      {
+        "command": "claudeInlineDiff.nextHunkInFile",
+        "title": "Next Change in This File",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.prevHunkInFile",
+        "title": "Previous Change in This File",
+        "category": "Claude Inline Diff"
       },
       {
         "command": "claudeInlineDiff.prevHunk",
@@ -328,6 +343,30 @@
         "when": "editorTextFocus && claudeInlineDiff.hasChanges"
       },
       {
+        "command": "claudeInlineDiff.nextHunkInFile",
+        "key": "alt+j",
+        "mac": "alt+j",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.prevHunkInFile",
+        "key": "alt+k",
+        "mac": "alt+k",
+        "when": "editorTextFocus && claudeInlineDiff.activeFileHasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.nextFile",
+        "key": "alt+l",
+        "mac": "alt+l",
+        "when": "editorTextFocus && claudeInlineDiff.hasChanges"
+      },
+      {
+        "command": "claudeInlineDiff.prevFile",
+        "key": "alt+h",
+        "mac": "alt+h",
+        "when": "editorTextFocus && claudeInlineDiff.hasChanges"
+      },
+      {
         "command": "claudeInlineDiff.nextFile",
         "key": "ctrl+alt+pagedown",
         "mac": "cmd+alt+pagedown",
@@ -380,9 +419,10 @@
         },
         "claudeInlineDiff.autoAdvance": {
           "type": "string",
-          "default": "hunkThenFile",
-          "markdownDescription": "After Accept/Reject jump to the next change, then the next file.",
+          "default": "cursor",
+          "markdownDescription": "Where the cursor goes after Keep / Undo. `cursor` (like Cursor): Keep of a change moves to the next change in the same file; Undo, Keep File and Undo File stay put. `hunkThenFile`: every action moves to the next change, then the next file. `hunk`: every action moves to the next change in the file. `off`: never move.",
           "enum": [
+            "cursor",
             "hunkThenFile",
             "hunk",
             "off"
@@ -390,13 +430,13 @@
         },
         "claudeInlineDiff.followClaude": {
           "type": "boolean",
-          "default": true,
-          "markdownDescription": "When Claude lands a new change in a visible file, scroll to it and briefly highlight it (like Cursor's agent). Never moves the view while your cursor is inside a change."
+          "default": false,
+          "markdownDescription": "When Claude lands a new change in a visible file, scroll to it and briefly highlight it. Off by default, like Cursor. Never moves the view while your cursor is inside a change."
         },
         "claudeInlineDiff.revealOnEdit": {
           "type": "boolean",
-          "default": true,
-          "markdownDescription": "Open a file (preview tab, focus stays where it is) when Claude starts changing it, scrolled to the change."
+          "default": false,
+          "markdownDescription": "Open a file (preview tab, focus stays where it is) when Claude starts changing it, scrolled to the change. Off by default, like Cursor."
         },
         "claudeInlineDiff.deletedLines.renderer": {
           "type": "string",
@@ -417,9 +457,10 @@
         },
         "claudeInlineDiff.hunkToolbar": {
           "type": "string",
-          "default": "all",
-          "markdownDescription": "Cursor-style pill under each change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `all`: under every change. `active`: only under the change at the cursor (like Cursor; lines below shift when it moves). `off`: use CodeLens instead.",
+          "default": "cursor",
+          "markdownDescription": "Pill under a change: `⌃ 1 of 3 ⌄ | Undo | Keep` (needs the editorInsets API). `cursor` (like Cursor): one pill, under the change nearest to where you last were, with the text cursor or the mouse; lines below it shift by one row when it moves, because extensions cannot overlay the editor. `all`: under every change. `active`: under the change at the text cursor only. `off`: use CodeLens instead.",
           "enum": [
+            "cursor",
             "all",
             "active",
             "off"
@@ -438,7 +479,7 @@
         "claudeInlineDiff.highlightWords": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Highlight changed words inside modified lines."
+          "markdownDescription": "Mark changed words inside removed lines (like Cursor; added lines keep one colour)."
         },
         "claudeInlineDiff.saveAfterReject": {
           "type": "boolean",
@@ -519,8 +560,13 @@
           "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && claudeInlineDiff.activeFileHasChanges"
         },
         {
-          "command": "claudeInlineDiff.nextFileText",
+          "command": "claudeInlineDiff.keepAllChangesText",
           "group": "claudeInlineDiff@5",
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.nextFileText",
+          "group": "claudeInlineDiff@6",
           "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges"
         }
       ],
@@ -667,6 +713,10 @@
         },
         {
           "command": "claudeInlineDiff.nextFileText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepAllChangesText",
           "when": "false"
         },
         {

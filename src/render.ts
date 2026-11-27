@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import * as S from './core/store';
 import { Hunk, wordDiff } from './core/diff';
-import { hunkStat, hunkAtLine } from './core/model';
+import { hunkStat, hunkAtLine, nearestHunk } from './core/model';
 import { ReviewManager, cfg } from './review';
 import { InsetManager, InsetBlock } from './insets';
 
@@ -15,7 +15,7 @@ export class Renderer implements vscode.Disposable {
     isWholeLine: true,
     backgroundColor: color('addedLineBackground'),
     overviewRulerColor: color('addedGutter'),
-    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    overviewRulerLane: vscode.OverviewRulerLane.Right, // Cursor: added on the right, pure deletions on the left
   });
   // Cursor's .inline-diff-inner-change-added: rgba(12,233,27,.15) fill with a 1px edge in the same colour.
   private addedWord = vscode.window.createTextEditorDecorationType({
@@ -57,6 +57,8 @@ export class Renderer implements vscode.Disposable {
   readonly insets: InsetManager;
 
   private lastDiag = new Map<string, string>();
+  /** Last place the user touched per document (cursor or mouse hover): Cursor's pill follows it. */
+  private interaction = new Map<string, number>();
 
   constructor(
     private readonly review: ReviewManager,
@@ -77,9 +79,24 @@ export class Renderer implements vscode.Disposable {
       vscode.window.tabGroups.onDidChangeTabs(() => this.schedule(0)),
       vscode.window.onDidChangeTextEditorVisibleRanges(() => this.schedule(120)),
       vscode.window.onDidChangeTextEditorSelection((e) => {
-        if (cfg<string>('hunkToolbar', 'all') === 'active' && this.useInsets()) this.schedule(30);
-        void e;
+        this.interaction.set(e.textEditor.document.uri.toString(), e.selections[0].active.line);
+        if (cfg<string>('hunkToolbar', 'cursor') !== 'all' && this.useInsets()) this.schedule(30);
       }),
+      // No mouse-move API for extensions: a hover provider is told where the mouse rests over text.
+      vscode.languages.registerHoverProvider(
+        { scheme: 'file' },
+        {
+          provideHover: (doc, pos) => {
+            if (cfg<string>('hunkToolbar', 'cursor') !== 'cursor' || !this.review.entries.has(S.keyOf(doc.uri.fsPath))) return undefined;
+            const k = doc.uri.toString();
+            if (this.interaction.get(k) !== pos.line) {
+              this.interaction.set(k, pos.line);
+              this.schedule(0);
+            }
+            return undefined;
+          },
+        }
+      ),
       vscode.window.onDidChangeActiveColorTheme(() => this.schedule(0)),
       vscode.workspace.onDidChangeConfiguration(
         (e) => (e.affectsConfiguration('claudeInlineDiff') || e.affectsConfiguration('editor')) && this.schedule(0)
@@ -89,7 +106,7 @@ export class Renderer implements vscode.Disposable {
 
   /** Whether Keep/Undo pills are drawn under changes (so CodeLens is not needed). */
   useToolbars(): boolean {
-    return this.useInsets() && cfg<string>('hunkToolbar', 'all') !== 'off';
+    return this.useInsets() && cfg<string>('hunkToolbar', 'cursor') !== 'off';
   }
 
   /** Whether removed code is drawn as inset blocks right now. */
@@ -179,7 +196,9 @@ export class Renderer implements vscode.Disposable {
     const doc = editor.document;
     const last = doc.lineCount - 1;
     const words = cfg('highlightWords', true);
-    const insets = this.useInsets();
+    // Like Cursor's performance protection: past 100 changes, no removed blocks and no pills.
+    const heavy = hunks.length > 100;
+    const insets = this.useInsets() && !heavy;
     const maxLines = cfg('deletedLines.maxLines', 30);
     const added: vscode.Range[] = [];
     const addedWords: vscode.Range[] = [];
@@ -189,15 +208,15 @@ export class Renderer implements vscode.Disposable {
     const ruler: vscode.Range[] = [];
     const blocks: InsetBlock[] = [];
     const isMac = process.platform === 'darwin';
-    const tbMode = insets ? cfg<string>('hunkToolbar', 'all') : 'off';
+    const tbMode = insets ? cfg<string>('hunkToolbar', 'cursor') : 'off';
     const cursorLine = editor.selection.active.line;
-    const activeHunk = tbMode === 'active' ? hunkAtLine(hunks, cursorLine) : undefined;
+    const activeHunk = tbMode === 'active' ? hunkAtLine(hunks, cursorLine) : tbMode === 'cursor' ? this.pillHunk(editor, hunks) : undefined;
     const maxCols = tbMode !== 'off' ? maxColumns(doc, editor.options.tabSize as number) : 0;
     const tabSize = (editor.options.tabSize as number) || 4;
 
     hunks.forEach((h, index) => {
       const ref = { key, aStart: h.aStart, bStart: h.bStart };
-      const wantToolbar = tbMode === 'all' || (tbMode === 'active' && activeHunk === h);
+      const wantToolbar = tbMode === 'all' || activeHunk === h;
       const lastText = h.bLines.length ? h.bLines[h.bLines.length - 1] : h.aLines[h.aLines.length - 1] || '';
       const toolbar = wantToolbar
         ? {
@@ -214,12 +233,8 @@ export class Renderer implements vscode.Disposable {
         const line = h.bStart + i;
         if (line <= last) added.push(new vscode.Range(line, 0, line, 0));
       }
-      if (showWords) {
-        for (const r of wd!.added) {
-          const line = h.bStart + r.line;
-          if (line <= last) addedWords.push(new vscode.Range(line, r.start, line, r.end));
-        }
-      }
+      // Like Cursor: changed words are marked inside removed lines only; added lines are one colour.
+      void addedWords;
       if (insets) {
         // Red block above the change; the pill goes under the change (inside the red block for a pure deletion).
         if (h.aLines.length) {
@@ -246,7 +261,7 @@ export class Renderer implements vscode.Disposable {
         }
         return;
       }
-      if (!h.aLines.length) return;
+      if (!h.aLines.length || heavy) return;
       {
         const hover = this.hoverFor(h, doc.languageId, ref, isMac);
         const n = h.aLines.length;
@@ -272,6 +287,19 @@ export class Renderer implements vscode.Disposable {
       editor,
       `${hunks.length} changes, ${added.length} added lines, ${insets ? `${blocks.length} inset blocks (${this.insets.count()} live${this.insets.failed ? ', FAILED' : ''})` : `fallback (${hints.length} removed hints)`}`
     );
+  }
+
+  /**
+   * The one change that shows the pill, like Cursor: nearest to where the user last was (cursor or
+   * mouse); if that change is scrolled out of view, the first change whose pill line is visible.
+   */
+  private pillHunk(editor: vscode.TextEditor, hunks: Hunk[]): Hunk | undefined {
+    const line = this.interaction.get(editor.document.uri.toString()) ?? editor.selection.active.line;
+    const h = nearestHunk(hunks, line);
+    const pillLine = (x: Hunk) => (x.bLines.length ? x.bStart + x.bLines.length - 1 : Math.max(0, x.bStart - 1));
+    const visible = (l: number) => editor.visibleRanges.some((r) => l >= r.start.line && l <= r.end.line);
+    if (!h || !editor.visibleRanges.length || visible(pillLine(h))) return h;
+    return hunks.find((x) => visible(pillLine(x))) || h;
   }
 
   private hoverFor(

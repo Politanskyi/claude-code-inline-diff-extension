@@ -110,3 +110,19 @@ describe('navigation helpers', () => {
     expect('x\r\n'.slice(0, e.start) + e.text + 'x\r\n'.slice(e.end)).toBe('x\n');
   });
 });
+
+describe('nearestHunk (where Cursor puts its one pill)', () => {
+  // Lines 0-9; changes at line 1 (modified), lines 5-6 (added), and a deletion before line 9.
+  const base = ['0', '1', '2', '3', '4', '7', '8', 'x', '9'].join('\n');
+  const cur = ['0', 'one', '2', '3', '4', '5', '6', '7', '8', '9'].join('\n');
+  const hunks = diffTexts(base, cur);
+
+  it('picks the change containing the line, else the closest by first/last line', () => {
+    expect(hunks.map((h) => h.bStart)).toEqual([1, 5, 9]);
+    expect(M.nearestHunk(hunks, 1)).toBe(hunks[0]);
+    expect(M.nearestHunk(hunks, 6)).toBe(hunks[1]);
+    expect(M.nearestHunk(hunks, 3)).toBe(hunks[0]); // 2 from line 1, 2 from line 5: the first wins
+    expect(M.nearestHunk(hunks, 8)).toBe(hunks[2]);
+    expect(M.nearestHunk([], 3)).toBeUndefined();
+  });
+});
