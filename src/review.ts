@@ -35,6 +35,16 @@ export function cfg<T>(name: string, fallback: T): T {
   return vscode.workspace.getConfiguration('claudeInlineDiff').get<T>(name, fallback);
 }
 
+/**
+ * `storage.location` only as the user set it. The registry default is not used: a window that starts
+ * while Cursor still holds an older manifest (default `project` before 0.1.27) would rewrite the shared
+ * config and send every project's snapshots back into the project.
+ */
+function explicitStorage(): string | undefined {
+  const i = vscode.workspace.getConfiguration('claudeInlineDiff').inspect<string>('storage.location');
+  return i?.workspaceFolderValue ?? i?.workspaceValue ?? i?.globalValue;
+}
+
 export class ReviewManager implements vscode.Disposable {
   /** key -> entry, for every store this window looks at */
   entries = new Map<string, S.Entry>();
@@ -94,7 +104,7 @@ export class ReviewManager implements vscode.Disposable {
 
   sharedConfig(): S.SharedConfig {
     return {
-      storage: cfg<string>('storage.location', 'home') === 'project' ? 'project' : 'home',
+      storage: explicitStorage() === 'project' ? 'project' : 'home',
       dirName: cfg('storage.projectDirName', S.STORE_DIR_NAME_DEFAULT),
       trackBash: cfg('trackBashEdits', true),
       stepRetentionDays: Math.max(1, cfg('stepRetentionDays', 7)),

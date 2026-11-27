@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.30
+- Fix: a window that started while Cursor still held an older manifest read `storage.location` as `project` (the old default) and rewrote the shared config, so snapshots went back into `.claude-review/`. Only a value you set yourself counts now; otherwise snapshots stay outside the project.
+
 ## 0.1.29
 - Fix: a window without its own Claude chat showed another project's chat history in Claude Changes (files that chat edited here, already reviewed). History now comes only from chats of this window's project; another chat's changes still show while they wait for review.
 
