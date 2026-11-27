@@ -38,12 +38,18 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 0 Research (docs/RESEARCH.md) | done |
 | 1 Scaffold (esbuild, lint, prettier, vitest, CI) | done |
 | 2 Diff core + model | done (29 tests) |
-| 3 Hook + store | in progress |
+| 3 Hook + store | done (simulated CLI/extension payloads, bundled script over stdin, Bash via git) |
 | 4 Hook install/uninstall | done (temp CLAUDE_CONFIG_DIR tests; acceptEdits offer + rollback; vscode:uninstall cleanup) |
-| 5 Rendering (insets + fallback) | todo |
-| 6 Controls, navigation, status bar, undo | todo |
+| 5 Rendering (insets + fallback) | done — verified in real VS Code 1.148 via e2e (insets drawn, decoration fallback, screenshots in docs/media) |
+| 6 Controls, navigation, status bar, undo | done — e2e: accept/reject/undo/auto-advance/absorb/new-file trash/Bash/feedback/steps |
 | 7 vsix + docs | todo |
 | 8 Panel, Bash, steps, feedback | partly in core |
 
-## Known issues
-- (none recorded yet)
+## Known issues / lessons
+- VS Code 1.148 refuses `editorInsets` even in dev mode unless `--enable-proposed-api <id>` is passed (e2e passes it).
+  The probe can see the function while creation fails → InsetManager sets `failed` and falls back to decorations.
+- `TextDocument.isDirty` is not reliable inside onDidChangeTextDocument; Claude's disk write is detected by
+  "document text == file on disk" instead (review.ts `matchesDisk`).
+- Never `await` a non-modal notification inside a command (it blocks until dismissed; hung the e2e).
+- Insets do not scroll horizontally with the editor; buttons are anchored right after the first removed line.
+- Minimap: stable decoration API has no minimap colour; only the overview ruler (scrollbar) is marked.

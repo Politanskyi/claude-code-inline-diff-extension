@@ -109,6 +109,7 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
 
 interface DirtySnapshot {
   root: string;
+  sessionId?: string;
   ts: number;
   files: Record<string, { existed: boolean; content: string | null }>;
 }
@@ -147,7 +148,7 @@ const bashSnapPath = (store: string, data: HookInput) => path.join(store, 'bash'
 function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
   const files = dirtyFiles(root);
   if (!files) return;
-  const snap: DirtySnapshot = { root, ts: ctx.now(), files: {} };
+  const snap: DirtySnapshot = { root, sessionId: data.session_id, ts: ctx.now(), files: {} };
   let total = 0;
   for (const rel of files.slice(0, BASH_MAX_FILES)) {
     const r = S.readTextForBaseline(path.join(root, rel));
@@ -161,9 +162,21 @@ function bashBefore(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hoo
   S.writeJsonAtomic(bashSnapPath(store, data), snap);
 }
 
+function latestSnapshotOfSession(store: string, sessionId: string | undefined): string | null {
+  const dir = path.join(store, 'bash');
+  let best: { p: string; ts: number } | null = null;
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    const p = path.join(dir, f);
+    const snap = S.readJson<DirtySnapshot>(p);
+    if (snap && snap.sessionId === sessionId && (!best || snap.ts > best.ts)) best = { p, ts: snap.ts };
+  }
+  return best ? best.p : null;
+}
+
 function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: HookContext): void {
   const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
-  const snapFile = bashSnapPath(store, data);
+  let snapFile = bashSnapPath(store, data);
+  if (!fs.existsSync(snapFile)) snapFile = latestSnapshotOfSession(store, data.session_id) || snapFile; // ids should match; be lenient
   const snap = S.readJson<DirtySnapshot>(snapFile);
   try {
     fs.unlinkSync(snapFile);
