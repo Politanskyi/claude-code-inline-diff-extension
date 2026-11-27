@@ -38,6 +38,7 @@ const commands = [
   C('uninstallHooks', 'Uninstall Claude Code Hook'),
   C('removeCompletely', 'Remove Completely (hook, settings, snapshots, backups)…'),
   C('hookStatus', 'Show Hook Status'),
+  C('checkForUpdates', 'Check for Updates'),
   C('fixKeybindings', 'Fix Shortcut Conflicts with Other Extensions'),
   C('placeChangesView', 'Show Claude Changes Under the Claude Code Chat'),
   C('enableInsets', 'Enable Inline Removed-Code Blocks (argv.json)…'),
@@ -158,7 +159,25 @@ const configuration = {
     ),
     'claudeInlineDiff.confirmRejectAll': P('boolean', true, 'Ask before rejecting all changes in all files.'),
     'claudeInlineDiff.confirmDeleteCreatedFile': P('boolean', true, 'Ask before moving a file Claude created to the trash on Reject.'),
-    'claudeInlineDiff.stepRetentionDays': P('number', 7, 'Keep per-step snapshots (for step revert) this many days. Unreviewed changes to files outside any project expire after the same time.', { minimum: 1 }),
+    'claudeInlineDiff.stepRetentionDays': P(
+      'number',
+      7,
+      'Keep per-step snapshots (for step revert) this many days. Unreviewed changes to files outside any project expire after the same time.',
+      { minimum: 1 }
+    ),
+    'claudeInlineDiff.update': P(
+      'string',
+      'install',
+      "Updates from this project's GitHub releases (the extension is installed from a .vsix, which the editor does not update itself). The only network use of the extension: one request to GitHub every few hours and, for a new release, the download of its .vsix; nothing about you or your code is sent.",
+      {
+        enum: ['install', 'notify', 'off'],
+        enumDescriptions: [
+          'Download and install a new release, then offer to reload the window.',
+          'Only tell me that a new release exists.',
+          'Never check; no network requests at all.',
+        ],
+      }
+    ),
     'claudeInlineDiff.pollIntervalMs': P('number', 700, 'How often to look for new snapshots (ms). Applies after reloading the window.', {
       minimum: 200,
     }),
@@ -270,7 +289,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.2.5',
+  version: '0.3.0',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

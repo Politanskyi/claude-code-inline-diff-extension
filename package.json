@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -212,6 +212,11 @@
       {
         "command": "claudeInlineDiff.hookStatus",
         "title": "Show Hook Status",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.checkForUpdates",
+        "title": "Check for Updates",
         "category": "Claude Inline Diff"
       },
       {
@@ -495,6 +500,21 @@
           "default": 7,
           "markdownDescription": "Keep per-step snapshots (for step revert) this many days. Unreviewed changes to files outside any project expire after the same time.",
           "minimum": 1
+        },
+        "claudeInlineDiff.update": {
+          "type": "string",
+          "default": "install",
+          "markdownDescription": "Updates from this project's GitHub releases (the extension is installed from a .vsix, which the editor does not update itself). The only network use of the extension: one request to GitHub every few hours and, for a new release, the download of its .vsix; nothing about you or your code is sent.",
+          "enum": [
+            "install",
+            "notify",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Download and install a new release, then offer to reload the window.",
+            "Only tell me that a new release exists.",
+            "Never check; no network requests at all."
+          ]
         },
         "claudeInlineDiff.pollIntervalMs": {
           "type": "number",

@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.2.5
+## 0.3.0
+- **Updates itself.** The extension is installed from a .vsix, which the editor never updates (*Auto Update* on its page does nothing for such extensions). It now looks at this project's GitHub releases a little after startup and every few hours, downloads a newer `.vsix`, checks it against the release's SHA-256, installs it and offers **Reload Window**. Setting `claudeInlineDiff.update`: `install` (default), `notify` (only tell me) or `off` (no network requests at all). New command **Check for Updates**. This is the extension's only network use; nothing about you or your code is sent.
 - Bash edits in **another repository** are now seen. Until now a command was compared with `git status` only in the chat's own project, so `cd ../other-repo && sed -i …` (or a script run there) changed files that showed up nowhere. The hook now also looks at the repository the command names (`cd <dir>`, `pushd <dir>`, `git -C <dir>`), at the shell's current folder, and at repositories where this chat already changed a file. Such files appear in the chat's window with the Bash tag, like other changes outside the project. A command that edits some other place without naming it is still not seen. Hook 1.0.9.
 - After installing, the **Set Up** list opens only in the focused window (it used to open in every open window at once).
 - The extension's page in the editor shows the README screenshots (their links now point to the repository; they used to be broken).

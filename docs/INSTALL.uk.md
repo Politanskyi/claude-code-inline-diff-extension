@@ -133,7 +133,13 @@ cursor --install-extension claude-inline-diff.vsix
 
 ## 9. Оновлення
 
-Завантажте новий `.vsix` з [релізів](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest) і встановіть його так само (Install from VSIX…). Якщо збираєте самі:
+Починаючи з 0.3.0 розширення оновлюється саме. Невдовзі після старту і далі раз на кілька годин воно питає в GitHub, чи є новіший реліз; якщо є, завантажує `.vsix`, звіряє його контрольну суму (SHA-256) з релізом, встановлює і пропонує **Reload Window**. Галочка *Auto Update* на сторінці розширення тут ні до чого: для розширень, встановлених з файлу, редактор оновлень не шукає.
+
+- Перевірити зараз: команда **Claude Inline Diff: Check for Updates**.
+- Налаштування `claudeInlineDiff.update`: `install` (за замовчуванням), `notify` (лише повідомити, оновлення по кнопці **Update**), `off` (жодних запитів у мережу).
+- Це єдине звернення розширення до мережі: запит до `api.github.com` про останній реліз і завантаження файлу з релізів цього репозиторію. Про вас і ваш код нічого не надсилається.
+
+Вручну: завантажте новий `.vsix` з [релізів](https://github.com/Politanskyi/claude-code-inline-diff-extension/releases/latest) і встановіть його так само (Install from VSIX…). Якщо збираєте самі:
 
 ```bash
 git pull && npm ci && npm run package

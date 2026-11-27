@@ -14,6 +14,7 @@ import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
 import { StatusBar, Badges, Lenses, ChangesPanel, StepsTree } from './views';
+import { Updater } from './update';
 
 export const EXTENSION_ID = 'inlinediff.claude-inline-diff';
 const BASE_SCHEME = 'claude-inline-diff-base';
@@ -23,6 +24,7 @@ let renderer: Renderer;
 let changesPanel: ChangesPanel | undefined;
 let log: vscode.LogOutputChannel;
 let ctx: vscode.ExtensionContext;
+let updater: Updater | undefined;
 const contextCache = new Map<string, unknown>();
 
 /** Exposed for the e2e tests. */
@@ -111,6 +113,9 @@ export function activate(context: vscode.ExtensionContext): Api {
     `activated; editorInsets ${insetApi() ? 'available' : 'not enabled (decoration fallback)'}; stores: ${review.storeDirs().join(', ')}`
   );
   void firstRunChecks();
+  updater = new Updater(context, log);
+  context.subscriptions.push(updater);
+  if (!process.env.CLAUDE_INLINE_DIFF_TEST) updater.start();
   try {
     for (const s of review.storeDirs()) S.pruneSteps(s, cfg('stepRetentionDays', 7) * 86400_000);
   } catch {
@@ -550,6 +555,7 @@ async function removeCompletely(): Promise<void> {
   });
   await step('stored state', async () => {
     for (const k of ctx.globalState.keys()) await ctx.globalState.update(k, undefined);
+    fs.rmSync(ctx.globalStorageUri.fsPath, { recursive: true, force: true }); // a downloaded update, if one was left
     done.push('cleared stored state');
   });
   review.refresh(true);
@@ -1035,6 +1041,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('uninstallHooks', uninstallHooks);
   reg('removeCompletely', removeCompletely);
   reg('hookStatus', hookStatus);
+  reg('checkForUpdates', () => updater?.check(true));
   reg('enableInsets', enableInsets);
   reg('clearSnapshots', clearSnapshots);
   reg('refresh', () => review.refresh(true));

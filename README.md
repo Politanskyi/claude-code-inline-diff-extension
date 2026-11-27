@@ -5,7 +5,7 @@ Removed code appears as red blocks between your lines, and added code is green.
 **Keep** or **Undo** each change, a whole file, or everything, with Cursor's own keys (**Cmd/Ctrl+Y**, **Cmd/Ctrl+N**, **Cmd/Ctrl+Enter**, **Cmd/Ctrl+Shift+Backspace**). There's no separate diff tab.
 
 Works with the **official Claude Code extension** in Cursor / VS Code (its chat panel) and with the Claude Code CLI.
-It uses Claude Code hooks, so no API key is needed, there's no proxy, and it makes no network calls.
+It uses Claude Code hooks, so no API key is needed and there's no proxy. No telemetry; the only network use is the update check against this repository's releases, which you can switch off.
 
 ![Inline diff in Cursor 3.32.4](docs/media/cursor-inline-diff.png)
 
@@ -42,6 +42,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after: the chat's project, the repo a command `cd`-s into, repos the chat already changed | unit + e2e |
 | ✅ | **Undo with feedback** (editor context menu, *Undo Change with Feedback for Claude…*): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
+| ✅ | **Updates itself** from this repository's GitHub releases (a .vsix install is never updated by the editor): downloads the new `.vsix`, checks its SHA-256, installs it and offers Reload Window; `update`: `install` / `notify` / `off` | unit (versions, release choice) + live in Cursor 3.32.4 (0.2.3 → 0.2.4) |
 | ✅ | Safe hook install/uninstall: one backup (older ones removed), permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup; **Remove Completely** undoes everything the extension wrote (hook, modes, `argv.json` line, added shortcuts, snapshots, stored state, backups) | unit (temp `CLAUDE_CONFIG_DIR`); the command: manual |
 | ✅ | Snapshots outside the project, one folder per project under `~/.claude/inline-diff/projects/` (or, by setting, in the project's `.claude-review/`, which ignores itself in git); switching moves them | unit |
 | ✅ | Files outside the project are reviewed too (snapshots in `~/.claude/inline-diff/store/`; unreviewed ones expire after `stepRetentionDays`), except Claude Code's own working folders `projects/`, `plans/`, `todos/` under `~/.claude`; like in Cursor a change belongs to the chat that made it: it is listed and highlighted only in that chat's window, not in the window of the project the file lives in | unit |
@@ -71,6 +72,8 @@ Claude Code (panel or CLI)                               Cursor / VS Code
 3. The **Set Up** list opens by itself with everything ticked and explained: the Claude Code hook, *Edit automatically*, and red removed-code blocks (one line in `~/.cursor/argv.json`). Press Enter.
 4. Click **Quit Cursor** and start it again (the red blocks need a full restart; *Reload Window* is not enough). Then start a **new** Claude Code chat: its edits show inline and in **Claude Changes** under the chat.
 
+Later versions install themselves (setting `update`; **Check for Updates** asks at once), you only reload the window when offered.
+
 Untick the red blocks and removed code shows as a red rule with a hover instead; the extension offers them again after the first change.
 
 The full guide, with every step done by hand, is in Ukrainian: **[docs/INSTALL.uk.md](docs/INSTALL.uk.md)**. Building it yourself: `npm ci && npm run package`.
@@ -89,6 +92,7 @@ The full guide, with every step done by hand, is in Ukrainian: **[docs/INSTALL.u
 | `followClaude` | `false` | scroll to and flash Claude's new changes (Cursor does not) |
 | `revealOnEdit` | `false` | open the file Claude edits (preview, focus stays; Cursor does not) |
 | `trackBashEdits` | `true` | detect Bash edits via git |
+| `update` | `install` | new releases from GitHub: `install` them, only `notify`, or `off` (no network requests) |
 | `highlightWords` | `false` | mark changed words inside removed lines (Cursor does not) |
 | `storage.projectDirName` | `.claude-review` | snapshot folder name inside the project (`storage.location: project`) |
 | `pollIntervalMs` | `700` | how often the store is checked for new edits (applies after reloading the window) |

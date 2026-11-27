@@ -20,11 +20,12 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
   (accept/reject/absorb math, key labels), `regions.ts` (per-edit grouping), `store.ts` (on-disk format
   shared by hook and extension), `setup.ts` (settings.json install/uninstall), `iconTheme.ts` (file icons
   for the Changes list), `keybindings.ts` (conflicts with other extensions), `layout.ts` (where the Claude
-  chat lives), `argv.ts` (argv.json `enable-proposed-api`), `bashDirs.ts` (folders a shell command names)
+  chat lives), `argv.ts` (argv.json `enable-proposed-api`), `bashDirs.ts` (folders a shell command names), `update.ts` (which GitHub release is newer, which file to take)
 - `src/hook/hook.ts` — Claude Code hook (PreToolUse/PostToolUse/UserPromptSubmit/Stop), bundled standalone; `turns/` markers = Claude is working (Stop does not fire on user interrupt, so a quiet turn expires after 3 min)
 - `src/review.ts` — ReviewManager (state, actions, undo, absorbing user edits)
 - `src/render.ts`, `src/insets.ts` — decorations (+ hover fallback), editorInsets webviews (removed blocks, pill)
 - `src/views.ts` — status bar, file badges, Claude Changes list (webview, Cursor-style; icons via `src/core/iconTheme.ts`), Claude Steps tree, CodeLens
+- `src/update.ts` — self-update from GitHub releases (the extension cannot be on a marketplace: proposed APIs)
 - `src/extension.ts` — activation and commands
 - `docs/` — RESEARCH.md, INSTALL.uk.md, MANUAL_TESTING.uk.md
 
@@ -33,7 +34,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Backups: `writeSettings` keeps one `settings.json.bak-claude-inline-diff-<time>` (`pruneBackups`); `argv.json` / `keybindings.json` have one `.bak-claude-inline-diff` each. *Remove Completely* (`removeCompletely` in extension.ts) undoes everything we wrote and must be extended whenever the extension starts writing somewhere new.
 - Hook must never block Claude: swallow errors, exit 0, print only JSON additionalContext for feedback.
 - Any change under `src/hook/` (or `src/core/store.ts` it bundles) needs a `HOOK_VERSION` bump, or installed hooks are never updated.
-- No network, no telemetry, no runtime deps. Keep `src/core` free of `vscode`.
+- No telemetry, no runtime deps. The only network use is the self-update (`src/update.ts`: GitHub's latest-release API and the release's .vsix, only from this repository, SHA-256 checked; setting `update` = `off` stops it). Nothing else may open a connection. Keep `src/core` free of `vscode`.
 - Code derived from claude-code-inline-review keeps its MIT header. Do NOT copy code from ahmerds/hunker (UNLICENSED).
 - One commit per stage; update the progress table below.
 
