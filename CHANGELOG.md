@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.21
+- Claude Changes: "N Files" is a real heading (larger, semibold) and the file rows are indented under it.
+
 ## 0.1.20
 - Claude Changes: no separate collapse arrow on "N Files" (the view section collapses); +/- without zero parts, like Cursor ("+41", "+7 -1"); Review tab title without a doubled "(N files)".
 

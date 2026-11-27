@@ -413,8 +413,8 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
 <style>
 html,body{margin:0;padding:0}
 body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-foreground);background:transparent;user-select:none}
-.hd{display:flex;align-items:center;gap:4px;height:28px;padding:0 8px 0 4px}
-.tw{color:var(--vscode-descriptionForeground);flex:1;min-width:0;white-space:nowrap;padding-left:16px}
+.hd{display:flex;align-items:center;gap:4px;height:30px;padding:0 8px 0 12px}
+.tw{color:var(--vscode-foreground);font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap}
 .btn{font:inherit;font-size:12px;border:0;border-radius:4px;height:22px;padding:0 7px;cursor:pointer;white-space:nowrap;background:transparent;color:var(--vscode-foreground)}
 .btn:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .btn.text{color:var(--vscode-descriptionForeground)}
@@ -423,7 +423,7 @@ body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-for
 .btn.sec:hover{background:color-mix(in srgb,var(--vscode-foreground) 16%,transparent)}
 .btn.warn{color:var(--vscode-errorForeground)}
 .rows{padding:0 0 4px}
-.row{display:flex;align-items:center;gap:6px;height:23px;padding:0 8px 0 20px;cursor:pointer;font-size:12px}
+.row{display:flex;align-items:center;gap:6px;height:23px;padding:0 8px 0 24px;cursor:pointer;font-size:12px}
 .row:hover{background:var(--vscode-list-hoverBackground)}
 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dir{color:var(--vscode-descriptionForeground);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
