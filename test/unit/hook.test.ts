@@ -340,6 +340,17 @@ describe.skipIf(!hasGit)('hook: Bash edits via git', () => {
     handle({ ...p, hook_event_name: 'PostToolUse' }, ctx());
   }
 
+  it('does not offer a deletion to review when a command removes a file Claude created and nobody kept yet', () => {
+    claudeEdit('made.txt', 'by claude\n', 'Write');
+    const made = path.join(sb.project, 'made.txt');
+    bash(() => {
+      fs.rmSync(made);
+      // The window drops the review of a created file once the file is gone.
+      for (const e of S.loadEntries(sb.store)) if (path.basename(e.path) === 'made.txt') fs.rmSync(e.jsonPath);
+    });
+    expect(S.loadEntries(sb.store).map((e) => path.basename(e.path))).toEqual([]);
+  });
+
   it('detects tracked, dirty, new and deleted files changed by a command', () => {
     expect(dirtyFiles(sb.project)).toEqual(['dirty.txt']);
     bash(() => {

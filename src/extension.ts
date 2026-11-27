@@ -1107,7 +1107,16 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('prevHunk', () => navigateHunk(-1));
   reg('nextFile', () => navigateFile(1));
   reg('prevFile', () => navigateFile(-1));
-  reg('openFile', (key: string) => openAt(key, review.hunks(key)[0]));
+  reg('openFile', async (key: string) => {
+    const e = review.entries.get(key);
+    // A file Claude deleted cannot be opened: show what it was.
+    if (e && !fs.existsSync(e.path)) {
+      const gone = vscode.Uri.from({ scheme: BASE_SCHEME, path: vscode.Uri.file(e.path).path, query: 'gone=1' });
+      await vscode.commands.executeCommand('vscode.diff', baseUri(e), gone, `${path.basename(e.path)} (deleted by Claude)`);
+      return;
+    }
+    await openAt(key, review.hunks(key)[0]);
+  });
   reg('showDiff', async (arg) => {
     const key = keyFromArg(arg);
     const e = key && review.entries.get(key);

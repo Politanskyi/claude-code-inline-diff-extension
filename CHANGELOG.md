@@ -2,6 +2,8 @@
 
 ## 0.3.5
 - Fix: **Review** in the Claude Changes list of a chat with nothing left to review opened the changes another chat had left waiting, instead of this chat's own diff. It now opens what the list shows.
+- Fix: when a Bash command removed a file Claude had created and nobody had kept yet, the list offered a "deletion" to review (Undo / Keep on a file that was never yours). Nothing is left to review in that case. Hook 1.0.18.
+- Claude Changes: a file Claude deleted has a *deleted* tag, and a click on it opens what it was (it could not be opened before).
 
 ## 0.3.4
 - Claude Changes: the section title shows how many files wait for Keep / Undo (`CLAUDE CHANGES (3 FILES TO REVIEW)`), also while the list is collapsed. Nothing is added when all is decided. The editor only lets a section change its title once it has been opened in the window, so a list that was never expanded since the window loaded has no count yet (the status bar shows it then).

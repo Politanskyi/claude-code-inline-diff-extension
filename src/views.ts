@@ -312,6 +312,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
             title: `${rel} · ${plural(hunks.length, 'change')}`,
             ...totals(hunks),
             isNew: !e.existed,
+            gone: e.existed && !fs.existsSync(e.path),
             bash: e.source === 'bash',
             icon: this.iconFor(path.basename(e.path)),
           };
@@ -513,7 +514,7 @@ function render(){
       icon(x.icon)+'<span class="nm">'+esc(x.name)+'</span>'+
       // Like Cursor: "+41", "+7 -1", "-3" (no zero parts).
       '<span class="st">'+(x.added?'<span class="ad">+'+x.added+'</span>':'')+(x.added&&x.removed?' ':'')+(x.removed?'<span class="rm">-'+x.removed+'</span>':'')+'</span>'+
-      (x.isNew?'<span class="tag">new</span>':'')+(x.bash?'<span class="tag">Bash</span>':'')+'<span class="sp"></span>'+
+      (x.isNew?'<span class="tag">new</span>':'')+(x.gone?'<span class="tag">deleted</span>':'')+(x.bash?'<span class="tag">Bash</span>':'')+'<span class="sp"></span>'+
       // History rows (already reviewed) have nothing to keep or undo.
       (data.history?'':'<span class="acts"><button class="ic" data-a="undo" data-key="'+esc(x.key)+'" title="Undo File">'+X+'</button><button class="ic" data-a="keep" data-key="'+esc(x.key)+'" title="Keep File">'+V+'</button></span>')+'</div>').join('')+'</div>';
 }
