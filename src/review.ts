@@ -65,6 +65,8 @@ export class ReviewManager implements vscode.Disposable {
       this._onActivity,
       vscode.workspace.onDidChangeTextDocument((e) => this.onDocChange(e)),
       vscode.workspace.onDidOpenTextDocument((d) => this.rememberDoc(d)),
+      // A save during a Claude Bash command must not be mistaken for the command's change.
+      vscode.workspace.onDidSaveTextDocument((d) => d.uri.scheme === 'file' && S.recordEditorWrite(S.realPath(d.uri.fsPath))),
       vscode.workspace.onDidCloseTextDocument((d) => d.uri.scheme === 'file' && this.docText.delete(S.keyOf(d.uri.fsPath))),
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh(true)),
       vscode.workspace.onDidChangeConfiguration((e) => {
@@ -422,6 +424,7 @@ export class ReviewManager implements vscode.Disposable {
             /* already gone */
           }
         }
+        S.recordEditorWrite(abs); // saved documents are recorded by onDidSaveTextDocument
         this.diskCache.delete(key);
         return;
       }
@@ -429,6 +432,7 @@ export class ReviewManager implements vscode.Disposable {
         // Missing on disk (e.g. undoing a trashed file): recreate it; an open document reloads from disk.
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, text);
+        S.recordEditorWrite(abs);
         this.diskCache.delete(key);
         return;
       }

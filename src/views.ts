@@ -220,7 +220,6 @@ export class ChangesTree implements vscode.TreeDataProvider<Node>, vscode.Dispos
       return [...s].map(([id, keys]) => ({ kind: 'session', id, keys }));
     }
     if (node.kind === 'session') return node.keys.map((key) => ({ kind: 'file', key }));
-    if (node.kind === 'file') return this.review.hunks(node.key).map((hunk, index) => ({ kind: 'hunk', key: node.key, hunk, index }));
     return [];
   }
 
@@ -236,9 +235,12 @@ export class ChangesTree implements vscode.TreeDataProvider<Node>, vscode.Dispos
     if (node.kind === 'file') {
       const e = this.review.entries.get(node.key)!;
       const hunks = this.review.hunks(node.key);
-      const it = new vscode.TreeItem(vscode.Uri.file(e.path), vscode.TreeItemCollapsibleState.Collapsed);
-      const rel = vscode.workspace.asRelativePath(path.dirname(e.path));
-      it.description = `${rel === path.dirname(e.path) ? '' : rel + ' · '}${plural(hunks.length, 'change')}${e.existed ? '' : ' · new'}${e.source === 'bash' ? ' · via Bash' : ''}`;
+      // A flat row like Cursor's chat file list: name, +added −removed; ✕ / ✓ appear on hover.
+      const it = new vscode.TreeItem(vscode.Uri.file(e.path), vscode.TreeItemCollapsibleState.None);
+      const added = hunks.reduce((n, h) => n + h.bLines.length, 0);
+      const removed = hunks.reduce((n, h) => n + h.aLines.length, 0);
+      it.description = `+${added} −${removed}${e.existed ? '' : ' · new'}${e.source === 'bash' ? ' · via Bash' : ''}`;
+      it.tooltip = `${vscode.workspace.asRelativePath(e.path)} · ${plural(hunks.length, 'change')}`;
       it.contextValue = 'file';
       it.command = { command: 'claudeInlineDiff.openFile', title: 'Open', arguments: [node.key] };
       return it;

@@ -9,6 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, keyFor, Conflict } from './core/keybindings';
+import { chatContainer } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -509,6 +510,24 @@ function shortcutConflicts(): Conflict[] {
   return found;
 }
 
+/**
+ * Puts the Claude Changes list under the Claude Code chat, wherever the editor keeps that chat.
+ * Done once per chat location (so a list the user moved elsewhere stays there); `force` from the command.
+ */
+async function placeChangesView(force: boolean): Promise<void> {
+  if (!vscode.extensions.getExtension('anthropic.claude-code')) return;
+  // <user data>/User/globalStorage/<ext id> → <user data>/User/globalStorage/state.vscdb
+  const dest = chatContainer(path.join(path.dirname(ctx.globalStorageUri.fsPath), 'state.vscdb'));
+  if (!force && ctx.globalState.get('changesViewPlacedIn') === dest) return;
+  try {
+    await vscode.commands.executeCommand('vscode.moveViews', { viewIds: ['claudeInlineDiff.changes'], destinationId: dest });
+    await ctx.globalState.update('changesViewPlacedIn', dest);
+    log.info('Claude Changes list placed under the Claude Code chat: ' + dest);
+  } catch (e: any) {
+    log.warn('could not move the Claude Changes list: ' + (e?.message || e));
+  }
+}
+
 function userKeybindingsPath(): string {
   // <user data>/User/globalStorage/<ext id> → <user data>/User/keybindings.json
   return path.join(path.dirname(path.dirname(ctx.globalStorageUri.fsPath)), 'keybindings.json');
@@ -572,6 +591,7 @@ async function checkShortcutConflicts(): Promise<void> {
 async function firstRunChecks(): Promise<void> {
   if (process.env.CLAUDE_INLINE_DIFF_TEST) return;
   void checkShortcutConflicts();
+  void placeChangesView(false);
   const st = setup.status(bundledHook());
   if (st.scriptInstalled && st.configured && st.installedVersion !== st.bundledVersion) {
     try {
@@ -691,6 +711,11 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('keepAllText', () => vscode.commands.executeCommand('claudeInlineDiff.acceptAll'));
   reg('undoAllText', () => vscode.commands.executeCommand('claudeInlineDiff.rejectAll'));
   reg('nextFileText', () => navigateFile(1));
+  reg('placeChangesView', () => placeChangesView(true));
+  reg('reviewText', () => vscode.commands.executeCommand('claudeInlineDiff.reviewAll'));
+  // ✕ / ✓ on a row of the Claude Changes list (Cursor's Reject / Accept in the chat's file list).
+  reg('undoFileItem', (n) => vscode.commands.executeCommand('claudeInlineDiff.rejectFile', n));
+  reg('keepFileItem', (n) => vscode.commands.executeCommand('claudeInlineDiff.acceptFile', n));
   reg('reviewAll', async () => {
     const keys = review.pendingKeys();
     if (!keys.length) return;

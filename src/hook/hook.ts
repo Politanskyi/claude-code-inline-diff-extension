@@ -12,7 +12,7 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 import * as S from '../core/store';
 
-export const HOOK_VERSION = '1.0.0';
+export const HOOK_VERSION = '1.0.1';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -61,7 +61,7 @@ export function handle(data: HookInput, ctx: HookContext = defaultCtx): string {
   if (event === 'UserPromptSubmit') {
     const store = S.storeDirFor(path.join(root, 'x'), root, cfg, ctx.env);
     S.beginStep(store, session, typeof data.prompt === 'string' ? data.prompt : '', ctx.now());
-    housekeeping(store, ctx.now());
+    housekeeping(store, ctx.now(), ctx.env);
     return feedbackOutput('UserPromptSubmit', data, root, cfg, ctx);
   }
 
@@ -193,6 +193,8 @@ function bashAfter(data: HookInput, root: string, cfg: S.SharedConfig, ctx: Hook
     const abs = S.realPath(path.join(snap.root, rel));
     const fileStore = S.storeDirFor(abs, root, cfg, ctx.env);
     if (S.hasBaseline(fileStore, abs)) continue; // already under review: the old baseline stays the "before"
+    // Saved in the editor while the command ran (the user's edit, or Undo/Keep): not Claude's change.
+    if (S.isEditorWrite(abs, snap.ts, ctx.env)) continue;
     let before: { existed: boolean; content: string } | null;
     const pre = snap.files[rel];
     if (pre) {
@@ -239,9 +241,10 @@ function feedbackOutput(
 }
 
 /** Drops step snapshots older than a week and Bash snapshots of commands that never reported back. */
-export function housekeeping(store: string, now: number): void {
+export function housekeeping(store: string, now: number, env: NodeJS.ProcessEnv = process.env): void {
   try {
     S.pruneSteps(store, 7 * 24 * 3600_000, now);
+    S.pruneEditorWrites(24 * 3600_000, now, env);
     const dir = path.join(store, 'bash');
     for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
       const p = path.join(dir, f);

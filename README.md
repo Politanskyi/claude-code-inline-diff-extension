@@ -27,7 +27,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Fallback without the proposed API: red rule + "−N lines removed", hover with the old code (syntax highlighted) and Keep/Undo links; CodeLens `1 of 4 · Undo · Keep` | e2e + screenshot |
 | ✅ | Added lines green, **changed words** highlighted on both sides | unit + e2e |
 | ✅ | Cursor-style **pill under each change**: `⌃ 2 of 5 ⌄ │ Undo ⌘N │ Keep ⌘Y │ …` (right-aligned like Cursor; anchored to the code when the editor scrolls horizontally) | e2e in Cursor + screenshots; clicks: manual |
-| ✅ | Floating **Undo All / Keep All / Next File ›** bar at the bottom-right of the editor (`editor/content`, proposed `contribEditorContentMenu`) | e2e screenshot in Cursor |
+| ✅ | Floating per-file **Undo File / Keep File** bar at the bottom-right of the editor (`editor/content`, proposed `contribEditorContentMenu`), like Cursor's per-file bar | manual in Cursor 3.32 |
 | ✅ | **Follow Claude**: a new change in a visible file is scrolled into view and briefly highlighted (never while your cursor is in a change) | e2e |
 | ✅ | **Review All**: every changed file in one multi-file diff editor (inline blocks are suppressed there) | e2e in Cursor + screenshot |
 | ✅ | Cursor's keys, taken from Cursor 3.32's source: **Cmd/Ctrl+Y / N** (change), **Cmd/Ctrl+Enter / Cmd/Ctrl+Shift+Backspace** (file); also Cmd/Ctrl+Shift+Y / N; alternative scheme Cmd/Ctrl+Alt+Enter / Backspace | commands e2e; key presses: manual |
@@ -37,7 +37,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | Your own edits outside Claude's changes are **absorbed** into the baseline; edits inside a change become part of it | unit + e2e |
 | ✅ | Files Claude **created**: Undo moves them to the trash (with confirmation) | e2e |
 | ✅ | Status bar `$(sparkle) N files · M changes` with ▲ ▼, `Claude editing <file>` indicator, Explorer & tab badges | rendering: manual |
-| ✅ | **Claude Changes** panel (Source Control view): sessions → files → changes, inline actions | manual |
+| ✅ | **Claude Changes** list under the Claude Code chat (like the file list under Cursor's agent chat): **Undo All / Keep All / Review**, one row per file with +added −removed, ✕ / ✓ on hover, click to open | manual in Cursor 3.32 |
 | ✅ | **Claude Steps** panel: one step per prompt; *Revert to before this step* (and later steps) | e2e (revert) |
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
 | ✅ | **Undo with feedback** (the `…` button): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
@@ -89,7 +89,7 @@ cursor --install-extension claude-inline-diff.vsix
 | `deletedLines.renderer` | `auto` | `auto`, `inset`, `decoration` |
 | `deletedLines.maxLines` | `30` | collapse longer removed blocks |
 | `hunkToolbar` | `all` | pill under every change (`all`), only at the cursor (`active`, like Cursor), or CodeLens (`off`) |
-| `floatingBar` | `true` | floating Undo All / Keep All |
+| `floatingBar` | `true` | floating Undo File / Keep File |
 | `followClaude` | `true` | scroll to and flash Claude's new changes |
 | `revealOnEdit` | `true` | open the file Claude edits (preview, focus stays) |
 | `trackBashEdits` | `true` | detect Bash edits via git |

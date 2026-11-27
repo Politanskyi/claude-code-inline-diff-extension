@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, word highlights, Accept/Reject per change, file or all (Cmd+Y / Cmd+N), auto-advance, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -138,6 +138,23 @@
         "category": "Claude Inline Diff"
       },
       {
+        "command": "claudeInlineDiff.reviewText",
+        "title": "Review",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.undoFileItem",
+        "title": "Undo File",
+        "category": "Claude Inline Diff",
+        "icon": "$(close)"
+      },
+      {
+        "command": "claudeInlineDiff.keepFileItem",
+        "title": "Keep File",
+        "category": "Claude Inline Diff",
+        "icon": "$(check)"
+      },
+      {
         "command": "claudeInlineDiff.reviewAll",
         "title": "Review All Changes (multi-file diff)",
         "category": "Claude Inline Diff",
@@ -197,6 +214,11 @@
       {
         "command": "claudeInlineDiff.fixKeybindings",
         "title": "Fix Shortcut Conflicts with Other Extensions",
+        "category": "Claude Inline Diff"
+      },
+      {
+        "command": "claudeInlineDiff.placeChangesView",
+        "title": "Show Claude Changes Under the Claude Code Chat",
         "category": "Claude Inline Diff"
       },
       {
@@ -411,7 +433,7 @@
         "claudeInlineDiff.floatingBar": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Floating **Undo All / Keep All** buttons at the bottom-right of the editor (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line)."
+          "markdownDescription": "Floating **Undo File / Keep File** buttons at the bottom-right of the editor, like Cursor's per-file bar (Cursor shows two buttons there); Undo All / Keep All are in the Claude Changes list (needs the `contribEditorContentMenu` proposed API, enabled by the same argv.json line)."
         },
         "claudeInlineDiff.highlightWords": {
           "type": "boolean",
@@ -487,19 +509,19 @@
       ],
       "editor/content": [
         {
-          "command": "claudeInlineDiff.undoAllText",
+          "command": "claudeInlineDiff.undoFileText",
           "group": "claudeInlineDiff@1",
-          "when": "claudeInlineDiff.hasChanges && config.claudeInlineDiff.floatingBar"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && claudeInlineDiff.activeFileHasChanges"
         },
         {
-          "command": "claudeInlineDiff.keepAllText",
+          "command": "claudeInlineDiff.keepFileText",
           "group": "claudeInlineDiff@2",
-          "when": "claudeInlineDiff.hasChanges && config.claudeInlineDiff.floatingBar"
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && claudeInlineDiff.activeFileHasChanges"
         },
         {
           "command": "claudeInlineDiff.nextFileText",
-          "group": "claudeInlineDiff@3",
-          "when": "claudeInlineDiff.multipleFiles && config.claudeInlineDiff.floatingBar"
+          "group": "claudeInlineDiff@5",
+          "when": "resourceScheme == file && config.claudeInlineDiff.floatingBar && !claudeInlineDiff.activeFileHasChanges && claudeInlineDiff.hasChanges"
         }
       ],
       "editor/context": [
@@ -538,23 +560,23 @@
       ],
       "view/title": [
         {
-          "command": "claudeInlineDiff.reviewAll",
-          "group": "navigation@0",
-          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
-        },
-        {
-          "command": "claudeInlineDiff.acceptAll",
+          "command": "claudeInlineDiff.undoAllText",
           "group": "navigation@1",
           "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
         },
         {
-          "command": "claudeInlineDiff.rejectAll",
+          "command": "claudeInlineDiff.keepAllText",
           "group": "navigation@2",
           "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
         },
         {
-          "command": "claudeInlineDiff.undo",
+          "command": "claudeInlineDiff.reviewText",
           "group": "navigation@3",
+          "when": "view == claudeInlineDiff.changes && claudeInlineDiff.hasChanges"
+        },
+        {
+          "command": "claudeInlineDiff.undo",
+          "group": "0_history@1",
           "when": "view == claudeInlineDiff.changes"
         },
         {
@@ -570,19 +592,24 @@
       ],
       "view/item/context": [
         {
-          "command": "claudeInlineDiff.showDiff",
+          "command": "claudeInlineDiff.undoFileItem",
           "group": "inline@1",
           "when": "view == claudeInlineDiff.changes && viewItem == file"
         },
         {
-          "command": "claudeInlineDiff.acceptFile",
+          "command": "claudeInlineDiff.keepFileItem",
           "group": "inline@2",
           "when": "view == claudeInlineDiff.changes && viewItem == file"
         },
         {
-          "command": "claudeInlineDiff.rejectFile",
-          "group": "inline@3",
+          "command": "claudeInlineDiff.showDiff",
+          "group": "1_file@1",
           "when": "view == claudeInlineDiff.changes && viewItem == file"
+        },
+        {
+          "command": "claudeInlineDiff.rejectHunkWithFeedback",
+          "group": "1_file@2",
+          "when": "view == claudeInlineDiff.changes && viewItem == hunk"
         },
         {
           "command": "claudeInlineDiff.acceptHunk",
@@ -640,6 +667,18 @@
         },
         {
           "command": "claudeInlineDiff.nextFileText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.reviewText",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.undoFileItem",
+          "when": "false"
+        },
+        {
+          "command": "claudeInlineDiff.keepFileItem",
           "when": "false"
         }
       ]
@@ -717,13 +756,15 @@
       }
     ],
     "views": {
-      "scm": [
+      "claude-sidebar-secondary": [
         {
           "id": "claudeInlineDiff.changes",
           "name": "Claude Changes",
           "icon": "$(sparkle)",
           "contextualTitle": "Claude Changes"
-        },
+        }
+      ],
+      "scm": [
         {
           "id": "claudeInlineDiff.steps",
           "name": "Claude Steps",

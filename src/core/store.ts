@@ -11,6 +11,7 @@
 //   steps/<session>/<turn>/files/<name>.json the file before that step first touched it
 //   bash/<id>.json             dirty-file snapshot taken before a Bash tool call
 //   feedback/<id>.json         "reject with feedback" notes waiting for Claude
+//   editor-writes/<name>.json  (global store only) last save made in the editor, so Bash tracking skips it
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -260,6 +261,51 @@ export function readTextForBaseline(abs: string): { existed: boolean; content: s
   } catch (e: any) {
     if (e && e.code === 'ENOENT') return { existed: false, content: '' };
     return null;
+  }
+}
+
+// ---------- writes made in the editor (user saves, Undo/Keep) ----------
+// A Bash tool call compares files before and after the command. Anything the user (or this
+// extension) writes to disk while the command runs would otherwise look like Claude's change,
+// so the extension records each such write and the hook skips files whose content still matches.
+
+const editorWritePath = (abs: string, env: NodeJS.ProcessEnv) =>
+  path.join(globalStoreDir(env), 'editor-writes', fileNameFor(keyOf(abs)) + '.json');
+
+/** sha256 of the file's bytes, '-' when it does not exist, null when unreadable. */
+export function fileHash(abs: string): string | null {
+  try {
+    return crypto.createHash('sha256').update(fs.readFileSync(abs)).digest('hex');
+  } catch (e: any) {
+    return e && e.code === 'ENOENT' ? '-' : null;
+  }
+}
+
+export function recordEditorWrite(abs: string, now = Date.now(), env: NodeJS.ProcessEnv = process.env): void {
+  const hash = fileHash(abs);
+  if (hash === null) return;
+  try {
+    writeJsonAtomic(editorWritePath(abs, env), { path: abs, hash, ts: now });
+  } catch {
+    /* best effort */
+  }
+}
+
+/** True when the editor wrote exactly the current content of `abs` at or after `since`. */
+export function isEditorWrite(abs: string, since: number, env: NodeJS.ProcessEnv = process.env): boolean {
+  const rec = readJson<{ hash: string; ts: number }>(editorWritePath(abs, env));
+  return !!rec && rec.ts >= since && rec.hash === fileHash(abs);
+}
+
+export function pruneEditorWrites(maxAgeMs: number, now = Date.now(), env: NodeJS.ProcessEnv = process.env): void {
+  const dir = path.join(globalStoreDir(env), 'editor-writes');
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const p = path.join(dir, f);
+      if (now - fs.statSync(p).mtimeMs > maxAgeMs) fs.rmSync(p, { force: true });
+    }
+  } catch {
+    /* none yet */
   }
 }
 

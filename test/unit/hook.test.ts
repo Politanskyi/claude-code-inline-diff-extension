@@ -231,6 +231,28 @@ describe.skipIf(!hasGit)('hook: Bash edits via git', () => {
     expect(S.loadEntries(sb.store)).toHaveLength(0);
   });
 
+  it('skips files saved in the editor while the command ran (user edits, Undo/Keep)', () => {
+    const abs = (rel: string) => S.realPath(path.join(sb.project, rel));
+    bash(() => {
+      sb.write('tracked.txt', 'undone in the editor\n');
+      S.recordEditorWrite(abs('tracked.txt'), clock++, sb.env);
+      sb.write('dirty.txt', 'saved by user\n');
+      S.recordEditorWrite(abs('dirty.txt'), clock++, sb.env);
+      sb.write('dirty.txt', 'saved by user\nthen changed by bash\n'); // content moved on: Claude's change again
+      sb.write('new.txt', 'fresh\n');
+    });
+    const names = S.loadEntries(sb.store)
+      .map((e) => path.basename(e.path))
+      .sort();
+    expect(names).toEqual(['dirty.txt', 'new.txt']);
+  });
+
+  it('ignores editor saves made before the command started', () => {
+    S.recordEditorWrite(S.realPath(path.join(sb.project, 'tracked.txt')), 0, sb.env);
+    bash(() => sb.write('tracked.txt', 'by bash\n'));
+    expect(S.loadEntries(sb.store).map((e) => path.basename(e.path))).toEqual(['tracked.txt']);
+  });
+
   it('can be switched off', () => {
     S.writeConfig({ storage: 'project', dirName: '.claude-review', trackBash: false }, sb.env);
     bash(() => sb.write('tracked.txt', 'x\n'));

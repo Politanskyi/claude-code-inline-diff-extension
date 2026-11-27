@@ -43,7 +43,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 5 Rendering (insets + fallback) | done — verified in real VS Code 1.148 via e2e (insets drawn, decoration fallback, screenshots in docs/media) |
 | 6 Controls, navigation, status bar, undo | done — e2e: accept/reject/undo/auto-advance/absorb/new-file trash/Bash/feedback/steps |
 | 7 vsix + docs | done — `npm run package` → claude-inline-diff.vsix (11 files, ~50 KB; installs via code CLI); README, docs/INSTALL.uk.md, docs/MANUAL_TESTING.uk.md |
-| 8 Panel, Bash, steps, feedback | done — Claude Changes (sessions→files→hunks) + Claude Steps views, Bash via git, step revert, `Claude editing <file>`, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
+| 8 Panel, Bash, steps, feedback | done — Claude Changes (files, under the Claude Code chat) + Claude Steps views, Bash via git, step revert, `Claude editing <file>`, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
 
 ## Known issues / lessons
 - VS Code 1.148 refuses `editorInsets` even in dev mode unless `--enable-proposed-api <id>` is passed (e2e passes it).
@@ -58,14 +58,16 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Cursor 3.32.4 (VS Code 1.147 base), Linux .deb unpacked: `CID_EDITOR=<cursor binary> xvfb-run -a npm run test:e2e` → 16/16.
   Insets work via `~/.cursor/argv.json` (tested with a temp HOME) and via `--enable-proposed-api`; without either → decoration fallback, all tests pass.
 - Cursor 3 shows a login overlay inside the workbench window; e2e passes `--skip-onboarding` (Cursor-only CLI flag) for screenshots.
-- `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating Undo All / Keep All bar).
+- `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating per-file Undo File / Keep File bar).
+- Cursor keeps the Claude Code chat in a generated auxiliary-bar container; `src/core/layout.ts` finds it in `state.vscdb` and `vscode.moveViews` puts Claude Changes under it once.
+- Bash tracking skips files the editor saved during the command (`editor-writes/` in the global store).
 
 ## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's
   `editor.action.inlineDiffs.*` registrations.
 - Colours: theme diffEditor.inserted/removedLineBackground; words rgba(12,233,27,.15) / rgba(242,13,59,.25); no gutter bar.
 - Pill under each change (inset row): `⌃ i of n ⌄ | Undo | Keep | …`, right-aligned unless the editor overflows horizontally.
-- Floating Undo All / Keep All / Next File via `editor/content` (proposed contribEditorContentMenu).
+- Floating Undo File / Keep File via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu); Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
 - e2e: 16 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
