@@ -324,7 +324,7 @@ Object.assign(pkg, {
     test: 'vitest run',
     'test:e2e': 'node scripts/build.js && node test/e2e/run.js',
     package:
-      'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository --no-rewrite-relative-links -o claude-inline-diff.vsix',
+      'node scripts/build.js --production && vsce package --no-dependencies --allow-missing-repository --baseContentUrl https://github.com/Politanskyi/claude-code-inline-diff-extension/blob/master --baseImagesUrl https://raw.githubusercontent.com/Politanskyi/claude-code-inline-diff-extension/master -o claude-inline-diff.vsix',
     'vscode:uninstall': 'node ./dist/uninstall.js',
   },
 });
