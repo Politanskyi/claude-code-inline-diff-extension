@@ -9,13 +9,11 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 
 ![Inline diff in Cursor 3.32.4](docs/media/cursor-inline-diff.png)
 
-*Cursor 3.32.4, Cursor Dark: red removed blocks, Cursor-style `⌃ 1 of 4 ⌄ │ Undo │ Keep` pill under each change, floating per-file **Undo File / Keep File** bar. Colours and button styles follow Cursor's own inline-diff CSS.*
+*Cursor 3.32.4, Cursor Dark, a real edit from the Claude Code panel: red removed blocks between the lines, one Cursor-style `⌃ 5 of 5 ⌄ │ Undo ⌘N │ Keep` pill under the change nearest the cursor, the floating **Undo File / Keep File ⌘⏎** bar, and the **Claude Changes** list under the chat with Undo All / Keep All / Review.*
 
 | Cursor Light | Review All (multi-file diff) |
 |---|---|
 | ![](docs/media/cursor-light.png) | ![](docs/media/cursor-review-all.png) |
-
-![Keep → auto-advance → Undo](docs/media/review-flow.gif)
 
 **Extension id:** `inlinediff.claude-inline-diff`
 
