@@ -39,7 +39,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 1 Scaffold (esbuild, lint, prettier, vitest, CI) | done |
 | 2 Diff core + model | done (29 tests) |
 | 3 Hook + store | in progress |
-| 4 Hook install/uninstall | in progress |
+| 4 Hook install/uninstall | done (temp CLAUDE_CONFIG_DIR tests; acceptEdits offer + rollback; vscode:uninstall cleanup) |
 | 5 Rendering (insets + fallback) | todo |
 | 6 Controls, navigation, status bar, undo | todo |
 | 7 vsix + docs | todo |
