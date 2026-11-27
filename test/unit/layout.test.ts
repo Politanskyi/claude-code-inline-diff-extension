@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { chatContainer, chatContainerFromState, CLAUDE_CHAT_CONTAINER } from '../../src/core/layout';
-import { visibleChatFromText, liveWalText } from '../../src/core/layout';
+import { visibleChatFromText, liveWalText, ChatLogReader } from '../../src/core/layout';
 
 const custom = (id: string) =>
   `views.customizations{"viewContainerLocations":{"${id}":2},"viewLocations":{"claudeVSCodeSidebarSecondary":"${id}"}}`;
@@ -59,5 +59,32 @@ describe('chat shown in the Claude Code panel', () => {
     const wal = Buffer.concat([header, frame(2, rec(A)), frame(1, rec(B))]);
     expect(visibleChatFromText(liveWalText(wal))).toBe(A);
     expect(liveWalText(Buffer.alloc(10))).toBe('');
+  });
+});
+
+describe("official extension's log", () => {
+  const A = '04e02a8b-2927-45ea-bb46-9d7be0e6645e';
+  const B = '9c90cdda-4cb7-47e1-9309-c2b7b564b47d';
+  const launch = (ch: string, resume = true) =>
+    `x [info] Received message from webview: {"type":"launch_claude","channelId":"${ch}","cwd":"<string>"${resume ? ',"resume":"<string>"' : ''}}\n`;
+  const resumed = (id: string) =>
+    `x [info] From claude: [DEBUG] FileHistory: No need to copy file history for resuming with same session id: ${id}\n`;
+  const attach = (ch: string) => `x [info] From claude: [DEBUG] session.attach: vscode-${ch} on vscode\n`;
+
+  it('tells which chat the panel was attached to', () => {
+    const r = new ChatLogReader();
+    expect(r.feed(launch('a1') + resumed(A) + attach('a1') + launch('b2') + resumed(B) + attach('b2'))).toBe(B);
+    expect(r.feed(attach('a1'))).toBe(A); // back to a chat that is still loaded: no launch, no hook
+    expect(r.feed('unrelated line\n')).toBeUndefined();
+  });
+
+  it('does not take a new chat for the next resumed one, and waits for whole lines', () => {
+    const r = new ChatLogReader();
+    expect(r.feed(launch('n1', false) + attach('n1'))).toBeUndefined();
+    r.feed(launch('a1') + resumed(A));
+    expect(r.feed(attach('n1'))).toBeUndefined();
+    const line = attach('a1');
+    expect(r.feed(line.slice(0, 20))).toBeUndefined();
+    expect(r.feed(line.slice(20))).toBe(A);
   });
 });

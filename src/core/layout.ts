@@ -79,3 +79,39 @@ export function visibleChat(stateDb: string): string | null | undefined {
     return undefined;
   }
 }
+
+// ---------- the official extension's log ----------
+//
+// Switching the panel to a chat whose process is still loaded is only an "attach" inside the official extension:
+// no hook fires. Its log says so at once (`session.attach: vscode-<channel>`), and which session a channel runs
+// follows from the lines of its launch. Best effort: the log's wording is not an interface.
+
+export class ChatLogReader {
+  private readonly channels = new Map<string, string>();
+  private pending: string | null = null;
+  private rest = '';
+
+  /** Feeds new log text; returns the session the panel was attached to last in it (if that is known). */
+  feed(text: string): string | undefined {
+    const lines = (this.rest + text).split('\n');
+    this.rest = lines.pop() || '';
+    let shown: string | undefined;
+    for (const line of lines) {
+      let m = /"type":"launch_claude","channelId":"([\w-]+)"/.exec(line);
+      if (m) {
+        // Only a launch that resumes a chat is followed by that chat's session id.
+        this.pending = line.includes('"resume":') ? m[1] : null;
+        continue;
+      }
+      m = /resuming with same session id: ([0-9a-fA-F-]{8,64})/.exec(line);
+      if (m) {
+        if (this.pending) this.channels.set(this.pending, m[1]);
+        this.pending = null;
+        continue;
+      }
+      m = /session\.attach: vscode-([\w-]+) on/.exec(line);
+      if (m) shown = this.channels.get(m[1]);
+    }
+    return shown;
+  }
+}

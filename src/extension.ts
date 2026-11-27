@@ -9,7 +9,7 @@ import * as M from './core/model';
 import { Hunk } from './core/diff';
 import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
 import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
-import { chatContainer, visibleChat } from './core/layout';
+import { chatContainer, visibleChat, ChatLogReader } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
 import { InsetManager, insetApi } from './insets';
@@ -912,12 +912,73 @@ function watchVisibleChat(): void {
   ctx.subscriptions.push({ dispose: () => clearInterval(timer) });
 }
 
+/**
+ * Follows the official extension's log for the chat the panel was switched to (see ChatLogReader): at once, where
+ * the saved workspace state (watchVisibleChat) lags. The log sits next to ours, one folder per extension.
+ */
+function watchClaudeLog(): void {
+  const dir = path.join(path.dirname(ctx.logUri.fsPath), 'Anthropic.claude-code');
+  const reader = new ChatLogReader();
+  let file = '';
+  let pos = 0;
+  let live = false;
+  const newest = (): string => {
+    try {
+      const logs = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith('.log'))
+        .map((f) => ({ f: path.join(dir, f), t: fs.statSync(path.join(dir, f)).mtimeMs }))
+        .sort((a, b) => b.t - a.t);
+      return logs[0]?.f || '';
+    } catch {
+      return '';
+    }
+  };
+  let ticks = 0;
+  const tick = () => {
+    try {
+      // The log rolls over to a new file now and then.
+      if (!file || ticks++ % 20 === 0) {
+        const f = newest();
+        if (f && f !== file) [file, pos] = [f, 0];
+      }
+      if (!file) return;
+      const size = fs.statSync(file).size;
+      if (size < pos) pos = 0;
+      if (size === pos) return;
+      // What is already there only teaches which channel runs which chat (at most the last 8 MB).
+      const from = live ? pos : Math.max(pos, size - 8 * 1024 * 1024);
+      const buf = Buffer.alloc(size - from);
+      const fd = fs.openSync(file, 'r');
+      try {
+        fs.readSync(fd, buf, 0, buf.length, from);
+      } finally {
+        fs.closeSync(fd);
+      }
+      pos = size;
+      const shown = reader.feed(buf.toString('utf8'));
+      if (live && shown) {
+        log.info('Claude Code panel switched to chat ' + shown.slice(0, 8));
+        review.noteShownChat(shown);
+      }
+    } catch {
+      /* no log (yet) */
+    } finally {
+      live = true;
+    }
+  };
+  tick();
+  const timer = setInterval(tick, 500);
+  ctx.subscriptions.push({ dispose: () => clearInterval(timer) });
+}
+
 async function firstRunChecks(): Promise<void> {
   updateHookContext();
   if (process.env.CLAUDE_INLINE_DIFF_TEST) return;
   void checkShortcutConflicts();
   void placeChangesView(false);
   watchVisibleChat();
+  watchClaudeLog();
   const st = setup.status(bundledHook());
   // Our own script is outdated, or a newer version wires an extra event (e.g. Stop): update silently.
   if (st.scriptInstalled && (st.configured || st.partial) && (st.installedVersion !== st.bundledVersion || !st.configured)) {
