@@ -15,7 +15,7 @@ import * as S from '../core/store';
 import { splitLines } from '../core/diff';
 import { recordClaudeEdit } from '../core/regions';
 
-export const HOOK_VERSION = '1.0.4';
+export const HOOK_VERSION = '1.0.5';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const BASH_MAX_FILES = 300;
 const BASH_MAX_TOTAL = 16 * 1024 * 1024;
@@ -300,6 +300,4 @@ function main(): void {
   process.stdin.on('error', () => process.exit(0));
 }
 
-// `${HOOK_MARKER} v1.0.0` must appear in the bundle so setup can recognise the installed script.
-export const HOOK_BANNER = `${S.HOOK_MARKER} v${HOOK_VERSION}`;
 if (require.main === module) main();

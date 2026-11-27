@@ -803,26 +803,6 @@ function registerCommands(context: vscode.ExtensionContext): void {
       await vscode.commands.executeCommand('claudeInlineDiff.showDiff');
     }
   });
-  reg('listFiles', async () => {
-    const keys = review.pendingKeys();
-    if (!keys.length) {
-      void vscode.window.showInformationMessage('No Claude changes to review.');
-      return;
-    }
-    const pick = await vscode.window.showQuickPick(
-      keys.map((k) => {
-        const e = review.entries.get(k)!;
-        return {
-          label: path.basename(e.path),
-          description: vscode.workspace.asRelativePath(e.path),
-          detail: M.plural(review.hunks(k).length, 'change'),
-          key: k,
-        };
-      }),
-      { title: 'Claude changes to review' }
-    );
-    if (pick) await openAt(pick.key, review.hunks(pick.key)[0]);
-  });
   reg('installHooks', installHooks);
   reg('fixKeybindings', () => fixKeybindings());
   reg('uninstallHooks', uninstallHooks);

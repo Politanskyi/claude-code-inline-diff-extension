@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.26
+- Removed the *List Files to Review* quick pick (use *Show Claude Changes*) and a dead `HOOK_BANNER` export (hook v1.0.5, no behaviour change).
+
 ## 0.1.25
 - Status bar: no ▲ ▼ arrows (the pill arrows and Alt+J / Alt+K do the same).
 
