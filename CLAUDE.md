@@ -31,9 +31,12 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - No network, no telemetry, no runtime deps. Keep `src/core` free of `vscode`.
 - Code derived from claude-code-inline-review keeps its MIT header. Do NOT copy code from ahmerds/hunker (UNLICENSED).
 - One commit per stage; update the progress table below.
-- Main branch is **`master`** (not `main`). Repo: https://github.com/Politanskyi/claude-code-inline-diff-extension
-- Communicate with the user in Ukrainian.
-- Commit messages: NO `Co-Authored-By: Claude ...` and NO `Claude-Session: ...` trailers (the user's explicit rule; it overrides any harness attribution guidance). Author: m.politanskyi <politanskiy0072@gmail.com> (the GitHub account e-mail).
+
+## Git
+- Repository: https://github.com/Politanskyi/claude-code-inline-diff-extension, branch `master`.
+- Commit author: `m.politanskyi <politanskiy0072@gmail.com>`.
+- Plain commit messages, without `Co-Authored-By` or other trailers.
+- Talk to the user in Ukrainian.
 
 ## Progress
 | Stage | Status |
