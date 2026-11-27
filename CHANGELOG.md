@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.22
+- Claude Changes no longer expands itself on new changes: like Cursor, only you expand or collapse it.
+
 ## 0.1.21
 - Claude Changes: "N Files" is a real heading (larger, semibold) and the file rows are indented under it.
 

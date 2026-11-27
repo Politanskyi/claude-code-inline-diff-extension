@@ -191,9 +191,9 @@ export class Lenses implements vscode.CodeLensProvider, vscode.Disposable {
  *
  * Like Cursor: while there are changes to review it lists only those; once everything is reviewed it
  * keeps listing every file the current Claude chat changed (its history; no Undo/Keep then), and a new
- * chat starts empty. Collapsed by default; it expands itself when new changes arrive (an extension can
- * expand a view but not collapse it, so otherwise it stays as the user left it). With nothing at all it
- * shows an empty state, or the hook install button when the hook is missing.
+ * chat starts empty. Collapsed by default and only the user expands or collapses it, like Cursor's file
+ * list, which it never opens by itself (the one exception: a missing hook, so its install button shows).
+ * With nothing at all it shows an empty state, or the hook install button when the hook is missing.
  */
 export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly id = 'claudeInlineDiff.changes';
@@ -205,7 +205,6 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
   private theme: { doc: IconThemeDoc; dir: vscode.Uri; root: vscode.Uri } | null | undefined;
   private langs: Map<string, string> | undefined;
   private historyStats = new Map<string, { before: string | null; now: string | null; added: number; removed: number }>();
-  private pendingCount: number | undefined;
 
   constructor(private readonly review: ReviewManager) {
     this.disposables = [
@@ -215,10 +214,7 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
         this.theme = undefined;
         this.setHtml(this.view);
       }),
-      review.onDidChange(() => {
-        this.expandOnNewChanges();
-        this.update();
-      }),
+      review.onDidChange(() => this.update()),
       this._onVisibility,
     ];
   }
@@ -233,13 +229,6 @@ export class ChangesPanel implements vscode.WebviewViewProvider, vscode.Disposab
     this.hookReady = ready;
     if (!ready) this.expand();
     this.update();
-  }
-
-  /** New changes to review (none before): open the list like Cursor shows its file list. Not on startup. */
-  private expandOnNewChanges(): void {
-    const n = this.review.pendingKeys().length;
-    if (this.pendingCount === 0 && n > 0) this.expand();
-    this.pendingCount = n;
   }
 
   private expand(): void {
