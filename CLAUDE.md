@@ -31,6 +31,8 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - No network, no telemetry, no runtime deps. Keep `src/core` free of `vscode`.
 - Code derived from claude-code-inline-review keeps its MIT header. Do NOT copy code from ahmerds/hunker (UNLICENSED).
 - One commit per stage; update the progress table below.
+- Main branch is **`master`** (not `main`). Repo: https://github.com/Politanskyi/claude-code-inline-diff-extension
+- Communicate with the user in Ukrainian.
 
 ## Progress
 | Stage | Status |
