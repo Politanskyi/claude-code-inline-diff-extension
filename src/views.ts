@@ -436,13 +436,15 @@ ${fonts}
 .ic{border:0;background:transparent;color:var(--vscode-foreground);width:22px;height:20px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .ic:hover{background:var(--vscode-toolbar-hoverBackground,rgba(128,128,128,.2))}
 .ic svg{width:14px;height:14px;fill:currentColor}
-html,body,#root{height:100%}
+/* #root grows with the list: a sticky header stays only inside its parent's box. */
+html,body{height:100%}
+#root{min-height:100%}
 .nohook{display:flex;align-items:center;gap:6px;margin:6px 8px 2px 12px;padding:4px 6px 4px 8px;border-radius:4px;font-size:12px;line-height:1.3;color:var(--vscode-foreground);background:var(--vscode-inputValidation-warningBackground,rgba(204,167,0,.15));border:1px solid var(--vscode-inputValidation-warningBorder,rgba(204,167,0,.5))}
 .nohook svg{flex:none;width:14px;height:14px;fill:currentColor;opacity:.8}
 .nohook span{flex:1;min-width:0}
 .nohook button{flex:none;font:inherit;font-size:12px;height:20px;padding:0 8px;border:0;border-radius:4px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
 .nohook button:hover{background:var(--vscode-button-hoverBackground)}
-.empty{height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 16px;text-align:center;color:var(--vscode-descriptionForeground);font-size:12px;line-height:1.4}
+.empty{min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 16px;text-align:center;color:var(--vscode-descriptionForeground);font-size:12px;line-height:1.4}
 .empty svg{width:20px;height:20px;fill:currentColor;opacity:.7}
 .empty .t{color:var(--vscode-foreground);opacity:.75}
 .empty button{margin-top:4px;font:inherit;font-size:12px;height:24px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}

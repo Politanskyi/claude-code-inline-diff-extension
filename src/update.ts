@@ -47,6 +47,7 @@ function get(url: string, accept: string, redirects = 5): Promise<Buffer> {
 export class Updater implements vscode.Disposable {
   private timer: ReturnType<typeof setInterval> | undefined;
   private busy = false;
+  private reloadOffered = false;
 
   constructor(
     private readonly ctx: vscode.ExtensionContext,
@@ -65,14 +66,18 @@ export class Updater implements vscode.Disposable {
   /** Checks a little after startup and then every hour whether a check is due (the stamp is shared by all windows). */
   start(): void {
     const tick = () => void this.check(false);
-    const first = setTimeout(tick, 20_000);
+    // All windows start together and the shared stamp takes a moment to reach them: a random delay lets one
+    // window ask and the others see its stamp, instead of each downloading and installing the same release.
+    const first = setTimeout(tick, 20_000 + Math.floor(Math.random() * 60_000));
     this.timer = setInterval(tick, 3600_000);
+    this.ctx.subscriptions.push(vscode.window.onDidChangeWindowState((w) => w.focused && this.remind()));
     this.ctx.subscriptions.push({ dispose: () => clearTimeout(first) });
   }
 
   async check(manual: boolean): Promise<void> {
     if (this.busy) return;
     if (!manual) {
+      this.remind();
       if (this.mode() === 'off' || !U.checkDue(this.ctx.globalState.get<number>(STAMP), Date.now())) return;
     }
     this.busy = true;
@@ -108,6 +113,17 @@ export class Updater implements vscode.Disposable {
     }
   }
 
+  /**
+   * Another window installed a newer version: this one runs the old code until it is reloaded. Says so once
+   * (only while that version's folder is really there, next to ours: the note may be stale after a manual install).
+   */
+  private remind(): void {
+    const v = this.ctx.globalState.get<string>(INSTALLED);
+    if (this.reloadOffered || !v || !U.isNewer(v, this.current())) return;
+    const dir = path.join(path.dirname(this.ctx.extensionPath), `${this.ctx.extension.id.toLowerCase()}-${v}`);
+    if (fs.existsSync(dir)) void this.offerReload(v);
+  }
+
   private failed(e: unknown, tell: boolean): void {
     const msg = e instanceof Error ? e.message : String(e);
     this.log.warn('update: ' + msg);
@@ -137,6 +153,7 @@ export class Updater implements vscode.Disposable {
   }
 
   private async offerReload(version: string, page?: string): Promise<void> {
+    this.reloadOffered = true;
     const pick = await vscode.window.showInformationMessage(
       `Claude Inline Diff ${version} is installed. Reload the window to start using it.`,
       'Reload Window',
