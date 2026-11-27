@@ -138,6 +138,8 @@ cursor --install-extension claude-inline-diff.vsix --force
 
 ## 11. Якщо щось не працює
 
+- **Cmd+Y / Cmd+N не працюють** (відкривається щось інше, наприклад «No definition found»): ці клавіші зайняло інше розширення, найчастіше розкладка IntelliJ IDEA Keybindings. Розширення попереджає про це під час старту; натисніть **Fix Shortcuts** або виконайте **Claude Inline Diff: Fix Shortcut Conflicts with Other Extensions**. У ваш `keybindings.json` додаються записи, що діють лише всередині змін Claude (бекап — `keybindings.json.bak-claude-inline-diff`).
+
 - **Show Hook Status** показує, чи встановлено хук, чи він актуальний, режим дозволів і стан `editorInsets`.
 - View → Output → **Claude Inline Diff** містить журнал розширення.
 - Правок не видно:
