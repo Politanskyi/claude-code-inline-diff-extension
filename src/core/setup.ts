@@ -113,7 +113,36 @@ export function unmergeSettings(settings: any): boolean {
   return removed;
 }
 
-/** Atomic write with backup; keeps mode, writes through symlinks. Returns the backup path (or null). */
+const BACKUP_TAG = '.bak-claude-inline-diff';
+
+/** Our backups of `file` (`<file>.bak-claude-inline-diff-<time>`), oldest first. */
+export function listBackups(file: string): string[] {
+  const dir = path.dirname(file);
+  const prefix = path.basename(file) + BACKUP_TAG;
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((n) => n.startsWith(prefix))
+      .sort() // the ISO time in the name sorts by age
+      .map((n) => path.join(dir, n));
+  } catch {
+    return [];
+  }
+}
+
+/** Keeps the newest `keep` backups of `file` (default: the last one) and deletes the older ones. */
+export function pruneBackups(file: string, keep = 1): void {
+  const all = listBackups(file);
+  for (const b of all.slice(0, Math.max(0, all.length - keep))) {
+    try {
+      fs.unlinkSync(b);
+    } catch {
+      /* gone already */
+    }
+  }
+}
+
+/** Atomic write with one backup (older ones are removed); keeps mode, writes through symlinks. Returns the backup path (or null). */
 export function writeSettings(file: string, settings: unknown, now = new Date()): string | null {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   let target = file;
@@ -122,7 +151,7 @@ export function writeSettings(file: string, settings: unknown, now = new Date())
   if (fs.existsSync(file)) {
     target = fs.realpathSync(file);
     mode = fs.statSync(target).mode & 0o777;
-    backup = `${file}.bak-claude-inline-diff-${now.toISOString().replace(/[:.]/g, '-')}`;
+    backup = `${file}${BACKUP_TAG}-${now.toISOString().replace(/[:.]/g, '-')}`;
     fs.copyFileSync(target, backup);
     try {
       fs.chmodSync(backup, mode);
@@ -138,6 +167,7 @@ export function writeSettings(file: string, settings: unknown, now = new Date())
     /* windows */
   }
   fs.renameSync(tmp, target);
+  pruneBackups(file); // a safety net for the last change, not an archive
   return backup;
 }
 

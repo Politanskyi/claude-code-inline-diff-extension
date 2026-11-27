@@ -88,5 +88,7 @@
 - [ ] Windows: хук спрацьовує (немає помилок у панелі Claude Code; `~/.claude/inline-diff/projects/<проєкт>-…/baselines` з'являється).
 
 ## H. Видалення
+- [ ] **Remove Completely…** → Remove Everything: хука й режимів немає, рядка в `argv.json` немає (інші id на місці), наших клавіш у `keybindings.json` немає, `~/.claude/inline-diff` видалено, з копій лишилась одна `settings.json.bak-claude-inline-diff-…`. Після Uninstall Extension, перезапуску й нової установки список Set Up відкривається сам із трьома пунктами.
+- [ ] Після кількох Set Up / Uninstall поруч із `~/.claude/settings.json` лежить лише одна резервна копія.
 - [ ] **Uninstall Claude Code Hook** прибирає тільки наші записи, повертає режим дозволів, видаляє скрипт.
 - [ ] Видалення розширення + повний перезапуск: якщо крок вище пропущено, перевірте, чи прибрав хуки `vscode:uninstall`. Це питання сумісності з Cursor.

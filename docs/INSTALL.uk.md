@@ -93,7 +93,7 @@ cursor --install-extension claude-inline-diff.vsix
 - додає у `~/.claude/settings.json` чотири записи:
   - `PreToolUse` і `PostToolUse` з matcher `Edit|MultiEdit|Write|NotebookEdit|Bash`;
   - `UserPromptSubmit` і `Stop` (без matcher; Stop показує, що Claude закінчив хід). Якщо хук уже встановлено, розширення саме додасть `Stop` під час оновлення;
-- перед зміною робить резервну копію `settings.json.bak-claude-inline-diff-<час>`, зберігає права доступу до файлу й не чіпає чужі хуки;
+- перед зміною робить резервну копію `settings.json.bak-claude-inline-diff-<час>` (зберігається лише остання, старіші прибираються; жодна програма ці копії не читає, це страховка на випадок, якщо файл доведеться повернути вручну), зберігає права доступу до файлу й не чіпає чужі хуки;
 - якщо `settings.json` містить невалідний JSON, нічого не змінює й показує помилку.
 
 Офіційне розширення Claude Code і CLI використовують **той самий** `~/.claude/settings.json`, тож хук працює в обох (за документацією Anthropic; 🔶 запуск хуків саме офіційним розширенням автотестами не перевіряється, бо для цього потрібен вхід у Claude). Після встановлення **почніть нову розмову** в панелі Claude Code.
@@ -144,22 +144,23 @@ cursor --install-extension claude-inline-diff.vsix --force
 
 ## 10. Повне видалення
 
-1. Cmd/Ctrl+Shift+P → **Claude Inline Diff: Uninstall Claude Code Hook**. Команда:
-   - прибирає **лише наші** записи з `~/.claude/settings.json` (з резервною копією);
-   - видаляє скрипт `~/.claude/hooks/claude-inline-diff-hook.js`;
-   - повертає `permissions.defaultMode` і `claudeCode.initialPermissionMode`, якщо їх змінювало розширення;
-   - пропонує видалити знімки (`~/.claude/inline-diff/projects/…`, `~/.claude/inline-diff/store` і `.claude-review/`, якщо є).
-2. Видаліть розширення: Extensions → Claude Inline Diff → Uninstall, або
-   ```bash
-   cursor --uninstall-extension inlinediff.claude-inline-diff
-   ```
-   Страховка: VS Code при повному видаленні розширення й наступному перезапуску запускає скрипт `vscode:uninstall`. Наш скрипт робить те саме, що й крок 1, окрім знімків і `claudeCode.initialPermissionMode` (його повертає лише команда Uninstall). ✅ за документацією VS Code і тестом скрипта; 🔶 чи виконує його Cursor, не перевірено. Тому крок 1 надійніший.
-3. Приберіть рядок `"enable-proposed-api": ["inlinediff.claude-inline-diff"]` з `~/.cursor/argv.json`.
-4. Якщо лишились знімки (у проєктах вони є лише з `storage.location: project` або з версій до 0.1.27):
-   ```bash
-   find ~/projects -type d -name .claude-review -prune -exec rm -rf {} +
-   rm -rf ~/.claude/inline-diff
-   ```
+**Одна команда:** Cmd/Ctrl+Shift+P → **Claude Inline Diff: Remove Completely (hook, settings, snapshots, backups)…** → **Remove Everything**. Вона прибирає все, що розширення колись записало:
+- наші записи з `~/.claude/settings.json` і скрипт `~/.claude/hooks/claude-inline-diff-hook.js`;
+- `permissions.defaultMode` і `claudeCode.initialPermissionMode`, якщо їх виставило розширення;
+- наш рядок з `argv.json` (інші id у `enable-proposed-api` лишаються) і клавіші, додані через **Fix Shortcuts**, з `keybindings.json`;
+- усі знімки й історію (`~/.claude/inline-diff/` і `.claude-review/` у відкритому проєкті);
+- збережений стан розширення в Cursor і наші резервні копії (`*.bak-claude-inline-diff*`).
+
+Лишається одна резервна копія `settings.json` у стані до видалення; її шлях є в підсумковому повідомленні, і її можна стерти вручну. Далі натисніть **Uninstall Extension**, потім **Quit Cursor**. Неприйняті правки Claude залишаються у файлах, але вже без рев'ю.
+
+Якщо хочете лише вимкнути рев'ю, а розширення й знімки лишити: **Uninstall Claude Code Hook** (прибирає хук і режими дозволів; знімки пропонує видалити окремо).
+
+Що команда не знайде сама: папки `.claude-review/` в інших проєктах (вони є лише з `storage.location: project` або з версій до 0.1.27):
+```bash
+find ~/projects -type d -name .claude-review -prune -exec rm -rf {} +
+```
+
+Страховка: при видаленні розширення й наступному перезапуску VS Code запускає скрипт `vscode:uninstall`, який прибирає хук і `permissions.defaultMode`. ✅ за документацією VS Code і тестом скрипта; 🔶 чи виконує його Cursor, не перевірено. Тому команда вище надійніша.
 
 Ручне прибирання, якщо команди недоступні: відкрийте `~/.claude/settings.json` і видаліть усі об'єкти, у яких `command` містить `claude-inline-diff-hook.js`. Потім видаліть сам файл `~/.claude/hooks/claude-inline-diff-hook.js`.
 

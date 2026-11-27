@@ -42,7 +42,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | **Bash edits** (sed, codemods, formatters…) detected in git repos via `git status` before/after | unit + e2e |
 | ✅ | **Undo with feedback** (editor context menu, *Undo Change with Feedback for Claude…*): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
-| ✅ | Safe hook install/uninstall: backup, permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup | unit (temp `CLAUDE_CONFIG_DIR`) |
+| ✅ | Safe hook install/uninstall: one backup (older ones removed), permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup; **Remove Completely** undoes everything the extension wrote (hook, modes, `argv.json` line, added shortcuts, snapshots, stored state, backups) | unit (temp `CLAUDE_CONFIG_DIR`); the command: manual |
 | ✅ | Snapshots outside the project, one folder per project under `~/.claude/inline-diff/projects/` (or, by setting, in the project's `.claude-review/`, which ignores itself in git); switching moves them | unit |
 | ✅ | Files outside the project are reviewed too (snapshots in `~/.claude/inline-diff/store/`; unreviewed ones expire after `stepRetentionDays`), except Claude Code's own working folders `projects/`, `plans/`, `todos/` under `~/.claude`; like in Cursor a change belongs to the chat that made it: it is listed and highlighted only in that chat's window, not in the window of the project the file lives in | unit |
 

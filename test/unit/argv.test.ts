@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addProposedApi, hasProposedApi, argvPathFor } from '../../src/core/argv';
+import { addProposedApi, hasProposedApi, argvPathFor, removeProposedApi } from '../../src/core/argv';
 
 const ID = 'inlinediff.claude-inline-diff';
 const parse = (t: string) => JSON.parse(t.replace(/\/\/.*$/gm, ''));
@@ -43,5 +43,31 @@ describe('argv.json editing', () => {
     expect(argvPathFor('Cursor', '/h')).toMatch(/[\\/]\.cursor[\\/]argv\.json$/);
     expect(argvPathFor('Visual Studio Code', '/h')).toMatch(/[\\/]\.vscode[\\/]argv\.json$/);
     expect(argvPathFor('Visual Studio Code - Insiders', '/h')).toMatch(/\.vscode-insiders/);
+  });
+});
+
+describe('argv.json: removing our id', () => {
+  const commented =
+    '// This configuration file allows you to pass permanent command line arguments\n{\n\t// "disable-hardware-acceleration": true,\n\t"enable-crash-reporter": false,\n\t"crash-reporter-id": "abc"\n}\n';
+
+  it('gives back the original file after add + remove', () => {
+    expect(removeProposedApi(addProposedApi(commented, ID), ID)).toBe(commented);
+  });
+
+  it('keeps other ids in the array', () => {
+    const src = '{\n\t"enable-proposed-api": ["other.ext", "inlinediff.claude-inline-diff"]\n}\n';
+    const out = removeProposedApi(src, ID);
+    expect(parse(out)['enable-proposed-api']).toEqual(['other.ext']);
+    expect(hasProposedApi(out, ID)).toBe(false);
+  });
+
+  it('removes the property when it comes first, keeping what follows', () => {
+    const out = removeProposedApi('{\n\t"enable-proposed-api": ["inlinediff.claude-inline-diff"],\n\t"x": 1\n}\n', ID);
+    expect(parse(out)).toEqual({ x: 1 });
+  });
+
+  it('leaves an empty object when ours was the only key, and a file without our id alone', () => {
+    expect(parse(removeProposedApi(addProposedApi('', ID), ID))).toEqual({});
+    expect(removeProposedApi(commented, ID)).toBe(commented);
   });
 });

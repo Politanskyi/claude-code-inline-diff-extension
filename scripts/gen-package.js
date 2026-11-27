@@ -36,6 +36,7 @@ const commands = [
   C('setUp', 'Set Up…', 'gear'),
   C('installHooks', 'Install Claude Code Hook'),
   C('uninstallHooks', 'Uninstall Claude Code Hook'),
+  C('removeCompletely', 'Remove Completely (hook, settings, snapshots, backups)…'),
   C('hookStatus', 'Show Hook Status'),
   C('fixKeybindings', 'Fix Shortcut Conflicts with Other Extensions'),
   C('placeChangesView', 'Show Claude Changes Under the Claude Code Chat'),
@@ -269,7 +270,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.2.3',
+  version: '0.2.4',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

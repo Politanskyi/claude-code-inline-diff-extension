@@ -203,3 +203,22 @@ describe('installed command really runs (posix shell, as Claude Code does)', () 
     expect(r2.status).toBe(0);
   });
 });
+
+describe('backups of settings.json', () => {
+  it('keeps only the last backup, however many times the file is written', () => {
+    fs.writeFileSync(settingsFile, JSON.stringify({ a: 0 }));
+    for (let i = 1; i <= 4; i++) setup.writeSettings(settingsFile, { a: i }, new Date(Date.UTC(2026, 0, 1, 0, 0, i)));
+    const backups = setup.listBackups(settingsFile);
+    expect(backups).toHaveLength(1);
+    expect(JSON.parse(fs.readFileSync(backups[0], 'utf8'))).toEqual({ a: 3 }); // the state before the last write
+    expect(readS()).toEqual({ a: 4 });
+  });
+
+  it('removes older backups left by earlier versions on the next write', () => {
+    fs.writeFileSync(settingsFile, '{}');
+    for (const t of ['2026-01-01T00-00-00-000Z', '2026-01-02T00-00-00-000Z'])
+      fs.writeFileSync(`${settingsFile}.bak-claude-inline-diff-${t}`, '{}');
+    install();
+    expect(setup.listBackups(settingsFile)).toHaveLength(1);
+  });
+});

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+- New command **Remove Completely (hook, settings, snapshots, backups)…**: one confirmation removes everything the extension ever wrote — the hook and "Edit automatically", our `argv.json` line, the shortcuts added by *Fix Shortcuts*, all snapshots and history, the stored state and the backup files — then offers *Uninstall Extension*. One backup of `settings.json` from before the removal is kept.
+- Only the last backup of `settings.json` is kept (`settings.json.bak-claude-inline-diff-<time>`); every change used to leave another one behind for good. Older ones are removed on the next write.
+
 ## 0.2.3
 - Fully like Cursor: a file changed by a chat of another project is not highlighted here either (0.2.2 still drew the change when you opened the file). The change is reviewed only in the window of the chat that made it; this window shows no list row, no inline diff, no badge and no "Claude editing" for it.
 

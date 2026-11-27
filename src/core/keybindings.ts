@@ -130,3 +130,24 @@ export function addUserKeybindings(text: string, entries: { key: string; command
   const between = text.slice(p + 1, close).replace(/\s+$/, '');
   return text.slice(0, p + 1) + (needsComma ? ',' : '') + between + `\n\t${MARKER}\n${body}\n` + text.slice(close);
 }
+
+/**
+ * Removes what addUserKeybindings wrote: our marker lines and the one-line entries of our commands (and the
+ * comma it put after the entry before them). Returns the new text, or null when nothing of ours is there.
+ * Throws if the result would not parse, so a hand-edited file is never damaged.
+ */
+export function removeUserKeybindings(text: string, commandPrefix = 'claudeInlineDiff.'): string | null {
+  const ours = new RegExp(`^\\s*\\{[^\\n]*"command"\\s*:\\s*"${commandPrefix.replace(/\./g, '\\.')}[^\\n]*\\}\\s*,?\\s*$`);
+  const lines = text.split('\n');
+  const kept = lines.filter((l) => l.trim() !== MARKER && !ours.test(l));
+  if (kept.length === lines.length) return null;
+  let out = kept.join('\n');
+  // The entry before ours got a comma from us; with nothing after it, take the comma back.
+  const clean = blankComments(out);
+  const close = clean.lastIndexOf(']');
+  let p = close - 1;
+  while (p >= 0 && /\s/.test(clean[p])) p--;
+  if (close > 0 && clean[p] === ',') out = out.slice(0, p) + out.slice(p + 1);
+  JSON.parse(blankComments(out).replace(/,(\s*[}\]])/g, '$1') || '[]');
+  return out;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeKey, findConflicts, addUserKeybindings, keyFor } from '../../src/core/keybindings';
+import { normalizeKey, findConflicts, addUserKeybindings, keyFor, removeUserKeybindings } from '../../src/core/keybindings';
 
 const parse = (t: string) => JSON.parse(t.replace(/\/\/[^"\n]*$/gm, ''));
 
@@ -60,5 +60,22 @@ describe('addUserKeybindings', () => {
 
   it('refuses non-arrays', () => {
     expect(() => addUserKeybindings('{}', e)).toThrow();
+  });
+});
+
+describe('removeUserKeybindings', () => {
+  const e = [
+    { key: 'cmd+y', command: 'claudeInlineDiff.acceptHunk', when: 'editorTextFocus && claudeInlineDiff.cursorInHunk' },
+    { key: 'cmd+n', command: 'claudeInlineDiff.rejectHunk' },
+  ];
+
+  it('gives back the original file after add + remove', () => {
+    const src = '// Place your key bindings in this file to override the defaults\n[\n\t{ "key": "cmd+k", "command": "foo" } // mine\n]\n';
+    expect(removeUserKeybindings(addUserKeybindings(src, e)!)).toBe(src);
+  });
+
+  it('leaves an empty array when only ours were there, and other files alone', () => {
+    expect(parse(removeUserKeybindings(addUserKeybindings('', e)!)!)).toEqual([]);
+    expect(removeUserKeybindings('[\n\t{ "key": "cmd+k", "command": "foo" }\n]\n')).toBeNull();
   });
 });

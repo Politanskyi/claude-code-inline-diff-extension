@@ -30,6 +30,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 
 ## Conventions
 - Never write to the real `~/.claude` in tests: set `CLAUDE_CONFIG_DIR` / `CLAUDE_INLINE_DIFF_HOME` to temp dirs.
+- Backups: `writeSettings` keeps one `settings.json.bak-claude-inline-diff-<time>` (`pruneBackups`); `argv.json` / `keybindings.json` have one `.bak-claude-inline-diff` each. *Remove Completely* (`removeCompletely` in extension.ts) undoes everything we wrote and must be extended whenever the extension starts writing somewhere new.
 - Hook must never block Claude: swallow errors, exit 0, print only JSON additionalContext for feedback.
 - Any change under `src/hook/` (or `src/core/store.ts` it bundles) needs a `HOOK_VERSION` bump, or installed hooks are never updated.
 - No network, no telemetry, no runtime deps. Keep `src/core` free of `vscode`.

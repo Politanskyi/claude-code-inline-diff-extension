@@ -75,6 +75,35 @@ export function addProposedApi(text: string, id: string): string {
   return text.slice(0, p + 1) + insert + text.slice(last);
 }
 
+/**
+ * Returns argv.json text without `id` in "enable-proposed-api" (unchanged if it is not there). When ours was
+ * the only id, the whole property goes, with the comma that joined it to its neighbour. Comments are kept.
+ */
+export function removeProposedApi(text: string, id: string): string {
+  if (!hasProposedApi(text, id)) return text;
+  const clean = stripComments(text); // same length as text: comments are blanked, not removed
+  const arr = /"enable-proposed-api"\s*:\s*\[([^\]]*)\]/.exec(clean)!;
+  const same = (s: string) => s.trim().replace(/^"|"$/g, '').toLowerCase() === id.toLowerCase();
+  const rest = arr[1].split(',').filter((s) => s.trim() && !same(s));
+  if (rest.length) {
+    const innerStart = arr.index + arr[0].length - 1 - arr[1].length;
+    return text.slice(0, innerStart) + rest.map((s) => s.trim()).join(', ') + text.slice(innerStart + arr[1].length);
+  }
+  let start = arr.index;
+  let end = arr.index + arr[0].length;
+  let p = start - 1;
+  while (p >= 0 && /\s/.test(clean[p])) p--;
+  if (clean[p] === ',') {
+    start = p; // "...prev", <ours>  →  "...prev"
+  } else {
+    let q = end;
+    while (q < clean.length && /\s/.test(clean[q])) q++;
+    if (clean[q] === ',') end = q + 1; // <ours>, "next"...  →  "next"...
+    while (start > 0 && /[ \t]/.test(text[start - 1])) start--; // and the indentation of our line
+  }
+  return text.slice(0, start) + text.slice(end);
+}
+
 /** ~/.cursor/argv.json, ~/.vscode/argv.json, … by product. */
 export function argvPathFor(appName: string, home = os.homedir()): string {
   const n = appName.toLowerCase();

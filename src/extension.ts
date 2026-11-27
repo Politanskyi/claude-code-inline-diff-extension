@@ -7,8 +7,8 @@ import * as S from './core/store';
 import * as setup from './core/setup';
 import * as M from './core/model';
 import { Hunk } from './core/diff';
-import { addProposedApi, argvPathFor, hasProposedApi } from './core/argv';
-import { findConflicts, addUserKeybindings, keyFor, Conflict } from './core/keybindings';
+import { addProposedApi, argvPathFor, hasProposedApi, removeProposedApi } from './core/argv';
+import { findConflicts, addUserKeybindings, removeUserKeybindings, keyFor, Conflict } from './core/keybindings';
 import { chatContainer } from './core/layout';
 import { ReviewManager, HunkRef, cfg } from './review';
 import { Renderer } from './render';
@@ -452,22 +452,10 @@ async function enableAcceptEdits(quiet = false): Promise<boolean> {
   return true;
 }
 
-async function uninstallHooks(): Promise<void> {
-  const ok = await vscode.window.showWarningMessage(
-    'Remove the Claude Inline Diff hook from Claude Code settings?',
-    { modal: true },
-    'Remove'
-  );
-  if (ok !== 'Remove') return;
-  let done: string[];
-  try {
-    done = setup.uninstall();
-  } catch (e: any) {
-    void vscode.window.showErrorMessage('Claude Inline Diff: ' + e.message);
-    return;
-  }
+/** Our hook entries and script, and both "Edit automatically" switches if we set them. Throws when settings.json cannot be handled. */
+async function removeHookAndModes(): Promise<string[]> {
+  const done = setup.uninstall();
   updateHookContext();
-  await ctx.globalState.update('hookRemovedByUser', true); // a deliberate removal: Set Up does not open by itself again
   const vs = ctx.globalState.get<{ previous: string | null }>('vsModeSetByUs');
   if (vs) {
     const c = vscode.workspace.getConfiguration('claudeCode');
@@ -477,6 +465,130 @@ async function uninstallHooks(): Promise<void> {
     }
     await ctx.globalState.update('vsModeSetByUs', undefined);
   }
+  return done;
+}
+
+/**
+ * Everything the extension ever wrote, in one step: the hook and modes, our argv.json line, our user
+ * keybindings, every snapshot and its history, our stored state and our backup files. One backup of
+ * settings.json as it was before this removal stays (it is the user's Claude Code settings file).
+ */
+async function removeCompletely(): Promise<void> {
+  const app = vscode.env.appName;
+  const ok = await vscode.window.showWarningMessage(
+    'Remove Claude Inline Diff completely?',
+    {
+      modal: true,
+      detail:
+        'This removes the Claude Code hook and "Edit automatically" (if this extension set it), the argv.json line for red blocks, ' +
+        "the shortcuts added by Fix Shortcuts, all review snapshots and history, and the extension's stored state and backups.\n\n" +
+        'Pending Claude changes stay in your files but can no longer be reviewed or undone. One backup of settings.json is kept.',
+    },
+    'Remove Everything'
+  );
+  if (ok !== 'Remove Everything') return;
+  const done: string[] = [];
+  const failed: string[] = [];
+  const step = async (what: string, fn: () => void | Promise<void>) => {
+    try {
+      await fn();
+    } catch (e: any) {
+      failed.push(`${what}: ${e?.message || e}`);
+    }
+  };
+  const settingsFile = setup.settingsPath();
+  let before: string | null = null;
+  try {
+    before = fs.readFileSync(settingsFile, 'utf8');
+  } catch {
+    /* no settings.json */
+  }
+
+  await step('hook', async () => void done.push(...(await removeHookAndModes())));
+  await step('argv.json', () => {
+    const file = argvPathFor(app);
+    const text = readArgv();
+    const next = removeProposedApi(text, EXTENSION_ID);
+    if (next !== text) {
+      fs.writeFileSync(file, next);
+      done.push(`removed our line from ${file}`);
+    }
+  });
+  await step('keybindings.json', () => {
+    const file = userKeybindingsPath();
+    if (!fs.existsSync(file)) return;
+    const next = removeUserKeybindings(fs.readFileSync(file, 'utf8'));
+    if (next !== null) {
+      fs.writeFileSync(file, next);
+      done.push(`removed our shortcuts from ${file}`);
+    }
+  });
+  await step('snapshots', () => {
+    // After the hook step: it reads the setup state kept in this folder.
+    const dirs = [S.globalDir(), ...review.storeDirs().filter((d) => !S.isInside(d, S.globalDir()) && S.isOurStore(d))];
+    for (const d of dirs) {
+      if (!fs.existsSync(d)) continue;
+      fs.rmSync(d, { recursive: true, force: true });
+      done.push('deleted ' + d);
+    }
+  });
+  let kept: string | null = null;
+  await step('backups', () => {
+    for (const b of setup.listBackups(settingsFile)) fs.rmSync(b, { force: true });
+    for (const f of [argvPathFor(app), userKeybindingsPath()]) fs.rmSync(f + '.bak-claude-inline-diff', { force: true });
+    let now: string | null = null;
+    try {
+      now = fs.readFileSync(settingsFile, 'utf8');
+    } catch {
+      /* none */
+    }
+    if (before !== null && before !== now) {
+      kept = `${settingsFile}.bak-claude-inline-diff-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+      fs.writeFileSync(kept, before, { mode: fs.statSync(settingsFile).mode & 0o777 });
+    }
+    done.push('deleted backup files' + (kept ? ` (kept ${kept}: settings.json before this removal)` : ''));
+  });
+  await step('stored state', async () => {
+    for (const k of ctx.globalState.keys()) await ctx.globalState.update(k, undefined);
+    done.push('cleared stored state');
+  });
+  review.refresh(true);
+  updateHookContext();
+  done.forEach((d) => log.info('remove completely: ' + d));
+  failed.forEach((d) => log.error('remove completely: ' + d));
+  if (failed.length) {
+    log.show();
+    void vscode.window.showErrorMessage(`Claude Inline Diff: ${failed.length} step(s) failed, see the log. ${failed[0]}`);
+  }
+  const pick = await vscode.window.showInformationMessage(
+    `Claude Inline Diff: everything removed.${kept ? ` One backup is kept: ${kept}.` : ''} Uninstall the extension to finish; red blocks stay on until ${app} is restarted.`,
+    'Uninstall Extension',
+    'Show Details'
+  );
+  if (pick === 'Show Details') log.show();
+  if (pick === 'Uninstall Extension') {
+    await vscode.commands.executeCommand('workbench.extensions.uninstallExtension', EXTENSION_ID);
+    void vscode.window
+      .showInformationMessage(`Extension uninstalled. Quit ${app} to finish.`, `Quit ${app}`)
+      .then((c) => c && vscode.commands.executeCommand('workbench.action.quit'));
+  }
+}
+
+async function uninstallHooks(): Promise<void> {
+  const ok = await vscode.window.showWarningMessage(
+    'Remove the Claude Inline Diff hook from Claude Code settings?',
+    { modal: true },
+    'Remove'
+  );
+  if (ok !== 'Remove') return;
+  let done: string[];
+  try {
+    done = await removeHookAndModes();
+  } catch (e: any) {
+    void vscode.window.showErrorMessage('Claude Inline Diff: ' + e.message);
+    return;
+  }
+  await ctx.globalState.update('hookRemovedByUser', true); // a deliberate removal: Set Up does not open by itself again
   done.forEach((d) => log.info('uninstall: ' + d));
   const pick = await vscode.window.showInformationMessage(
     done.length ? 'Hook removed. ' + done.join('; ') : 'Nothing to remove.',
@@ -907,6 +1019,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   reg('installHooks', () => installHooks());
   reg('fixKeybindings', () => fixKeybindings());
   reg('uninstallHooks', uninstallHooks);
+  reg('removeCompletely', removeCompletely);
   reg('hookStatus', hookStatus);
   reg('enableInsets', enableInsets);
   reg('clearSnapshots', clearSnapshots);
