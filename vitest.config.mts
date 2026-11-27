@@ -1,2 +1,6 @@
 import { defineConfig } from 'vitest/config';
-export default defineConfig({ test: { include: ['test/unit/**/*.test.ts'], environment: 'node' } });
+import * as path from 'path';
+export default defineConfig({
+  test: { include: ['test/unit/**/*.test.ts'], environment: 'node' },
+  resolve: { alias: { vscode: path.resolve(__dirname, 'test/unit/vscode-stub.ts') } },
+});
