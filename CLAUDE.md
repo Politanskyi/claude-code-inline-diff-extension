@@ -81,7 +81,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - Claude Changes (Cursor's composer file list, from its source): pending files only while any are pending; afterwards every file the current chat touched (steps of the newest own session, `M.currentSession`), undone ones too; collapsed by default and never auto-expanded (Cursor's `isFileListExpanded` changes only on user click); the status bar opens it via `<view>.focus` (checked live) and hands focus back to the editor.
 - Floating Undo File / Keep File ⌘⏎ via `editor/content` (Cursor renders only its first two items) (proposed contribEditorContentMenu), only in the active editor (`claudeInlineDiff.activeFiles`); Cursor's own file bar sits in the breadcrumb row, which extensions cannot use; Undo All / Keep All / Review in the Claude Changes list.
 - Follow Claude (reveal + flash new hunks), Review All (vscode.changes multi-diff), no inline drawing inside diff editors.
-- e2e: 17 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
+- e2e: 18 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
 ## Next ideas (not started)
 - Whether Cursor runs `vscode:uninstall`; the rest of docs/MANUAL_TESTING.uk.md not yet ticked.

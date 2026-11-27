@@ -4,6 +4,7 @@
 - Bash edits in **another repository** are now seen. Until now a command was compared with `git status` only in the chat's own project, so `cd ../other-repo && sed -i …` (or a script run there) changed files that showed up nowhere. The hook now also looks at the repository the command names (`cd <dir>`, `pushd <dir>`, `git -C <dir>`), at the shell's current folder, and at repositories where this chat already changed a file. Such files appear in the chat's window with the Bash tag, like other changes outside the project. A command that edits some other place without naming it is still not seen. Hook 1.0.9.
 - After installing, the **Set Up** list opens only in the focused window (it used to open in every open window at once).
 - The extension's page in the editor shows the README screenshots (their links now point to the repository; they used to be broken).
+- Fix: after **Undo** in the pill on a file Claude created (the file goes to the trash), its row stayed in Claude Changes for a while. It now goes at once.
 - The chat's file history no longer lists Claude Code's own working files (memory, plans) recorded by old hook versions.
 
 ## 0.2.4

@@ -658,7 +658,12 @@ export class ReviewManager implements vscode.Disposable {
       files: [{ key: e.key, path: e.path, entryBefore: before, textBefore: exists ? cur : DELETED, textAfter: next }],
     });
     this.memo.delete(e.key);
-    this.finish(e.key);
+    // A file moved to the trash is done at once: its closed document can stay loaded for minutes (the editor,
+    // another extension), and while it does, the file would still look changed and stay in the list.
+    if (next === DELETED) {
+      this.dropEntry(e);
+      this.fireChange();
+    } else this.finish(e.key);
     return true;
   }
 

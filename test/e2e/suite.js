@@ -254,6 +254,22 @@ test('a new file created by Claude: Reject file moves it away', async () => {
   await vscode.commands.executeCommand('claudeInlineDiff.acceptFile', vscode.Uri.file(abs));
 });
 
+test('a new file created by Claude: Undo of its only change (the pill) removes it from the list at once', async () => {
+  const abs = claudeWrite('src/new-pill.ts', 'export const pill = 1;\n', 'Write');
+  const find = () => api.review.pendingKeys().find((k) => k.endsWith('new-pill.ts'));
+  await until(() => !!find(), 'new file pending');
+  const key = find();
+  await vscode.window.showTextDocument(vscode.Uri.file(abs)); // an open document used to keep the row alive
+  const [h] = api.review.hunks(key);
+  assert.ok(await api.review.rejectHunk({ key, aStart: h.aStart, bStart: h.bStart }));
+  assert.ok(!fs.existsSync(abs), 'file moved away');
+  assert.ok(!api.review.entries.has(key), 'no longer under review');
+  assert.ok(!find(), 'not in the list');
+  await vscode.commands.executeCommand('claudeInlineDiff.undo');
+  assert.ok(fs.existsSync(abs) && api.review.entries.has(key), 'undo brings the file and its review back');
+  await vscode.commands.executeCommand('claudeInlineDiff.acceptFile', vscode.Uri.file(abs));
+});
+
 test('a Bash edit (sed) is detected via git', async () => {
   const git = (...a) => execFileSync('git', a, { cwd: WS, stdio: 'pipe' });
   fs.rmSync(path.join(WS, '.git'), { recursive: true, force: true });
