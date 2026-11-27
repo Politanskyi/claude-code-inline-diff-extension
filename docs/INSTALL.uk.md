@@ -106,7 +106,7 @@ Cmd/Ctrl+Shift+P → **Claude Inline Diff: Install Claude Code Hook**
 - **Claude Inline Diff: Revert Last Keep/Undo** відкочує будь-яку дію рев'ю. Cmd/Ctrl+Z одразу після Keep або Undo теж відкочує цю дію, і зміна знову чекає на рев'ю.
 - Якщо Cmd+N заважає (наприклад, ви звикли так створювати файл), виставте `"claudeInlineDiff.keybindingScheme": "alt"`. Тоді працюватимуть Cmd/Ctrl+Alt+Enter і Cmd/Ctrl+Alt+Backspace. Утім, Cmd+Y/N і так діють **лише коли курсор усередині зміни Claude**.
 
-Знімки «до» зберігаються в `<корінь git>/.claude-review/`. Ця папка ігнорує сама себе через власний `.gitignore` із `*`, тож ваш `.gitignore` не змінюється.
+Знімки «до» зберігаються поза проєктом, в окремій папці для кожного проєкту: `~/.claude/inline-diff/projects/<назва проєкту>-<хеш шляху>/`, тож проєкт лишається чистим. З `"claudeInlineDiff.storage.location": "project"` вони лежать у `<корінь git>/.claude-review/`, яка ігнорує сама себе через власний `.gitignore` із `*`. Під час перемикання розширення саме переносить наявні знімки, а стару папку `.claude-review` з попередніх версій переносить у новий типовий шлях. Якщо проєкт перейменувати чи перемістити, незавершене рев'ю й історія кроків для нього почнуться з нуля (код не постраждає).
 
 ## 9. Оновлення
 
@@ -123,14 +123,14 @@ cursor --install-extension claude-inline-diff.vsix --force
    - прибирає **лише наші** записи з `~/.claude/settings.json` (з резервною копією);
    - видаляє скрипт `~/.claude/hooks/claude-inline-diff-hook.js`;
    - повертає `permissions.defaultMode` і `claudeCode.initialPermissionMode`, якщо їх змінювало розширення;
-   - пропонує видалити знімки (`.claude-review/` і `~/.claude/inline-diff/store`).
+   - пропонує видалити знімки (`~/.claude/inline-diff/projects/…`, `~/.claude/inline-diff/store` і `.claude-review/`, якщо є).
 2. Видаліть розширення: Extensions → Claude Inline Diff → Uninstall, або
    ```bash
    cursor --uninstall-extension inlinediff.claude-inline-diff
    ```
    Страховка: VS Code при повному видаленні розширення й наступному перезапуску запускає скрипт `vscode:uninstall`. Наш скрипт робить те саме, що й крок 1, окрім знімків і `claudeCode.initialPermissionMode` (його повертає лише команда Uninstall). ✅ за документацією VS Code і тестом скрипта; 🔶 чи виконує його Cursor, не перевірено. Тому крок 1 надійніший.
 3. Приберіть рядок `"enable-proposed-api": ["inlinediff.claude-inline-diff"]` з `~/.cursor/argv.json`.
-4. Якщо лишились знімки в проєктах:
+4. Якщо лишились знімки (у проєктах вони є лише з `storage.location: project` або з версій до 0.1.27):
    ```bash
    find ~/projects -type d -name .claude-review -prune -exec rm -rf {} +
    rm -rf ~/.claude/inline-diff

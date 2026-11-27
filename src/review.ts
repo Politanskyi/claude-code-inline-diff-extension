@@ -73,11 +73,13 @@ export class ReviewManager implements vscode.Disposable {
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('claudeInlineDiff.storage')) {
           this.syncSharedConfig();
+          this.moveStores();
           this.refresh(true);
         }
       })
     );
     this.syncSharedConfig();
+    this.moveStores();
     this.refresh(true);
     this.timer = setInterval(() => this.poll(), cfg('pollIntervalMs', 700));
   }
@@ -92,17 +94,20 @@ export class ReviewManager implements vscode.Disposable {
 
   sharedConfig(): S.SharedConfig {
     return {
-      storage: cfg<string>('storage.location', 'project') === 'home' ? 'home' : 'project',
+      storage: cfg<string>('storage.location', 'home') === 'project' ? 'project' : 'home',
       dirName: cfg('storage.projectDirName', S.STORE_DIR_NAME_DEFAULT),
       trackBash: cfg('trackBashEdits', true),
       stepRetentionDays: Math.max(1, cfg('stepRetentionDays', 7)),
     };
   }
 
-  /** The hook reads ~/.claude/inline-diff/config.json, so the editor setting reaches it. */
+  /**
+   * The hook reads ~/.claude/inline-diff/config.json, so the editor setting reaches it. Written even when
+   * it only holds defaults: an older hook's defaults may differ (it kept snapshots in the project).
+   */
   syncSharedConfig(): void {
     const want = this.sharedConfig();
-    const have = S.readConfig();
+    const have = fs.existsSync(S.configPath()) ? S.readConfig() : null;
     if (JSON.stringify(want) !== JSON.stringify(have)) {
       try {
         S.writeConfig(want);
@@ -112,15 +117,41 @@ export class ReviewManager implements vscode.Disposable {
     }
   }
 
+  /** Project roots of this window (real paths, like the hook's), each with its in-project store folders. */
+  private projectRoots(): { root: string; inProject: string[] }[] {
+    const dirName = this.sharedConfig().dirName;
+    return (vscode.workspace.workspaceFolders || [])
+      .filter((f) => f.uri.scheme === 'file')
+      .map((f) => {
+        const root = S.realPath(S.projectRootFor(f.uri.fsPath));
+        return { root, inProject: [...new Set([path.join(root, dirName), path.join(S.realPath(f.uri.fsPath), dirName)])] };
+      });
+  }
+
+  /** Both places are read, so a review started before a `storage` switch (or a failed move) still shows. */
   computeStores(): string[] {
-    const c = this.sharedConfig();
     const out = new Set<string>([S.globalStoreDir()]);
-    for (const f of vscode.workspace.workspaceFolders || []) {
-      if (f.uri.scheme !== 'file') continue;
-      out.add(path.join(S.projectRootFor(f.uri.fsPath), c.dirName));
-      out.add(path.join(f.uri.fsPath, c.dirName));
+    for (const p of this.projectRoots()) {
+      out.add(S.homeProjectStoreDir(p.root));
+      p.inProject.forEach((d) => out.add(d));
     }
     return [...out];
+  }
+
+  /** Moves each project's store to where `storage.location` says (e.g. an old .claude-review out of the project). */
+  moveStores(): void {
+    const home = this.sharedConfig().storage === 'home';
+    for (const p of this.projectRoots()) {
+      const homeDir = S.homeProjectStoreDir(p.root);
+      for (const dir of p.inProject) {
+        const [from, to] = home ? [dir, homeDir] : [homeDir, p.inProject[0]];
+        try {
+          if (S.moveStore(from, to)) this.log.info(`moved review store ${from} → ${to}`);
+        } catch (e: any) {
+          this.log.warn(`cannot move review store ${from} → ${to}: ${e?.message || e}`);
+        }
+      }
+    }
   }
 
   // ---------- loading ----------

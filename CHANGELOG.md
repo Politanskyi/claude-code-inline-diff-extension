@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.27
+- Snapshots no longer live in the project by default: each project gets its own folder under `~/.claude/inline-diff/projects/` (hook v1.0.6). An existing `.claude-review/` is moved there automatically; `storage.location: project` keeps the old behaviour, and switching moves the snapshots either way.
+- Fix: `storage.location: home` used one store for every project, so another project's running Claude could hide Undo/Keep here and the chat history could pick the wrong chat.
+
 ## 0.1.26
 - Fix: a file Claude created without a trailing newline showed a phantom "-1" and an empty removed block; created files now count as one added change, and Keep makes the whole text the baseline.
 - Fix: `stepRetentionDays` above 7 was ignored (the hook pruned steps after a week); the hook now reads it from the shared config (hook v1.0.5).

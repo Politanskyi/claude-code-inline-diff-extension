@@ -1,6 +1,6 @@
 {
   "name": "claude-inline-diff",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
   "main": "./dist/extension.js",
   "scripts": {
@@ -232,7 +232,7 @@
       },
       {
         "command": "claudeInlineDiff.clearSnapshots",
-        "title": "Delete Review Snapshots (.claude-review)…",
+        "title": "Delete Review Snapshots…",
         "category": "Claude Inline Diff"
       },
       {
@@ -368,17 +368,17 @@
       "properties": {
         "claudeInlineDiff.storage.location": {
           "type": "string",
-          "default": "project",
-          "markdownDescription": "Where review snapshots live. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). `home`: `~/.claude/inline-diff/store/`. Files outside the project always use `home`.",
+          "default": "home",
+          "markdownDescription": "Where review snapshots live. `home`: a folder per project under `~/.claude/inline-diff/projects/`, so the project stays clean. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). Switching moves existing snapshots. Files outside any project use `~/.claude/inline-diff/store/`.",
           "enum": [
-            "project",
-            "home"
+            "home",
+            "project"
           ]
         },
         "claudeInlineDiff.storage.projectDirName": {
           "type": "string",
           "default": ".claude-review",
-          "markdownDescription": "Folder name of the project-local store."
+          "markdownDescription": "Folder name of the store inside the project (`storage.location: project`)."
         },
         "claudeInlineDiff.trackBashEdits": {
           "type": "boolean",
@@ -488,7 +488,7 @@
         "claudeInlineDiff.pollIntervalMs": {
           "type": "number",
           "default": 700,
-          "markdownDescription": "How often to look for new snapshots (ms). File watchers are used too. Applies after reloading the window.",
+          "markdownDescription": "How often to look for new snapshots (ms). Applies after reloading the window.",
           "minimum": 200
         }
       }

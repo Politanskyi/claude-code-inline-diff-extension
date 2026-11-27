@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { homeProjectStoreDir } from '../../src/core/store';
 
 /** A throwaway project + Claude config dir; never touches the real ~/.claude. */
 export function sandbox() {
@@ -16,7 +17,10 @@ export function sandbox() {
     project,
     claude,
     env,
-    store: path.join(project, '.claude-review'),
+    /** The project's store (default `storage: home`: outside the project). */
+    store: homeProjectStoreDir(project, env),
+    /** The in-project store (`storage: project`). */
+    projectStore: path.join(project, '.claude-review'),
     write(rel: string, text: string) {
       const p = path.join(project, rel);
       fs.mkdirSync(path.dirname(p), { recursive: true });

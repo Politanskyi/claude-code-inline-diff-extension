@@ -11,6 +11,30 @@ afterEach(() => {
 });
 
 describe('store', () => {
+  it('gives each project its own home store, stable and readable', () => {
+    const a = S.homeProjectStoreDir('/work/shop app', sb.env);
+    expect(a).toBe(S.homeProjectStoreDir('/work/shop app', sb.env));
+    expect(path.basename(a)).toMatch(/^shop_app-[0-9a-f]{12}$/);
+    expect(S.homeProjectStoreDir('/other/shop app', sb.env)).not.toBe(a); // same name, different project
+  });
+
+  it('moves a store between project and home, merging, and only if it is ours', () => {
+    const f = sb.write('a.ts', 'x');
+    S.createBaseline(sb.projectStore, { version: 3, path: f, existed: true, content: 'old', createdAt: 1 });
+    expect(S.moveStore(sb.projectStore, sb.store)).toBe(true);
+    expect(fs.existsSync(sb.projectStore)).toBe(false);
+    expect(S.loadEntries(sb.store)).toHaveLength(1);
+    // Merge into an existing target keeps what is there.
+    const g = sb.write('b.ts', 'y');
+    S.createBaseline(sb.projectStore, { version: 3, path: g, existed: true, content: 'old', createdAt: 1 });
+    expect(S.moveStore(sb.projectStore, sb.store)).toBe(true);
+    expect(S.loadEntries(sb.store)).toHaveLength(2);
+    // A folder of the same name that is not ours is never touched.
+    sb.write('.claude-review/notes.txt', 'mine');
+    expect(S.moveStore(sb.projectStore, sb.store)).toBe(false);
+    expect(sb.read('.claude-review/notes.txt')).toBe('mine');
+  });
+
   it('round-trips entries and removes them', () => {
     const f = sb.write('a.ts', 'x');
     S.createBaseline(sb.store, { version: 3, path: f, existed: true, content: '\uFEFFold', createdAt: 5 });

@@ -45,7 +45,7 @@ It uses Claude Code hooks, so no API key is needed, there's no proxy, and it mak
 | ✅ | **Undo with feedback** (editor context menu, *Undo Change with Feedback for Claude…*): the reason reaches Claude with your next message (UserPromptSubmit `additionalContext`), or after its next tool call if it is still working | unit + e2e (hook output) |
 | ✅ | Cursor's own agent is ignored (`cursor_version` in the payload) | unit + e2e |
 | ✅ | Safe hook install/uninstall: backup, permissions preserved, symlinks followed, invalid JSON never overwritten, foreign hooks untouched; `vscode:uninstall` cleanup | unit (temp `CLAUDE_CONFIG_DIR`) |
-| ✅ | Snapshots in the project (`.claude-review/`, ignores itself via its own `.gitignore`) or in `~/.claude/inline-diff/store` | unit |
+| ✅ | Snapshots outside the project, one folder per project under `~/.claude/inline-diff/projects/` (or, by setting, in the project's `.claude-review/`, which ignores itself in git); switching moves them | unit |
 
 ## How it works
 
@@ -86,7 +86,7 @@ cursor --install-extension claude-inline-diff.vsix
 
 | Setting | Default | |
 |---|---|---|
-| `storage.location` | `project` | `project` (`<git root>/.claude-review/`) or `home` |
+| `storage.location` | `home` | `home` (`~/.claude/inline-diff/projects/<project>-<hash>/`, keeps the project clean) or `project` (`<git root>/.claude-review/`) |
 | `keybindingScheme` | `both` | `cursor` (Cmd+Y/N), `alt` (Cmd+Alt+Enter/Backspace), `both` |
 | `autoAdvance` | `cursor` | `cursor` (like Cursor), `hunkThenFile`, `hunk`, `off` |
 | `deletedLines.renderer` | `auto` | `auto`, `inset`, `decoration` |
@@ -97,7 +97,7 @@ cursor --install-extension claude-inline-diff.vsix
 | `revealOnEdit` | `false` | open the file Claude edits (preview, focus stays; Cursor does not) |
 | `trackBashEdits` | `true` | detect Bash edits via git |
 | `highlightWords` | `false` | mark changed words inside removed lines (Cursor does not) |
-| `storage.projectDirName` | `.claude-review` | snapshot folder name inside the project |
+| `storage.projectDirName` | `.claude-review` | snapshot folder name inside the project (`storage.location: project`) |
 | `pollIntervalMs` | `700` | how often the store is checked for new edits (applies after reloading the window) |
 | `saveAfterReject`, `absorbUserEdits`, `showCodeLens`, `confirmRejectAll`, `confirmDeleteCreatedFile`, `stepRetentionDays` | | |
 

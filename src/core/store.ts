@@ -1,8 +1,11 @@
 // On-disk review state, shared by the Claude Code hook (dist/hook.js) and the
 // extension so the two can never disagree on paths or formats.
 //
-// Layout of a store directory (project-local `<root>/.claude-review/` by
-// default, or `~/.claude/inline-diff/store/`):
+// Where a store lives (see storeDirFor):
+//   ~/.claude/inline-diff/projects/<name>-<hash>/  one per project, outside it (default, `storage: home`)
+//   <git root>/.claude-review/                     inside the project (`storage: project`)
+//   ~/.claude/inline-diff/store/                   files outside any project, and editor-writes/
+// Layout of a store directory:
 //   .gitignore                 "*"  — the store ignores itself; your .gitignore is never edited
 //   baselines/<name>.json      the file as it was before Claude's first pending edit
 //   baselines/<name>.landed    touched by PostToolUse: Claude's write has happened
@@ -32,7 +35,7 @@ export interface SharedConfig {
   /** Days to keep per-step snapshots (the hook prunes older ones). */
   stepRetentionDays: number;
 }
-export const DEFAULT_CONFIG: SharedConfig = { storage: 'project', dirName: STORE_DIR_NAME_DEFAULT, trackBash: true, stepRetentionDays: 7 };
+export const DEFAULT_CONFIG: SharedConfig = { storage: 'home', dirName: STORE_DIR_NAME_DEFAULT, trackBash: true, stepRetentionDays: 7 };
 
 export interface BaselineFile {
   version: 3;
@@ -96,8 +99,22 @@ export function claudeDir(env: NodeJS.ProcessEnv = process.env): string {
 export function globalDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.CLAUDE_INLINE_DIFF_HOME || path.join(claudeDir(env), 'inline-diff');
 }
+/** The store for files outside any project (and the editor-writes log). */
 export function globalStoreDir(env: NodeJS.ProcessEnv = process.env): string {
   return path.join(globalDir(env), 'store');
+}
+/**
+ * A project's own store outside the project: `projects/<folder name>-<hash of its path>`. Hook and
+ * extension derive it from the (real) project root alone, so they always agree without a registry.
+ */
+export function homeProjectStoreDir(projectRoot: string, env: NodeJS.ProcessEnv = process.env): string {
+  const name =
+    path
+      .basename(projectRoot)
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 40) || 'project';
+  const hash = crypto.createHash('sha256').update(cmpForm(projectRoot)).digest('hex').slice(0, 12);
+  return path.join(globalDir(env), 'projects', `${name}-${hash}`);
 }
 export function configPath(env: NodeJS.ProcessEnv = process.env): string {
   return path.join(globalDir(env), 'config.json');
@@ -107,7 +124,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): SharedConfig {
   try {
     const raw = JSON.parse(fs.readFileSync(configPath(env), 'utf8'));
     return {
-      storage: raw.storage === 'home' ? 'home' : 'project',
+      storage: raw.storage === 'project' ? 'project' : 'home',
       dirName: typeof raw.dirName === 'string' && /^[\w.-]+$/.test(raw.dirName) ? raw.dirName : STORE_DIR_NAME_DEFAULT,
       trackBash: raw.trackBash !== false,
       stepRetentionDays: typeof raw.stepRetentionDays === 'number' && raw.stepRetentionDays >= 1 ? raw.stepRetentionDays : 7,
@@ -144,15 +161,44 @@ export function isInside(child: string, parent: string): boolean {
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-/** The store a file's review lives in. */
+/** The store a file's review lives in: its project's store, or the global one for files outside the project. */
 export function storeDirFor(
   absFile: string,
   projectRoot: string | undefined,
   cfg: SharedConfig,
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  if (cfg.storage === 'project' && projectRoot && isInside(absFile, projectRoot)) return path.join(projectRoot, cfg.dirName);
-  return globalStoreDir(env);
+  if (!projectRoot || !isInside(absFile, projectRoot)) return globalStoreDir(env);
+  return cfg.storage === 'project' ? path.join(projectRoot, cfg.dirName) : homeProjectStoreDir(projectRoot, env);
+}
+
+/** Our own store (it carries our self-ignoring .gitignore), not some unrelated folder of the same name. */
+export function isOurStore(dir: string): boolean {
+  try {
+    return fs.readFileSync(path.join(dir, '.gitignore'), 'utf8').includes('Claude Inline Diff');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Moves a store to another place (switching `storage` between project and home), merging into an
+ * existing target. Returns true when something moved. Only ever touches a folder that is ours.
+ */
+export function moveStore(from: string, to: string): boolean {
+  if (cmpForm(from) === cmpForm(to) || !isOurStore(from)) return false;
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  if (!fs.existsSync(to)) {
+    try {
+      fs.renameSync(from, to);
+      return true;
+    } catch {
+      /* another disk: copy below */
+    }
+  }
+  fs.cpSync(from, to, { recursive: true, force: false, errorOnExist: false });
+  fs.rmSync(from, { recursive: true, force: true });
+  return true;
 }
 
 // ---------- naming ----------

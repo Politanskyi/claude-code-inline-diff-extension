@@ -64,6 +64,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - `contribEditorContentMenu` / `editor/content` work in Cursor (used for the floating per-file Undo File / Keep File bar).
 - Cursor keeps the Claude Code chat in a generated auxiliary-bar container; `src/core/layout.ts` finds it in `state.vscdb` and `vscode.moveViews` puts Claude Changes under it once.
 - Bash tracking skips files the editor saved during the command (`editor-writes/` in the global store).
+- Stores: default `storage: home` = `~/.claude/inline-diff/projects/<name>-<sha256(path)[:12]>/` per project (`homeProjectStoreDir`, derived from the real project root by both hook and extension); `project` = `<root>/.claude-review/`; files outside a project → `~/.claude/inline-diff/store/`. The extension reads both project locations and `moveStore`s to the configured one (only folders with our .gitignore marker).
 
 ## Cursor parity (taken from Cursor 3.32 source/CSS, checked with screenshots in Cursor 3.32.4)
 - Labels Keep / Undo; keys Cmd/Ctrl+Y / N, Cmd/Ctrl+Enter (keep file), Cmd/Ctrl+Shift+Backspace (undo file) — from Cursor's

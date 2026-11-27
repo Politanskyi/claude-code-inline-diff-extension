@@ -41,7 +41,7 @@ const commands = [
   C('enableInsets', 'Enable Inline Removed-Code Blocks (argv.json)…'),
   C('showChangesList', 'Show Claude Changes', 'list-flat'),
   C('revertStep', 'Revert to Before This Step', 'history'),
-  C('clearSnapshots', 'Delete Review Snapshots (.claude-review)…'),
+  C('clearSnapshots', 'Delete Review Snapshots…'),
   C('refresh', 'Refresh', 'refresh'),
   C('openFile', 'Open File at First Change'),
 ];
@@ -81,11 +81,15 @@ const configuration = {
   properties: {
     'claudeInlineDiff.storage.location': P(
       'string',
-      'project',
-      'Where review snapshots live. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). `home`: `~/.claude/inline-diff/store/`. Files outside the project always use `home`.',
-      { enum: ['project', 'home'] }
+      'home',
+      'Where review snapshots live. `home`: a folder per project under `~/.claude/inline-diff/projects/`, so the project stays clean. `project`: `<git root>/.claude-review/` (ignores itself via its own `.gitignore`). Switching moves existing snapshots. Files outside any project use `~/.claude/inline-diff/store/`.',
+      { enum: ['home', 'project'] }
     ),
-    'claudeInlineDiff.storage.projectDirName': P('string', '.claude-review', 'Folder name of the project-local store.'),
+    'claudeInlineDiff.storage.projectDirName': P(
+      'string',
+      '.claude-review',
+      'Folder name of the store inside the project (`storage.location: project`).'
+    ),
     'claudeInlineDiff.trackBashEdits': P(
       'boolean',
       true,
@@ -264,7 +268,7 @@ Object.assign(pkg, {
   displayName: 'Claude Inline Diff',
   description:
     "Review Claude Code's edits inline, like Cursor's agent diff: red removed lines between your code, green added lines, Keep/Undo per change, file or all (Cmd+Y / Cmd+N), Claude Changes list under the chat, undo.",
-  version: '0.1.26',
+  version: '0.1.27',
   publisher: 'inlinediff',
   license: 'MIT',
   private: true,

@@ -69,12 +69,21 @@ describe('hook: Edit / MultiEdit / Write', () => {
     expect(sb.read('.gitignore')).toBe('node_modules\n');
   });
 
-  it('honours storage=home', () => {
-    S.writeConfig({ ...S.DEFAULT_CONFIG, storage: 'home' }, sb.env);
+  it('keeps the project clean by default: one store per project under the home folder', () => {
     sb.write('a.ts', 'v1');
     claudeEdit('a.ts', 'v2');
+    expect(fs.existsSync(sb.projectStore)).toBe(false);
+    expect(S.loadEntries(sb.store)).toHaveLength(1);
+    expect(sb.store.startsWith(path.join(S.globalDir(sb.env), 'projects') + path.sep)).toBe(true);
+    expect(S.loadEntries(S.globalStoreDir(sb.env))).toHaveLength(0); // never mixed with other projects
+  });
+
+  it('honours storage=project', () => {
+    S.writeConfig({ ...S.DEFAULT_CONFIG, storage: 'project' }, sb.env);
+    sb.write('a.ts', 'v1');
+    claudeEdit('a.ts', 'v2');
+    expect(S.loadEntries(sb.projectStore)).toHaveLength(1);
     expect(fs.existsSync(sb.store)).toBe(false);
-    expect(S.loadEntries(S.globalStoreDir(sb.env))).toHaveLength(1);
   });
 
   it('puts files outside the project in the home store', () => {
@@ -323,7 +332,7 @@ describe('hook: edit regions', () => {
 
 describe('hook: Claude turn (UserPromptSubmit … Stop)', () => {
   it('marks the turn on the prompt and on tool calls, clears it on Stop', () => {
-    const store = path.join(sb.project, '.claude-review');
+    const store = sb.store;
     handle({ session_id: 'sess-1', cwd: sb.project, hook_event_name: 'UserPromptSubmit', prompt: 'go' }, ctx());
     const t1 = S.lastTurnActivity(store);
     expect(t1).toBeGreaterThan(0);
