@@ -73,31 +73,35 @@ describe.skipIf(!isWin || !fs.existsSync(dist))('Windows: the installed hook com
     expect({ out, n: baselines().length, cmd }).toMatchObject({ n: 3 });
   });
 
-  // Diagnostic: which form of "run the editor's binary as Node" works where (node stands in for the editor binary).
-  it('diagnostic: no-node fallback forms per shell', () => {
+  // Windows without Node: the editor's own binary runs the hook (node stands in for it here).
+  it('no-Node form: sets ELECTRON_RUN_AS_NODE and passes stdin in Git Bash; fails without blocking elsewhere', () => {
     const probe = path.join(sb.root, 'probe dir', 'probe.js');
     fs.mkdirSync(path.dirname(probe), { recursive: true });
     fs.writeFileSync(
       probe,
       "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.stringify({env:process.env.ELECTRON_RUN_AS_NODE||null,stdin:s.length})));"
     );
-    const exe = process.execPath;
-    const forms: Record<string, string> = {
-      current: setup.hookCommand(probe, { nodeOnPath: false, execPath: exe, platform: 'win32' }),
-      posix: `ELECTRON_RUN_AS_NODE=1 "${exe}" "${probe}"`,
-      ps: `$env:ELECTRON_RUN_AS_NODE='1'; & "${exe}" "${probe}"`,
-    };
-    const matrix: Record<string, unknown> = {};
-    for (const [name, cmd] of Object.entries(forms))
-      for (const shell of ['bash', 'powershell', 'cmd'] as Shell[]) {
-        const r = runIn(shell, cmd, 'x'.repeat(10), { ...sb.env, ELECTRON_RUN_AS_NODE: undefined });
-        matrix[`${name}/${shell}`] = {
-          status: r.status,
-          stdout: (r.stdout || '').slice(0, 80),
-          stderr: (r.stderr || '').replace(/\s+/g, ' ').slice(0, 120),
-        };
-      }
-    console.log('FALLBACK-MATRIX ' + JSON.stringify(matrix));
-    console.log('FALLBACK-FORMS ' + JSON.stringify(forms));
+    const cmd = setup.hookCommand(probe, { nodeOnPath: false, execPath: process.execPath, platform: 'win32' });
+    const env = { ...sb.env, ELECTRON_RUN_AS_NODE: undefined };
+    const bash = runIn('bash', cmd, 'x'.repeat(10), env);
+    expect({ status: bash.status, stdout: bash.stdout, stderr: bash.stderr, cmd }).toMatchObject({
+      status: 0,
+      stdout: '{"env":"1","stdin":10}',
+    });
+    for (const shell of ['powershell', 'cmd'] as Shell[]) {
+      const r = runIn(shell, cmd, 'x', env);
+      // Exit code 2 would block Claude's tool call; anything else is a non-blocking hook error.
+      expect({ shell, status: r.status, stdout: r.stdout }).toMatchObject({ status: 1, stdout: '' });
+    }
+  });
+
+  it('no-Node form runs the real hook in Git Bash', () => {
+    setup.install({ bundled: dist, dir: sb.claude, nodeOnPath: false, execPath: process.execPath, platform: 'win32' });
+    const cmd = JSON.parse(fs.readFileSync(path.join(sb.claude, 'settings.json'), 'utf8')).hooks.PreToolUse[0].hooks[0].command;
+    expect(cmd.startsWith('ELECTRON_RUN_AS_NODE=1 ')).toBe(true);
+    const f = sb.write('b.ts', 'v1');
+    const r = runIn('bash', cmd, payload(f, 'PreToolUse'), sb.env);
+    expect({ status: r.status, stdout: r.stdout, stderr: r.stderr }).toMatchObject({ status: 0, stdout: '' });
+    expect(baselines()).toHaveLength(1);
   });
 });

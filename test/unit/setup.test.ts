@@ -115,6 +115,23 @@ describe('hook command', () => {
       'ELECTRON_RUN_AS_NODE=1 "/A/Cursor Helper" "/h/x.js"'
     );
   });
+
+  it('uses the same shell form on Windows (Git Bash) and flags the old cmd form for repair', () => {
+    const script = 'C:\\Users\\me\\.claude\\hooks\\claude-inline-diff-hook.js';
+    expect(setup.hookCommand(script, { nodeOnPath: false, execPath: 'C:\\Cursor\\Cursor.exe', platform: 'win32' })).toBe(
+      `ELECTRON_RUN_AS_NODE=1 "C:\\Cursor\\Cursor.exe" "${script}"`
+    );
+    expect(setup.isLegacyCommand(`set ELECTRON_RUN_AS_NODE=1&& "C:\\Cursor\\Cursor.exe" "${script}"`)).toBe(true);
+    expect(setup.isLegacyCommand(`node "${script}"`)).toBe(false);
+    setup.install({ bundled, dir: sb.claude, nodeOnPath: true });
+    expect(setup.status(bundled, sb.claude).legacyCommand).toBe(false);
+    const s = readS();
+    s.hooks.PreToolUse[0].hooks[0].command = `set ELECTRON_RUN_AS_NODE=1&& "C:\\Cursor\\Cursor.exe" "${script}"`;
+    fs.writeFileSync(settingsFile, JSON.stringify(s));
+    expect(setup.status(bundled, sb.claude).legacyCommand).toBe(true);
+    setup.install({ bundled, dir: sb.claude, nodeOnPath: true });
+    expect(setup.status(bundled, sb.claude).legacyCommand).toBe(false);
+  });
 });
 
 describe('uninstall', () => {

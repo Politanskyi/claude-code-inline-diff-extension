@@ -26,14 +26,22 @@ function q(p: string): string {
   return `"${p.replace(/"/g, '\\"')}"`;
 }
 
+/** The cmd.exe form written on Windows before 0.3.9: in Git Bash it started the editor itself instead of the hook. */
+const LEGACY_WINDOWS_PREFIX = 'set ELECTRON_RUN_AS_NODE=1&&';
+export const isLegacyCommand = (cmd: unknown) => typeof cmd === 'string' && cmd.startsWith(LEGACY_WINDOWS_PREFIX) && isOurCommand(cmd);
+
 /**
  * The command for settings.json. `node` when available; otherwise the
  * editor's own Electron binary in Node mode (Claude Code's native installer
  * does not need Node, so it may be absent).
+ *
+ * The no-Node form is POSIX shell syntax on every platform: on Windows Claude Code
+ * runs hooks in Git Bash by default, and no single form sets the variable in Git Bash,
+ * PowerShell and cmd alike (checked on a Windows runner: test/unit/windows-shell.test.ts).
+ * In PowerShell and cmd this form fails with exit code 1, which never blocks Claude.
  */
 export function hookCommand(script: string, opts: { nodeOnPath: boolean; execPath?: string; platform?: NodeJS.Platform }): string {
   if (opts.nodeOnPath || !opts.execPath) return `node ${q(script)}`;
-  if ((opts.platform || process.platform) === 'win32') return `set ELECTRON_RUN_AS_NODE=1&& ${q(opts.execPath)} ${q(script)}`;
   return `ELECTRON_RUN_AS_NODE=1 ${q(opts.execPath)} ${q(script)}`;
 }
 
@@ -199,6 +207,8 @@ export interface Status {
   partial: boolean; // some events wired
   settingsError: string | null;
   defaultMode?: string;
+  /** settings.json still has the pre-0.3.9 Windows command, which does not work in Git Bash. */
+  legacyCommand: boolean;
 }
 
 export function status(bundled: string, dir = claudeDir()): Status {
@@ -219,8 +229,12 @@ export function status(bundled: string, dir = claudeDir()): Status {
   let partial = false;
   let settingsError: string | null = null;
   let defaultMode: string | undefined;
+  let legacyCommand = false;
   try {
     const s = readSettings(settingsPath(dir));
+    legacyCommand = ALL_EVENTS.some((e) =>
+      groupsOf(s, e).some((g) => Array.isArray(g?.hooks) && g.hooks.some((h: any) => isLegacyCommand(h?.command)))
+    );
     const wired = ALL_EVENTS.filter((e) => hasOurHook(s, e)).length;
     configured = wired === ALL_EVENTS.length;
     partial = wired > 0 && !configured;
@@ -237,6 +251,7 @@ export function status(bundled: string, dir = claudeDir()): Status {
     partial,
     settingsError,
     defaultMode,
+    legacyCommand,
   };
 }
 

@@ -9,7 +9,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 
 ## Commands
 - `npm run build` — esbuild → `dist/extension.js`, `dist/hook.js`, `dist/uninstall.js`
-- `npm test` — vitest unit tests (`test/unit`)
+- `npm test` — vitest unit tests (`test/unit`); run `npm run build` first, or the tests of the bundled hook are skipped
 - `npm run lint` / `npm run format` / `npm run typecheck`
 - `npm run test:e2e` — VS Code via @vscode/test-electron (Linux: `xvfb-run -a npm run test:e2e`)
 - `npm run package` — production build + `claude-inline-diff.vsix`
@@ -91,5 +91,5 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - e2e: 18 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
 ## Next ideas (not started)
-- Windows: the hook has not been checked live (the only open item in docs/MANUAL_TESTING.uk.md).
+- Windows: not checked live with the Claude Code panel (the only open item in docs/MANUAL_TESTING.uk.md). CI covers it without the panel: `test/unit/windows-shell.test.ts` runs the installed hook command in Git Bash, PowerShell and cmd, and the e2e suite runs in VS Code on Windows. Without Node the hook command is shell syntax (works in Git Bash only); no form works in all three shells.
 - Optional Stop-hook delivery of feedback.

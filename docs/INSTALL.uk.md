@@ -38,7 +38,7 @@ Set Up можна запустити будь-коли: Cmd/Ctrl+Shift+P → **C
 - Cursor (або VS Code ≥ 1.90).
 - Офіційне розширення **Claude Code** (`anthropic.claude-code`), у яке ви вже увійшли з корпоративною підпискою.
 - Node.js ≥ 18, лише якщо збираєте `.vsix` самі (готовий файл є в релізах).
-  - Для роботи хука Node бажаний, але не обов'язковий. Якщо `node` немає в PATH, хук запускається самим Cursor у режимі Node (`ELECTRON_RUN_AS_NODE=1`). ✅ на Linux/macOS (sh), 🔶 на Windows.
+  - Для роботи хука Node бажаний, але не обов'язковий. Якщо `node` немає в PATH, хук запускається самим Cursor у режимі Node (`ELECTRON_RUN_AS_NODE=1`). ✅ на Linux/macOS (sh). На Windows цей запасний шлях працює лише в Git Bash (типова оболонка Claude Code на Windows; ✅ перевірено в CI), а в PowerShell і cmd — ні, тому на Windows краще встановити Node.js.
 - `git`, тільки якщо хочете бачити правки, які Claude робить через Bash.
 
 ## 2. Збірка .vsix (необов'язково: готовий файл є в релізах)

@@ -137,7 +137,7 @@ They never fire while the Claude panel has focus, so they don't clash with the o
 - Bash tracking compares `git status` before and after a command, so a file changed **by someone else while the command runs** (another agent such as Cursor's writing straight to disk) is attributed to Claude. Files you save in the editor during the command are filtered out. On Windows, folders in `cd` are read the way Git Bash reads them (`"C:\\Users\\me\\repo"`, `/c/Users/me/repo`).
 - Which chat the Claude Changes list follows: a new chat and a chat opened from the history come from the `SessionStart` hook; going back to a chat already open in the window comes from the official extension's own log, read best effort (its wording is not an interface). If an update changes it, such switches show up late (up to about a minute, from the editor's saved state) or with your next message in that chat.
 - Feedback reaches Claude on your **next message**, or on its next tool call. Claude Code offers no documented way to push text into an idle session.
-- The hook needs `node` on PATH, or it falls back to the editor's own binary via `ELECTRON_RUN_AS_NODE`. The Windows variant of that fallback is untested.
+- The hook needs `node` on PATH, or it falls back to the editor's own binary via `ELECTRON_RUN_AS_NODE`. On Windows that fallback works only in Git Bash (Claude Code's default shell there), not when hooks run in PowerShell or cmd; install Node.js to be independent of the shell.
 - If Claude edits a file while you have **unsaved** changes in it, VS Code itself shows a conflict. Save before letting Claude edit; the official extension's `autosave` (default on) does this.
 
 ## Development

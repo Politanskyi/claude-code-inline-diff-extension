@@ -416,6 +416,12 @@ async function installHooks(quiet = false): Promise<boolean> {
   done.forEach((d) => log.info('install: ' + d));
   updateHookContext();
   await ctx.globalState.update('hookRemovedByUser', undefined);
+  if (process.platform === 'win32' && !nodeOnPath()) {
+    // Not awaited: a notification must never block the command.
+    void vscode.window.showWarningMessage(
+      'Claude Inline Diff: Node.js was not found, so the hook runs through the editor itself. That works only when Claude Code runs hooks in Git Bash (its default on Windows). Installing Node.js and running Set Up again is the reliable way.'
+    );
+  }
   if (quiet) return true;
   const st = setup.status(bundledHook());
   const vsMode = vscode.workspace.getConfiguration('claudeCode').inspect<string>('initialPermissionMode')?.globalValue;
@@ -1032,7 +1038,11 @@ async function firstRunChecks(): Promise<void> {
   watchClaudeLog();
   const st = setup.status(bundledHook());
   // Our own script is outdated, or a newer version wires an extra event (e.g. Stop): update silently.
-  if (st.scriptInstalled && (st.configured || st.partial) && (st.installedVersion !== st.bundledVersion || !st.configured)) {
+  if (
+    st.scriptInstalled &&
+    (st.configured || st.partial) &&
+    (st.installedVersion !== st.bundledVersion || !st.configured || st.legacyCommand)
+  ) {
     try {
       setup.install({ bundled: bundledHook(), nodeOnPath: nodeOnPath(), execPath: process.execPath }); // silent self-update of our own script
       log.info('hook script updated to v' + st.bundledVersion);

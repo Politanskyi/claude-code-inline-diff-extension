@@ -100,7 +100,7 @@
 - [x] Агент Cursor (не Claude) редагує файл → наше розширення його **не** підсвічує.
 - [x] Великий файл (5000+ рядків) з кількома змінами: прокрутка плавна, немає підвисань.
 - [x] Світла тема: кольори читабельні.
-- [ ] Windows: хук спрацьовує (немає помилок у панелі Claude Code; `~/.claude/inline-diff/projects/<проєкт>-…/baselines` з'являється).
+- [ ] Windows: хук спрацьовує (немає помилок у панелі Claude Code; `~/.claude/inline-diff/projects/<проєкт>-…/baselines` з'являється). (у CI на Windows перевірено: команда хука з `settings.json` у Git Bash, PowerShell і cmd, зокрема зі шляхом із пробілами, і весь e2e-набір у VS Code; наживо з панеллю Claude Code на Windows — ще ні)
 
 ## H. Видалення
 - [x] **Remove Completely…** → Remove Everything: хука й режимів немає, рядка в `argv.json` немає (інші id на місці), наших клавіш у `keybindings.json` немає, `~/.claude/inline-diff` видалено, з копій лишилась одна `settings.json.bak-claude-inline-diff-…`. Після Uninstall Extension, перезапуску й нової установки список Set Up відкривається сам із трьома пунктами.

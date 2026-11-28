@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.9
+- Fix (Windows without Node.js): the hook command was written in cmd syntax, which Git Bash — the shell Claude Code runs hooks in on Windows — does not understand: the editor itself was started instead of the hook, and nothing showed inline. The command now uses shell syntax, an old one is replaced on start, and Set Up warns when Node.js is missing. With Node.js installed nothing changes.
+- Checked on a Windows runner: the installed hook command in Git Bash, PowerShell and cmd (paths with spaces too), and the whole e2e suite in VS Code on Windows.
+
 ## 0.3.8
 - Removed the “Claude editing <file>” status bar item: an edit lasts a fraction of a second, so it was practically never visible, and Cursor has nothing like it.
 
