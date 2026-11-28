@@ -11,6 +11,14 @@ const WS = process.env.CID_WORKSPACE;
 const HOOK = process.env.CID_HOOK;
 const SHOTS = process.env.CID_SHOTS;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Windows: the editor reports a lower-case drive letter and long names, the temp path may use 8.3 names.
+const canon = (p) => {
+  try {
+    p = fs.realpathSync.native(p);
+  } catch {}
+  return process.platform === 'win32' ? p.toLowerCase() : p;
+};
+const samePath = (a, b) => canon(a) === canon(b);
 async function until(fn, what, ms = 8000) {
   const t = Date.now();
   while (Date.now() - t < ms) {
@@ -160,8 +168,12 @@ test('a Claude edit shows up inline (hunks, insets, reveal on edit)', async () =
   await until(() => api.review.pendingKeys().length === 1, 'review entry');
   const key = api.review.pendingKeys()[0];
   await until(
-    () => vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath === abs,
-    'revealOnEdit opened the file'
+    () => vscode.window.activeTextEditor && samePath(vscode.window.activeTextEditor.document.uri.fsPath, abs),
+    'revealOnEdit opened the file (active: ' +
+      (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath) +
+      ', expected: ' +
+      abs +
+      ')'
   );
   await until(() => vscode.window.activeTextEditor.document.getText() === AFTER, 'editor shows Claude text');
   const hunks = api.review.hunks(key);
