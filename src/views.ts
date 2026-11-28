@@ -1,4 +1,4 @@
-// Status bar ("N files · M changes", "Claude editing <file>"), Explorer/tab badges,
+// Status bar ("N files · M changes"), Explorer/tab badges,
 // CodeLens (fallback when pills are off), the Claude Changes list (a webview under the Claude Code chat)
 // and the Claude Steps tree (Source Control).
 import * as vscode from 'vscode';
@@ -17,7 +17,6 @@ const keys = () => keyLabels(process.platform === 'darwin', cfg<string>('keybind
 
 export class StatusBar implements vscode.Disposable {
   private main = vscode.window.createStatusBarItem('claudeInlineDiff.summary', vscode.StatusBarAlignment.Left, 1000);
-  private editing = vscode.window.createStatusBarItem('claudeInlineDiff.editing', vscode.StatusBarAlignment.Left, 1001);
   private setup = vscode.window.createStatusBarItem('claudeInlineDiff.setup', vscode.StatusBarAlignment.Left, 999);
   private disposables: vscode.Disposable[];
 
@@ -26,7 +25,6 @@ export class StatusBar implements vscode.Disposable {
     private readonly list: ChangesPanel
   ) {
     this.main.name = 'Claude Inline Diff: changes to review';
-    this.editing.name = 'Claude Inline Diff: Claude is editing';
     this.main.command = 'claudeInlineDiff.showChangesList'; // the editor keeps focus for Cmd+Y / Cmd+N
     // The Claude Changes list is collapsed by default, so a missing hook must also show here.
     this.setup.name = 'Claude Inline Diff: set up';
@@ -36,10 +34,8 @@ export class StatusBar implements vscode.Disposable {
     this.setup.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
     this.disposables = [
       this.main,
-      this.editing,
       this.setup,
       review.onDidChange(() => this.update()),
-      review.onActivity(() => this.update()),
       vscode.window.onDidChangeActiveTextEditor(() => this.update()),
       list.onDidChangeVisibility(() => this.update()),
     ];
@@ -65,13 +61,6 @@ export class StatusBar implements vscode.Disposable {
     } else {
       this.main.hide();
     }
-    const act = this.review.activity.find((a) => Date.now() - a.ts < S.ACTIVITY_STALE_MS);
-    if (act) {
-      this.editing.text = `$(loading~spin) Claude editing ${path.basename(act.path)}`;
-      this.editing.tooltip = act.path;
-      this.editing.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(act.path)] };
-      this.editing.show();
-    } else this.editing.hide();
   }
 
   dispose(): void {

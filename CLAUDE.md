@@ -49,7 +49,7 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 | 5 Rendering (insets + fallback) | done — verified in real VS Code 1.148 via e2e (insets drawn, decoration fallback); docs/media screenshots retaken live in Cursor 3.32.4 (0.1.31) |
 | 6 Controls, navigation, status bar, undo | done — e2e: accept/reject/undo/auto-advance/absorb/new-file trash/Bash/feedback/steps |
 | 7 vsix + docs | done — `npm run package` → claude-inline-diff.vsix (11 files, ~67 KB; installs via code CLI); README, docs/INSTALL.uk.md, docs/MANUAL_TESTING.uk.md |
-| 8 Panel, Bash, steps, feedback | done — Claude Changes (files, under the Claude Code chat) + Claude Steps views, Bash via git, step revert, `Claude editing <file>`, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
+| 8 Panel, Bash, steps, feedback | done — Claude Changes (files, under the Claude Code chat) + Claude Steps views, Bash via git, step revert, reveal-on-edit, reject with feedback (UserPromptSubmit/PostToolUse additionalContext) |
 
 ## Known issues / lessons
 - VS Code 1.148 refuses `editorInsets` even in dev mode unless `--enable-proposed-api <id>` is passed (e2e passes it).
@@ -91,5 +91,5 @@ Extension id: **`inlinediff.claude-inline-diff`** (needed in `~/.cursor/argv.jso
 - e2e: 18 tests, pass in Cursor 3.32.4 (dark + light) and VS Code 1.148.
 
 ## Next ideas (not started)
-- Whether Cursor runs `vscode:uninstall`; the rest of docs/MANUAL_TESTING.uk.md not yet ticked.
+- Windows: the hook has not been checked live (the only open item in docs/MANUAL_TESTING.uk.md).
 - Optional Stop-hook delivery of feedback.

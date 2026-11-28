@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.8
+- Removed the “Claude editing <file>” status bar item: an edit lasts a fraction of a second, so it was practically never visible, and Cursor has nothing like it.
+
 ## 0.3.7
 - In a project opened for the first time, the Claude Code chat section was collapsed (the editor opens no section of a tab that holds two, and our list sits under the chat). The chat is now opened once per project, when its tab is the one on screen; nothing is switched or revealed, and a chat you collapse yourself stays collapsed.
 

@@ -70,14 +70,11 @@ export class ReviewManager implements vscode.Disposable {
   private readonly _onNewFile = new vscode.EventEmitter<S.Entry>();
   /** A file entered review for the first time (for reveal-on-edit). */
   readonly onNewFile = this._onNewFile.event;
-  private readonly _onActivity = new vscode.EventEmitter<void>();
-  readonly onActivity = this._onActivity.event;
 
   constructor(private readonly log: vscode.LogOutputChannel) {
     this.disposables.push(
       this._onDidChange,
       this._onNewFile,
-      this._onActivity,
       vscode.workspace.onDidChangeTextDocument((e) => this.onDocChange(e)),
       vscode.workspace.onDidOpenTextDocument((d) => this.rememberDoc(d)),
       // A save during a Claude Bash command must not be mistaken for the command's change.
@@ -287,7 +284,6 @@ export class ReviewManager implements vscode.Disposable {
     for (const s of this.stores) {
       for (const a of S.loadActivity(s)) if (s !== global || (!!a.sessionId && this.own.has(a.sessionId))) acts.push(a);
     }
-    const actChanged = JSON.stringify(acts) !== JSON.stringify(this.activity);
     this.activity = acts.sort((a, b) => b.ts - a.ts);
 
     for (const e of this.entries.values()) {
@@ -301,7 +297,6 @@ export class ReviewManager implements vscode.Disposable {
     for (const k of this.seen) if (!this.entries.has(k)) this.seen.delete(k);
     this.cleanupResolved();
     this.storeStamp = this.stamp();
-    if (actChanged) this._onActivity.fire();
     this.fireChange();
   }
 
